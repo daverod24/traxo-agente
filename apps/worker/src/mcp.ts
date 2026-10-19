@@ -4,13 +4,22 @@ import type { Hono } from "hono";
 import { INTERNAL } from "./auth.ts";
 
 /**
- * Expone las herramientas de Traxo por MCP sobre HTTP en /mcp (para usarlas desde Claude con el worker en Railway).
- * Sin estado: cada petición crea su propio servidor. Si TRAXO_MCP_TOKEN está definido, exige `Authorization: Bearer <token>`.
+/**
+ * Expone las herramientas de Traxo por MCP sobre HTTP en /mcp.
+ * Modo FAIL-CLOSED: si TRAXO_MCP_TOKEN no está definido o es vacío, rechaza con 401 invariablemente.
  */
-export function mountMcp(app: Hono, token = process.env.TRAXO_MCP_TOKEN): void {
+export function mountMcp(
+  app: Hono,
+  token = process.env.TRAXO_MCP_TOKEN,
+  opts: { readOnly?: boolean } = {},
+): void {
   app.all("/mcp", async (c) => {
-    if (token && c.req.header("authorization") !== `Bearer ${token}`) {
-      return c.json({ error: "Falta el token de Traxo (TRAXO_MCP_TOKEN)." }, 401);
+    // Fail-Closed: denegar si falta token en servidor o si la cabecera no coincide exactamente
+    if (!token || token.trim() === "" || c.req.header("authorization") !== `Bearer ${token}`) {
+      return c.json(
+        { error: "Acceso no autorizado: TRAXO_MCP_TOKEN no configurado o token Bearer inválido." },
+        401,
+      );
     }
     // El servidor se llama a sí mismo: ya validamos el token de /mcp, así que entra con el pase interno.
     const internal = {
@@ -23,7 +32,7 @@ export function mountMcp(app: Hono, token = process.env.TRAXO_MCP_TOKEN): void {
           },
         }),
     };
-    const server = createTraxoMcp(inProcessClient(internal));
+    const server = createTraxoMcp(inProcessClient(internal), { readOnly: opts.readOnly });
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,

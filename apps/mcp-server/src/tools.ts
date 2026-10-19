@@ -27,8 +27,12 @@ export const wrap =
 export const dias = (n: number) => `${n} ${n === 1 ? "día hábil" : "días hábiles"}`;
 const payLabel = (p: string) => (p === "cod" ? "contraentrega" : "prepagado");
 
-/** Registra las herramientas de Traxo. Las que escriben o gastan piden `confirm: true`: sin él devuelven un borrador. */
-export function registerTools(server: McpServer, api: TraxoClient): void {
+/** Registra las herramientas de Traxo. En modo readOnly solo expone herramientas de inspección sin efectos secundarios. */
+export function registerTools(
+  server: McpServer,
+  api: TraxoClient,
+  opts: { readOnly?: boolean } = {},
+): void {
   server.registerTool(
     "traxo_estado",
     {
@@ -129,6 +133,11 @@ export function registerTools(server: McpServer, api: TraxoClient): void {
       return `${q.explanation}\n\n${rows}${failed}`;
     }),
   );
+
+  // Si el servidor está configurado en modo estrictamente de solo lectura, omitir herramientas con efectos secundarios.
+  if (opts.readOnly) {
+    return;
+  }
 
   server.registerTool(
     "crear_guia",

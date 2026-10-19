@@ -5,9 +5,15 @@ import { registerGrowthTools } from "./tools-growth.ts";
 
 export * from "./client.ts";
 
-export function createTraxoMcp(api: TraxoClient): McpServer {
+export type McpServerOptions = {
+  readOnly?: boolean;
+};
+
+export function createTraxoMcp(api: TraxoClient, opts: McpServerOptions = {}): McpServer {
   const server = new McpServer({ name: "traxo", version: "0.1.0" });
-  registerTools(server, api);
-  registerGrowthTools(server, api);
+  registerTools(server, api, opts);
+  if (!opts.readOnly) {
+    registerGrowthTools(server, api);
+  }
   return server;
 }

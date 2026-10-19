@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CurrencySchema, type Currency } from "./money.ts";
 
 export const Platform = z.enum(["shopify", "tiendanube", "woocommerce", "mock"]);
 export type Platform = z.infer<typeof Platform>;
@@ -13,9 +14,11 @@ export const AddressSchema = z.object({
   street: z.string(),
   neighborhood: z.string().optional(),
   city: z.string(),
-  /** Código DANE de municipio, 5 dígitos (p. ej. 66001 = Pereira). */
-  dane: z.string().regex(/^\d{5}$/),
-  department: z.string(),
+  /** Código DANE de municipio (Colombia) o código territorial nacional. */
+  dane: z.string().optional(),
+  department: z.string().optional(),
+  stateCode: z.string().optional(),
+  country: z.string().default("CO"),
   notes: z.string().optional(),
 });
 export type Address = z.infer<typeof AddressSchema>;
@@ -28,6 +31,7 @@ export const OrderLineSchema = z.object({
   title: z.string(),
   quantity: z.number().int().positive(),
   unitPrice: z.number().int().nonnegative(),
+  unitPriceDecimal: z.string().optional(),
   weightGrams: z.number().int().positive().default(500),
 });
 export type OrderLine = z.infer<typeof OrderLineSchema>;
@@ -37,18 +41,69 @@ export const OrderSchema = z.object({
   externalId: z.string(),
   number: z.string(),
   storeId: z.string(),
+  tenantId: z.string().optional(),
+  currency: CurrencySchema.default("COP"),
   customerId: z.string().optional(),
   email: z.string().optional(),
   address: AddressSchema,
   lines: z.array(OrderLineSchema).min(1),
-  subtotal: z.number().int().nonnegative(),
-  shippingCharged: z.number().int().nonnegative().default(0),
-  total: z.number().int().nonnegative(),
+  subtotal: z.number().nonnegative(),
+  shippingCharged: z.number().nonnegative().default(0),
+  total: z.number().nonnegative(),
+  totalDecimal: z.string().optional(),
   payment: PaymentMethod,
   utm: z.record(z.string(), z.string()).optional(),
   createdAt: z.string(),
 });
 export type Order = z.infer<typeof OrderSchema>;
+
+/**
+ * Contrato de Vinculación de Órdenes Multi-Tenant (WooCommerce <-> Dropi).
+ */
+export const OrderLinkSchema = z.object({
+  tenantId: z.string().min(1, "tenantId es requerido"),
+  storeId: z.string().min(1, "storeId es requerido"),
+  wooOrderId: z.string().min(1, "wooOrderId es requerido"),
+  dropiOrderId: z.string().optional(),
+  syncOwner: z.enum(["native_dropi_woocommerce", "traxo_outbox"]),
+  syncStatus: z.enum(["unlinked", "pending", "linked", "conflict", "error"]),
+  updatedAt: z.string(),
+});
+export type OrderLink = z.infer<typeof OrderLinkSchema>;
+
+/**
+ * Estados unificados de fulfillment para normalización de operadores externos.
+ */
+export const FulfillmentMappedStatusSchema = z.enum([
+  "created",
+  "confirmed",
+  "processing",
+  "shipped",
+  "in_transit",
+  "delivered",
+  "incident",
+  "returned",
+  "cancelled",
+  "unknown",
+]);
+export type FulfillmentMappedStatus = z.infer<typeof FulfillmentMappedStatusSchema>;
+
+/**
+ * Contrato de Evento Logístico Normalizado.
+ */
+export const FulfillmentEventSchema = z.object({
+  tenantId: z.string().min(1, "tenantId es requerido"),
+  storeId: z.string().min(1, "storeId es requerido"),
+  wooOrderId: z.string().min(1, "wooOrderId es requerido"),
+  dropiOrderId: z.string().optional(),
+  externalEventId: z.string().min(1, "externalEventId es requerido"),
+  externalStatus: z.string().min(1, "externalStatus es requerido"),
+  mappedStatus: FulfillmentMappedStatusSchema,
+  occurredAt: z.string().optional(),
+  receivedAt: z.string(),
+  simulated: z.boolean(),
+});
+export type FulfillmentEvent = z.infer<typeof FulfillmentEventSchema>;
 
 export const ProductSchema = z.object({
   id: z.string(),
