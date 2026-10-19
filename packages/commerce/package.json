@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@traxo/core": "workspace:*",
-    "@traxo/geo-co": "workspace:*"
+    "@traxo/geo-co": "workspace:*",
+    "@traxo/market-ve": "workspace:*"
   }
 }

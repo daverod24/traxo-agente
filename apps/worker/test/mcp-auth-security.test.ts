@@ -77,4 +77,46 @@ describe("L1-A3: Catálogo MCP en Modo Read-Only", () => {
     expect(readOnlyTools).not.toContain("crear_campana");
     expect(readOnlyTools).not.toContain("enviar_whatsapp");
   });
+
+  it("aisla pedidos por tenantId e impide acceso cruzado entre tiendas (403)", async () => {
+    const mockClient = {
+      get: async (path: string) => {
+        if (path === "/api/orders") {
+          return [
+            { id: "1", number: "#101", tenantId: "tenant_davebeauty", total: 30000, address: { name: "Ana", city: "Caracas" } },
+            { id: "2", number: "#202", tenantId: "tenant_otra_tienda", total: 45000, address: { name: "Luis", city: "Valencia" } },
+          ];
+        }
+        if (path.includes("/api/orders/")) {
+          return {
+            order: {
+              id: "2",
+              number: "#202",
+              tenantId: "tenant_otra_tienda",
+              total: 45000,
+              address: { name: "Luis", phone: "+584149876543", street: "Av. 1", city: "Valencia" },
+              lines: [],
+            },
+            quotes: [],
+            shipments: [],
+          };
+        }
+        return {};
+      },
+    };
+
+    // Servidor autenticado solo para Davebeauty
+    const daveServer = createTraxoMcp(mockClient as any, { readOnly: true, tenantId: "tenant_davebeauty" });
+    const tools = (daveServer as any)._registeredTools;
+
+    // 1. listar_pedidos solo retorna pedidos de Davebeauty
+    const listRes = await tools["listar_pedidos"].handler({});
+    expect(listRes.content[0].text).toContain("#101");
+    expect(listRes.content[0].text).not.toContain("#202");
+
+    // 2. ver_pedido de otra tienda es bloqueado con error 403
+    const verRes = await tools["ver_pedido"].handler({ pedido: "202" });
+    expect(verRes.isError).toBe(true);
+    expect(verRes.content[0].text).toContain("Acceso denegado (403)");
+  });
 });

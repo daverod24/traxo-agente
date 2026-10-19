@@ -7,6 +7,7 @@ export * from "./client.ts";
 
 export type McpServerOptions = {
   readOnly?: boolean;
+  tenantId?: string;
 };
 
 export function createTraxoMcp(api: TraxoClient, opts: McpServerOptions = {}): McpServer {

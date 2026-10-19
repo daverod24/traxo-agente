@@ -1,5 +1,6 @@
 import { type Customer, newId, type Order, type Product } from "@traxo/core";
 import { findCity, normalizePhone, normalizeStreet } from "@traxo/geo-co";
+import { normalizePhoneVE } from "@traxo/market-ve";
 import { header, hmac, safeEqual } from "./hmac.ts";
 import type { CommerceAdapter, FulfillmentInput } from "./types.ts";
 
@@ -16,6 +17,7 @@ type WooOrder = {
   id: number;
   number?: string;
   status?: string;
+  currency?: string;
   date_created_gmt?: string;
   total?: string;
   shipping_total?: string;
@@ -28,6 +30,7 @@ type WooOrder = {
     address_2?: string;
     city?: string;
     state?: string;
+    country?: string;
     phone?: string;
   };
   line_items?: Array<{
@@ -44,33 +47,60 @@ const toInt = (s: string | number | undefined): number =>
 export function orderFromWoo(o: WooOrder, storeId: string): Order | undefined {
   const a = o.shipping;
   if (!a?.city || !a.address_1 || !o.line_items?.length) return undefined;
-  const city = findCity(a.city);
+
+  const country = (a.country ?? "CO").toUpperCase();
+  const rawPhone = a.phone ?? o.billing?.phone ?? "";
+  const isVE = country === "VE" || rawPhone.startsWith("+58") || rawPhone.startsWith("04");
+
+  let phone: string;
+  let cityStr: string;
+  let departmentStr: string;
+  let daneCode: string | undefined = undefined;
+
+  if (isVE) {
+    phone = normalizePhoneVE(rawPhone) ?? rawPhone;
+    cityStr = a.city;
+    departmentStr = a.state ?? "";
+  } else {
+    const city = findCity(a.city);
+    phone = normalizePhone(rawPhone) ?? rawPhone;
+    cityStr = city?.name ?? a.city;
+    daneCode = city?.dane ?? "00000";
+    departmentStr = city?.department ?? a.state ?? "";
+  }
+
   const lines = o.line_items.map((l) => ({
     productId: String(l.product_id),
     title: l.name,
     quantity: l.quantity,
     unitPrice: toInt(l.price),
+    unitPriceDecimal: String(l.price),
     weightGrams: 500,
   }));
   const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+
   return {
     id: newId("ord"),
     externalId: String(o.id),
     number: `#${o.number ?? o.id}`,
     storeId,
+    currency: (o.currency as any) ?? (isVE ? "USD" : "COP"),
     email: o.billing?.email,
     address: {
+      country: isVE ? "VE" : "CO",
       name: [a.first_name, a.last_name].filter(Boolean).join(" "),
-      phone: normalizePhone(a.phone ?? o.billing?.phone ?? "") ?? a.phone ?? o.billing?.phone ?? "",
+      phone,
       street: normalizeStreet([a.address_1, a.address_2].filter(Boolean).join(" ")),
-      city: city?.name ?? a.city,
-      dane: city?.dane ?? "00000",
-      department: city?.department ?? a.state ?? "",
+      city: cityStr,
+      dane: daneCode,
+      department: departmentStr,
+      stateCode: isVE ? a.state : undefined,
     },
     lines,
     subtotal,
     shippingCharged: toInt(o.shipping_total),
     total: toInt(o.total) || subtotal,
+    totalDecimal: o.total ? String(o.total) : undefined,
     payment: o.payment_method === "cod" ? "cod" : "prepaid",
     createdAt: o.date_created_gmt ? `${o.date_created_gmt}Z` : new Date().toISOString(),
   };
@@ -101,7 +131,9 @@ export class WooCommerce implements CommerceAdapter {
     return (await res.json()) as T;
   }
 
-  async listProducts(): Promise<Product[]> {
+  async listProducts(opts: { page?: number; limit?: number } = {}): Promise<Product[]> {
+    const page = opts.page ?? 1;
+    const perPage = opts.limit ?? 100;
     const rows =
       await this.call<
         Array<{
@@ -112,7 +144,7 @@ export class WooCommerce implements CommerceAdapter {
           images?: Array<{ src: string }>;
           short_description?: string;
         }>
-      >("/products?per_page=100");
+      >(`/products?page=${page}&per_page=${perPage}`);
     return rows.map((p) => ({
       id: `prod_${p.id}`,
       externalId: String(p.id),
@@ -124,7 +156,9 @@ export class WooCommerce implements CommerceAdapter {
     }));
   }
 
-  async listCustomers(): Promise<Customer[]> {
+  async listCustomers(opts: { page?: number; limit?: number } = {}): Promise<Customer[]> {
+    const page = opts.page ?? 1;
+    const perPage = opts.limit ?? 100;
     const rows =
       await this.call<
         Array<{
@@ -134,20 +168,27 @@ export class WooCommerce implements CommerceAdapter {
           email: string;
           billing?: { phone?: string; city?: string };
         }>
-      >("/customers?per_page=100");
-    return rows.map((c) => ({
-      id: `cust_${c.id}`,
-      externalId: String(c.id),
-      name: `${c.first_name} ${c.last_name}`.trim(),
-      phone: normalizePhone(c.billing?.phone ?? "") ?? c.billing?.phone ?? "",
-      email: c.email,
-      city: c.billing?.city,
-      whatsappConsent: false,
-    }));
+      >(`/customers?page=${page}&per_page=${perPage}`);
+    return rows.map((c) => {
+      const rawPhone = c.billing?.phone ?? "";
+      const isVE = rawPhone.startsWith("+58") || rawPhone.startsWith("04");
+      const phone = isVE ? (normalizePhoneVE(rawPhone) ?? rawPhone) : (normalizePhone(rawPhone) ?? rawPhone);
+      return {
+        id: `cust_${c.id}`,
+        externalId: String(c.id),
+        name: `${c.first_name} ${c.last_name}`.trim(),
+        phone,
+        email: c.email,
+        city: c.billing?.city,
+        whatsappConsent: false,
+      };
+    });
   }
 
-  async listOrders(opts: { limit?: number } = {}): Promise<Order[]> {
-    const rows = await this.call<WooOrder[]>(`/orders?per_page=${opts.limit ?? 50}`);
+  async listOrders(opts: { page?: number; limit?: number } = {}): Promise<Order[]> {
+    const page = opts.page ?? 1;
+    const perPage = opts.limit ?? 50;
+    const rows = await this.call<WooOrder[]>(`/orders?page=${page}&per_page=${perPage}`);
     return rows.map((o) => orderFromWoo(o, this.storeId)).filter((o): o is Order => Boolean(o));
   }
 
@@ -155,7 +196,10 @@ export class WooCommerce implements CommerceAdapter {
     return orderFromWoo(await this.call<WooOrder>(`/orders/${id}`), this.storeId);
   }
 
-  /** Woo no trae tracking nativo: se deja como nota al cliente y se marca completado. */
+  /**
+   * Registra fulfillment en WooCommerce: agrega nota para el cliente y actualiza metadata de guía.
+   * NO marca el estado como "completed" prematuramente para preservar el ciclo de vida en Dropi y entregas COD.
+   */
   async addFulfillment(orderId: string, input: FulfillmentInput): Promise<void> {
     await this.call(`/orders/${orderId}/notes`, {
       method: "POST",
@@ -167,7 +211,6 @@ export class WooCommerce implements CommerceAdapter {
     await this.call(`/orders/${orderId}`, {
       method: "PUT",
       body: JSON.stringify({
-        status: "completed",
         meta_data: [
           { key: "_traxo_tracking_number", value: input.trackingNumber },
           { key: "_traxo_carrier", value: input.carrier },

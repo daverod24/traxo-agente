@@ -31,7 +31,7 @@ const payLabel = (p: string) => (p === "cod" ? "contraentrega" : "prepagado");
 export function registerTools(
   server: McpServer,
   api: TraxoClient,
-  opts: { readOnly?: boolean } = {},
+  opts: { readOnly?: boolean; tenantId?: string } = {},
 ): void {
   server.registerTool(
     "traxo_estado",
@@ -65,7 +65,10 @@ export function registerTools(
       inputSchema: { limite: z.number().int().min(1).max(50).default(10).optional() },
     },
     wrap(async ({ limite }: { limite?: number }) => {
-      const rows = await api.get<Json[]>("/api/orders");
+      let rows = await api.get<Json[]>("/api/orders");
+      if (opts.tenantId) {
+        rows = rows.filter((o) => (o.tenantId ? o.tenantId === opts.tenantId : o.storeId === opts.tenantId));
+      }
       return (
         rows
           .slice(0, limite ?? 10)
@@ -89,6 +92,9 @@ export function registerTools(
     wrap(async ({ pedido }: { pedido: string }) => {
       const r = await api.get<Json>(`/api/orders/${encodeURIComponent(pedido)}`);
       const o = r.order;
+      if (opts.tenantId && o.tenantId && o.tenantId !== opts.tenantId) {
+        throw new Error(`Acceso denegado (403): el pedido ${pedido} no pertenece al tenant ${opts.tenantId}.`);
+      }
       const lines = (o.lines as Json[])
         .map((l) => `  · ${l.quantity} x ${l.title} (${formatCOP(l.unitPrice)})`)
         .join("\n");

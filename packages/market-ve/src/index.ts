@@ -186,3 +186,5 @@ export function isBcvRateStale(snapshot: BcvRateSnapshot, now = new Date()): boo
   const maxMs = snapshot.staleThresholdHours * 60 * 60 * 1000;
   return diffMs > maxMs;
 }
+
+export * from "./fixtures.ts";
