@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   BcvRateSnapshotSchema,
-  VENEZUELA_STATES,
-  VenezuelaAddressSchema,
   isBcvRateStale,
   normalizePhoneVE,
+  VENEZUELA_STATES,
+  VenezuelaAddressSchema,
 } from "../src/index.ts";
 
 describe("Market VE: Teléfonos E.164 (+58)", () => {

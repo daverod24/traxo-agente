@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { WooCommerce, orderFromWoo } from "../src/woocommerce.ts";
+import { orderFromWoo, WooCommerce } from "../src/woocommerce.ts";
 
 describe("L2-A2: WooCommerce Adapter & VE Support", () => {
   it("parsea pedidos venezolanos con país VE, teléfono +58 y precios decimales sin DANE", () => {

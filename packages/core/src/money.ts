@@ -24,7 +24,11 @@ export const MoneySchema = z.object({
 });
 export type Money = z.infer<typeof MoneySchema>;
 
-export function createMoney(amount: string | number, currency: Currency = "USD", fx?: FxSnapshot): Money {
+export function createMoney(
+  amount: string | number,
+  currency: Currency = "USD",
+  fx?: FxSnapshot,
+): Money {
   let strAmount: string;
   if (typeof amount === "number") {
     strAmount = amount.toFixed(currency === "COP" ? 0 : 2);
