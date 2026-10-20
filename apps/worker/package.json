@@ -12,12 +12,13 @@
     "mcp": "tsx src/mcp-stdio.ts"
   },
   "dependencies": {
+    "@traxo/carriers": "workspace:*",
+    "@traxo/commerce": "workspace:*",
     "@traxo/core": "workspace:*",
     "@traxo/db": "workspace:*",
-    "@traxo/commerce": "workspace:*",
-    "@traxo/carriers": "workspace:*",
-    "@traxo/messaging": "workspace:*",
     "@traxo/geo-co": "workspace:*",
+    "@traxo/market-ve": "workspace:*",
+    "@traxo/messaging": "workspace:*",
     "@hono/node-server": "^1.14.0",
     "hono": "^4.13.13",
     "tsx": "^4.23.15",
