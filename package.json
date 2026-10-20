@@ -11,6 +11,7 @@
   },
   "scripts": {
     "test": "vitest run",
+    "test:ve": "vitest run packages/core packages/market-ve packages/commerce apps/worker/test/mcp-auth-security.test.ts apps/worker/test/e2e-security-sandbox.test.ts apps/worker/test/onboarding-operator-flow.test.ts",
     "lint": "biome check .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:generate": "pnpm --filter @traxo/db generate",
