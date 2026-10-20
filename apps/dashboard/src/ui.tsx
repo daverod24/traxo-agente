@@ -48,6 +48,10 @@ const PATHS: Record<string, ReactNode> = {
   list: <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />,
   bolt: <path d="M13 3L5 13.5h6L10 21l8-10.5h-6L13 3z" />,
   layout: <path d="M4 5h16v14H4zM4 10h16M10 10v9" />,
+  bank: <path d="M3 21h18M3 10h18M5 10v11M9 10v11M15 10v11M19 10v11M12 3l9 7H3z" />,
+  device: (
+    <path d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM12 18h.01" />
+  ),
 };
 
 export function Icon({ name, size = 18 }: { name: keyof typeof PATHS | string; size?: number }) {
@@ -142,15 +146,49 @@ export function ToneBadge({ tone, children }: { tone: Tone; children: ReactNode 
   );
 }
 
-export const PaymentBadge = ({ payment }: { payment: string }) =>
-  payment === "cod" ? (
-    <span className="cod">
-      <Icon name="coin" size={14} />
-      Contraentrega
-    </span>
-  ) : (
-    <span className="badge tone-neutral">Prepagado</span>
-  );
+export const PaymentBadge = ({ payment }: { payment: string }) => {
+  if (payment === "pago_movil") {
+    return (
+      <span className="badge tone-success">
+        <Icon name="device" size={14} />
+        Pago Móvil
+      </span>
+    );
+  }
+  if (payment === "usdt") {
+    return (
+      <span className="badge tone-accent">
+        <Icon name="coin" size={14} />
+        USDT
+      </span>
+    );
+  }
+  if (payment === "transferencia_bs") {
+    return (
+      <span className="badge tone-info">
+        <Icon name="bank" size={14} />
+        Transf. Bs.
+      </span>
+    );
+  }
+  if (payment === "zelle") {
+    return (
+      <span className="badge tone-accent">
+        <Icon name="send" size={14} />
+        Zelle USD
+      </span>
+    );
+  }
+  if (payment === "cod") {
+    return (
+      <span className="cod">
+        <Icon name="coin" size={14} />
+        Cobro en Destino
+      </span>
+    );
+  }
+  return <span className="badge tone-neutral">Prepagado</span>;
+};
 
 /** Recaudo (peso 700), flete (500, con camión) y costo (rojo con signo −) se distinguen por etiqueta, peso e ícono. */
 export function Money({

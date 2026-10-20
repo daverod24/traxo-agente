@@ -7,33 +7,38 @@ import { Banner, Button, ChannelMark, Icon, SampleTag, ToneBadge } from "./ui.ts
 import type { Ctx } from "./views.tsx";
 
 const CITIES: Array<[string, string]> = [
-  ["11001", "Bogotá"],
-  ["05001", "Medellín"],
-  ["76001", "Cali"],
-  ["08001", "Barranquilla"],
-  ["66001", "Pereira"],
-  ["68001", "Bucaramanga"],
-  ["13001", "Cartagena"],
+  ["VE-A", "Caracas (Distrito Capital)"],
+  ["VE-M", "Mérida (Los Andes)"],
+  ["VE-G", "Valencia (Carabobo)"],
+  ["VE-L", "Barquisimeto (Lara)"],
+  ["VE-V", "Maracaibo (Zulia)"],
+  ["VE-B", "Barcelona / Lechería (Anzoátegui)"],
+  ["VE-D", "Maracay (Aragua)"],
+  ["VE-P", "Porlamar (Nueva Esparta)"],
+  ["11001", "Bogotá (Colombia)"],
+  ["05001", "Medellín (Colombia)"],
 ];
 const PROVIDERS: Array<[string, string]> = [
-  ["", "Sin preferencia"],
+  ["", "Sin preferencia (Costo / Tiempo)"],
+  ["mrw", "MRW Venezuela (Agencia / Nacional)"],
+  ["zoom", "Grupo Zoom (Nacional)"],
+  ["tealca", "Tealca (Envíos asegurados)"],
+  ["caracas-express", "Caracas Bajo Demanda (Entrega coordinada)"],
+  ["dropi", "Dropi Logística Oficial"],
   ["envia-com", "Envia.com"],
   ["99envios", "99envios"],
-  ["coordinadora", "Coordinadora (directa)"],
-  ["servientrega", "Servientrega (directa)"],
-  ["interrapidisimo", "Interrapidísimo (directa)"],
-  ["envia-co", "Envía (directa)"],
 ];
 
 /* ============================== CONEXIONES ============================== */
 const HUB: Array<[string, string, string]> = [
-  ["whatsapp", "WhatsApp", "Confirmaciones y novedades"],
-  ["instagram", "Instagram", "Mensajes directos"],
-  ["messenger", "Messenger", "Páginas de Facebook"],
-  ["facebook", "Facebook Ads", "Campañas en pausa"],
-  ["google", "Google Ads", "Búsqueda y Shopping"],
-  ["tiktok", "TikTok Ads", "Videos y UGC"],
-  ["api", "Tu API o MCP", "Cualquier otra conexión"],
+  ["whatsapp", "WhatsApp Business", "Compra asistida y confirmaciones (+58)"],
+  ["pago-movil", "Pago Móvil / Bancos VE", "Conciliación de referencias en Bs."],
+  ["crypto", "USDT (Binance Pay / TRC20)", "Cobro en stablecoins sin comisiones"],
+  ["dropi", "Dropi Venezuela MCP", "Catálogo y logística nacional"],
+  ["instagram", "Instagram DM", "Venta conversacional"],
+  ["facebook", "Meta Ads", "Campañas de belleza y bienestar"],
+  ["tiktok", "TikTok Ads", "Videos virales de K-Beauty y reseñas"],
+  ["api", "WooCommerce REST / MCP", "Sincronización con tienda Headless"],
 ];
 
 export function Conexiones({ ctx, state }: { ctx: Ctx; state: State }) {
@@ -90,15 +95,16 @@ export function Conexiones({ ctx, state }: { ctx: Ctx; state: State }) {
         <div className="plat">
           {(state.demo
             ? [
-                ["Tienda de ejemplo", true],
+                ["Davebeauty (Headless WP)", true],
+                ["WooCommerce HPOS", true],
+                ["Dropi Venezuela MCP", true],
                 ["Shopify", false],
-                ["Tiendanube", false],
-                ["WooCommerce", false],
               ]
             : [
+                ["WooCommerce HPOS", s?.platform === "woocommerce" || true],
+                ["Dropi Venezuela MCP", true],
                 ["Shopify", s?.platform === "shopify"],
                 ["Tiendanube", s?.platform === "tiendanube"],
-                ["WooCommerce", s?.platform === "woocommerce"],
               ]
           ).map(([name, on]) => (
             <div key={String(name)} className={`plat-i ${on ? "on" : ""}`}>
@@ -407,6 +413,70 @@ export function Ajustes({ ctx }: { ctx: Ctx }) {
               Con un pedido prepagado no hay recaudo en riesgo ni comisión de contraentrega.
             </span>
           </label>
+        </section>
+      </div>
+
+      <div className="two eq">
+        <section className="card stack" aria-labelledby="pay-h">
+          <div>
+            <h2 id="pay-h">Cobranza y Pasarelas (Venezuela)</h2>
+            <p className="muted" style={{ margin: "4px 0 0" }}>
+              Canales de pago habilitados para compra asistida por WhatsApp y checkout online.
+            </p>
+          </div>
+          <div className="grid-two">
+            <div className="plat-i on">
+              <Icon name="device" size={16} />
+              <span>Pago Móvil (Interbancario)</span>
+              <span className="caption">Referencia bancaria + Cédula</span>
+            </div>
+            <div className="plat-i on">
+              <Icon name="coin" size={16} />
+              <span>USDT (Binance Pay / TRC20)</span>
+              <span className="caption">Stablecoins sin comisiones</span>
+            </div>
+            <div className="plat-i on">
+              <Icon name="bank" size={16} />
+              <span>Transferencia Bancaria Bs.</span>
+              <span className="caption">Banesco, Mercantil, Bancrecer</span>
+            </div>
+            <div className="plat-i on">
+              <Icon name="send" size={16} />
+              <span>Zelle USD (Opcional)</span>
+              <span className="caption">Comprobante + Correo</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="card stack" aria-labelledby="vert-h">
+          <div>
+            <h2 id="vert-h">Vertical de Tienda y Catálogo</h2>
+            <p className="muted" style={{ margin: "4px 0 0" }}>
+              Alineación de atributos, unidades y esquema según el nicho de negocio.
+            </p>
+          </div>
+          <div className="grid-two">
+            <div className="plat-i on">
+              <Icon name="spark" size={16} />
+              <span>Belleza y Bienestar (Davebeauty)</span>
+              <span className="caption">K-Beauty, Skincare, Goteros, Caps</span>
+            </div>
+            <div className="plat-i">
+              <Icon name="box" size={16} />
+              <span>Café de Origen</span>
+              <span className="caption">Tostado, Molienda, Variedades</span>
+            </div>
+            <div className="plat-i">
+              <Icon name="bolt" size={16} />
+              <span>Repuestos y Autopartes</span>
+              <span className="caption">Compatibilidad, Modelo, Año</span>
+            </div>
+            <div className="plat-i">
+              <Icon name="layout" size={16} />
+              <span>Perfumería y Moda</span>
+              <span className="caption">Fragancias, Tallas, Colores</span>
+            </div>
+          </div>
         </section>
       </div>
 

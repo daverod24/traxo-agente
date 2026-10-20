@@ -1,0 +1,7 @@
+node_modules
+.git
+.traxo-data
+dist
+apps/dashboard/dist
+*.log
+.env
