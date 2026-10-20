@@ -1,5 +1,6 @@
 import { type Customer, newId, type Order, type Product } from "@traxo/core";
 import { findCity, normalizePhone, normalizeStreet } from "@traxo/geo-co";
+import { normalizePhoneVE } from "@traxo/market-ve";
 import { header, hmac, safeEqual } from "./hmac.ts";
 import type { CommerceAdapter, FulfillmentInput } from "./types.ts";
 
@@ -101,7 +102,11 @@ export function orderFromShopify(p: ShopifyOrderPayload, storeId: string): Order
     weightGrams: l.grams && l.grams > 0 ? l.grams : 500,
   }));
   if (lines.length === 0) return undefined;
-  const phone = normalizePhone(a.phone ?? p.phone ?? p.customer?.phone ?? "") ?? a.phone ?? "";
+  const rawPhone = a.phone ?? p.phone ?? p.customer?.phone ?? "";
+  const isVE = rawPhone.startsWith("+58") || rawPhone.startsWith("04");
+  const phone = isVE
+    ? (normalizePhoneVE(rawPhone) ?? rawPhone)
+    : (normalizePhone(rawPhone) ?? rawPhone);
   const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
   return {
     id: newId("ord"),
@@ -114,9 +119,9 @@ export function orderFromShopify(p: ShopifyOrderPayload, storeId: string): Order
       phone,
       street: normalizeStreet([a.address1, a.address2].filter(Boolean).join(" ")),
       city: city?.name ?? a.city,
-      // Sin DANE no se puede cotizar: el agente lo pide al cliente. "00000" no pasa el selector de cobertura.
-      dane: city?.dane ?? "00000",
+      dane: isVE ? undefined : (city?.dane ?? "00000"),
       department: city?.department ?? a.province ?? "",
+      country: isVE ? "VE" : "CO",
     },
     lines,
     subtotal,
@@ -200,15 +205,20 @@ export class ShopifyCommerce implements CommerceAdapter {
         sms_marketing_consent?: { state?: string } | null;
       }>;
     }>("/customers.json?limit=250");
-    return customers.map((c) => ({
-      id: `cust_${c.id}`,
-      externalId: String(c.id),
-      name: [c.first_name, c.last_name].filter(Boolean).join(" ") || "Cliente",
-      phone: normalizePhone(c.phone ?? "") ?? c.phone ?? "",
-      email: c.email ?? undefined,
-      city: c.default_address?.city,
-      whatsappConsent: c.sms_marketing_consent?.state === "subscribed",
-    }));
+    return customers.map((c) => {
+      const rawP = c.phone ?? "";
+      const isVE = rawP.startsWith("+58") || rawP.startsWith("04");
+      const phone = isVE ? (normalizePhoneVE(rawP) ?? rawP) : (normalizePhone(rawP) ?? rawP);
+      return {
+        id: `cust_${c.id}`,
+        externalId: String(c.id),
+        name: [c.first_name, c.last_name].filter(Boolean).join(" ") || "Cliente",
+        phone,
+        email: c.email ?? undefined,
+        city: c.default_address?.city,
+        whatsappConsent: c.sms_marketing_consent?.state === "subscribed",
+      };
+    });
   }
 
   async listOrders(opts: { limit?: number } = {}): Promise<Order[]> {
