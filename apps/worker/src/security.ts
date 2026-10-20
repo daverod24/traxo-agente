@@ -78,3 +78,69 @@ export function hardenApp(
       );
     });
 }
+
+/**
+ * Sanitiza texto eliminando o enmascarando Información de Identificación Personal (PII)
+ * y secretos (Bearer tokens, passwords, API keys, teléfonos E.164, correos).
+ */
+export function redactPii(text: string): string {
+  if (!text) return text;
+
+  let redacted = text;
+
+  // 1. Redactar Tokens Bearer y Secrets
+  redacted = redacted.replace(/Bearer\s+([A-Za-z0-9_\-\.]{8,})/gi, "Bearer [REDACTED]");
+  redacted = redacted.replace(
+    /(token|secret|password|apiKey|api_key|wc_sec)["']?\s*[:=]\s*["']?([^"'\s,]+)/gi,
+    '$1: "[REDACTED]"',
+  );
+
+  // 2. Redactar correos electrónicos: valeria@davebeauty.test -> v***a@davebeauty.test
+  redacted = redacted.replace(
+    /([a-zA-Z0-9_\.\-]+)@([a-zA-Z0-9_\.\-]+\.[a-zA-Z]{2,})/g,
+    (_, user, domain) => {
+      if (user.length <= 2) return `*@${domain}`;
+      return `${user[0]}***${user[user.length - 1]}@${domain}`;
+    },
+  );
+
+  // 3. Redactar números de teléfono (+58... y 04...)
+  redacted = redacted.replace(/\+58(412|414|424|416|426|2\d{2})\d{7}/g, (match) => {
+    return `${match.slice(0, 6)}***${match.slice(-4)}`;
+  });
+  redacted = redacted.replace(/0(412|414|424|416|426)\d{7}/g, (match) => {
+    return `${match.slice(0, 4)}***${match.slice(-4)}`;
+  });
+
+  return redacted;
+}
+
+/**
+ * Registra logs estructurados garantizando la ausencia de PII o secretos en texto plano.
+ */
+export function sanitizeLogData(data: unknown): unknown {
+  if (typeof data === "string") {
+    return redactPii(data);
+  }
+  if (Array.isArray(data)) {
+    return data.map(sanitizeLogData);
+  }
+  if (data !== null && typeof data === "object") {
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      const lower = key.toLowerCase();
+      if (
+        lower.includes("secret") ||
+        lower.includes("token") ||
+        lower.includes("password") ||
+        lower.includes("auth")
+      ) {
+        sanitized[key] = "[REDACTED]";
+      } else {
+        sanitized[key] = sanitizeLogData(value);
+      }
+    }
+    return sanitized;
+  }
+  return data;
+}

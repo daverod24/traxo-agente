@@ -276,6 +276,9 @@ importers:
       '@traxo/geo-co':
         specifier: workspace:*
         version: link:../../packages/geo-co
+      '@traxo/market-ve':
+        specifier: workspace:*
+        version: link:../../packages/market-ve
       '@traxo/mcp-server':
         specifier: workspace:*
         version: link:../mcp-server
