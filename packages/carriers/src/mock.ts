@@ -79,6 +79,51 @@ export const CARRIER_PROFILES: Record<string, CarrierProfile> = {
     codMin: 2800,
     supportsCod: true,
   },
+  flash: {
+    carrier: "Flash Courier (Dropi)",
+    service: "Despacho Dropi VE",
+    price: 1.0,
+    extraDays: 0,
+    codRate: 0.02,
+    codMin: 3,
+    supportsCod: true,
+  },
+  mrw: {
+    carrier: "MRW Venezuela",
+    service: "Nacional Agencia/Puerta",
+    price: 0.95,
+    extraDays: 1,
+    codRate: 0.025,
+    codMin: 3.5,
+    supportsCod: true,
+  },
+  zoom: {
+    carrier: "Grupo Zoom",
+    service: "Casillero y Encomiendas",
+    price: 1.05,
+    extraDays: 0,
+    codRate: 0.02,
+    codMin: 4,
+    supportsCod: true,
+  },
+  tealca: {
+    carrier: "Tealca",
+    service: "Carga y Envíos Asegurados",
+    price: 1.1,
+    extraDays: 0,
+    codRate: 0.03,
+    codMin: 4,
+    supportsCod: false,
+  },
+  "caracas-express": {
+    carrier: "Caracas Express",
+    service: "Entrega El Mismo Día",
+    price: 0.9,
+    extraDays: 0,
+    codRate: 0.015,
+    codMin: 2.5,
+    supportsCod: true,
+  },
 };
 
 export type MockProviderOptions = {
@@ -252,5 +297,31 @@ export function mockProviders(): MockCarrierProvider[] {
       carriers: ["servientrega"],
     }),
     new MockCarrierProvider({ id: "envia-co", label: "Envía (directa)", carriers: ["envia"] }),
+    new MockCarrierProvider({
+      id: "dropi",
+      label: "Dropi Logística VE",
+      carriers: ["flash", "mrw", "zoom"],
+      markup: 0.02,
+    }),
+    new MockCarrierProvider({
+      id: "mrw",
+      label: "MRW Venezuela (directa)",
+      carriers: ["mrw"],
+    }),
+    new MockCarrierProvider({
+      id: "zoom",
+      label: "Grupo Zoom (directa)",
+      carriers: ["zoom"],
+    }),
+    new MockCarrierProvider({
+      id: "tealca",
+      label: "Tealca (directa)",
+      carriers: ["tealca"],
+    }),
+    new MockCarrierProvider({
+      id: "caracas-express",
+      label: "Caracas Express (Bajo Demanda)",
+      carriers: ["caracas-express"],
+    }),
   ];
 }

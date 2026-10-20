@@ -39,36 +39,51 @@ export async function createRuntime(
 ): Promise<Runtime> {
   const db = opts.db ?? (await openDb());
   attachUsage(db);
-  const storeCount = await db.prisma.store.count();
-  if (storeCount === 0) {
-    // Solo el modo demo (TRAXO_DEMO=1) arranca con la tienda de ejemplo; una instalación normal arranca con tu tienda vacía.
-    if (isDemo()) await seedDemo(db);
-    else
-      await db.prisma.store.create({
-        data: {
-          id: "store_main",
-          name: env.TRAXO_STORE_NAME || "Mi tienda",
-          platform: "pending",
-          url: env.TRAXO_STORE_URL || "",
-          settings: StoreSettingsSchema.parse({ autonomy: 1, preferredProvider: "envia-com" }),
-        },
-      });
+
+  // Asegurar la tienda principal en vivo (Davebeauty WooCommerce)
+  const mainExists = await db.prisma.store.findUnique({ where: { id: "store_main" } });
+  if (!mainExists) {
+    await db.prisma.store.create({
+      data: {
+        id: "store_main",
+        name: env.TRAXO_STORE_NAME || "Davebeauty (WooCommerce en Vivo)",
+        platform: env.WOOCOMMERCE_KEY ? "woocommerce" : "pending",
+        url: env.TRAXO_STORE_URL || "http://nginx",
+        settings: StoreSettingsSchema.parse({ autonomy: 1, preferredProvider: "dropi" }),
+        profile: { vertical: "Belleza, K-Beauty y Bienestar Botánico", live: Boolean(env.WOOCOMMERCE_KEY) },
+      },
+    });
   }
-  // Datos de ejemplo ricos (90 días de operación) solo para la demo: nunca con una tienda real conectada.
+
+  // Si está en modo demo o local, sembrar las tiendas demo venezolanas
+  if (isDemo()) {
+    await seedDemo(db, { all: true });
+  }
+
+  // Datos de ejemplo ricos (90 días de operación) para las tiendas demo
   let reseed: (() => Promise<void>) | undefined;
   if (opts.rich) {
-    const first = await db.prisma.store.findFirst({ orderBy: { createdAt: "asc" } });
+    const demoStores = await db.prisma.store.findMany({
+      where: { id: { in: ["store_demo_beauty", "store_demo_cafe", "store_demo"] } },
+    });
+    for (const demoStore of demoStores) {
+      const prof = demoStore.profile as { rich?: boolean; richVersion?: number } | null;
+      if (!prof?.rich || (prof.richVersion ?? 1) < RICH_VERSION) {
+        await seedRich(db, { storeId: demoStore.id });
+      }
+    }
     reseed = async () => {
-      await seedRich(db);
+      for (const demoStore of demoStores) {
+        await seedRich(db, { storeId: demoStore.id });
+      }
     };
-    const prof = first?.profile as { rich?: boolean; richVersion?: number } | null;
-    if (first && (!prof?.rich || (prof.richVersion ?? 1) < RICH_VERSION))
-      await seedRich(db, { storeId: first.id });
   }
-  // La tienda principal es la más antigua: con cuentas nuevas creadas después, "la primera" sin orden podría ser la de otra persona.
-  const store = (await db.prisma.store.findFirst({ orderBy: { createdAt: "asc" } })) as NonNullable<
-    Awaited<ReturnType<Db["prisma"]["store"]["findFirst"]>>
-  >;
+
+  // La tienda por defecto del runtime es store_main si hay credenciales WooCommerce, o store_demo
+  const store = (env.WOOCOMMERCE_KEY ? await db.prisma.store.findUnique({ where: { id: "store_main" } }) : null) ??
+    (await db.prisma.store.findFirst({ orderBy: { createdAt: "asc" } })) as NonNullable<
+      Awaited<ReturnType<Db["prisma"]["store"]["findFirst"]>>
+    >;
 
   const bus = new EventBus();
   await loadOrderStoreIndex(db);

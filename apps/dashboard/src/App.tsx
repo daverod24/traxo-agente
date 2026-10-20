@@ -163,6 +163,58 @@ export default function App() {
   );
 }
 
+type StoreOption = {
+  id: string;
+  name: string;
+  platform: string;
+  isLive: boolean;
+  vertical: string;
+};
+
+function StoreSwitcher({
+  currentStoreId,
+  onSelectStore,
+  tick,
+}: {
+  currentStoreId: string;
+  onSelectStore: (id: string) => void;
+  tick: number;
+}) {
+  const res = useResource<StoreOption[]>("/api/stores", tick);
+  const stores = res.data ?? [
+    { id: "store_main", name: "Davebeauty (WooCommerce en Vivo)", isLive: true, vertical: "Belleza & Bienestar", platform: "woocommerce" },
+    { id: "store_demo_beauty", name: "Davebeauty Sandbox VE", isLive: false, vertical: "K-Beauty & Magnesio", platform: "mock" },
+    { id: "store_demo_cafe", name: "Café de Especialidad VE", isLive: false, vertical: "Café de Origen", platform: "mock" },
+  ];
+
+  return (
+    <div style={{ padding: "8px 10px", margin: "4px 8px 12px", background: "var(--surface-muted, rgba(0,0,0,0.03))", borderRadius: 8, border: "1px solid var(--border)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", fontWeight: 700 }}>
+          Tienda / Entorno
+        </span>
+        <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 4, background: currentStoreId === "store_main" ? "var(--success-surface, #e6f7ec)" : "var(--agent-surface, #f0eaff)", color: currentStoreId === "store_main" ? "var(--success)" : "var(--agent)", fontWeight: 600 }}>
+          {currentStoreId === "store_main" ? "En Vivo" : "Demo"}
+        </span>
+      </div>
+      <select
+        className="input"
+        value={currentStoreId}
+        onChange={(e) => onSelectStore(e.target.value)}
+        style={{ width: "100%", fontSize: 11, fontWeight: 600, padding: "4px 6px", height: "auto", cursor: "pointer" }}
+        aria-label="Seleccionar entorno o tienda"
+      >
+        {stores.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.isLive ? "🟢 " : s.id.includes("cafe") ? "🟤 " : "🟣 "}
+            {s.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function Shell({
   account,
   info,
@@ -181,6 +233,13 @@ function Shell({
   onSwitchAdmin: () => void;
 }) {
   const [view, setView] = useState(hashView);
+  const [storeId, setStoreId] = useState<string>(() => {
+    try {
+      return localStorage.getItem("traxo-store-id") || "store_main";
+    } catch {
+      return "store_main";
+    }
+  });
   const feed = useAgentFeed();
   const [bump, setBump] = useState(0);
   const tick = feed.tick + bump;
@@ -189,6 +248,16 @@ function Shell({
   const [extrasOpen, setExtrasOpen] = useState(false);
   const [sel, setSel] = useState<string>();
   const [tourOpen, setTourOpen] = useState(false);
+
+  const handleSelectStore = (newId: string) => {
+    try {
+      localStorage.setItem("traxo-store-id", newId);
+    } catch {}
+    setStoreId(newId);
+    setBump((b) => b + 1);
+    const label = newId === "store_main" ? "Davebeauty (WooCommerce en Vivo)" : newId === "store_demo_cafe" ? "Café de Especialidad VE" : "Davebeauty Sandbox VE";
+    notify(`Entorno activo: ${label}`);
+  };
   const state = useResource<State>("/api/state", tick).data;
   const orders = useResource<OrderRow[]>("/api/orders", tick).data ?? [];
   const store = useResource<StoreStatus>("/api/store/status", tick).data;
@@ -292,6 +361,7 @@ function Shell({
             title={feed.live ? "En vivo" : "Reconectando"}
           />
         </div>
+        <StoreSwitcher currentStoreId={storeId} onSelectStore={handleSelectStore} tick={tick} />
         {SECTIONS.map(([sec, items]) => (
           <div key={sec} className="navsec" role="group" aria-label={sec}>
             <div className="navsec-t">{sec}</div>
@@ -335,7 +405,17 @@ function Shell({
             <Logo size={26} />
             traxo
           </div>
-          <div className="row" style={{ gap: 4, flexWrap: "nowrap" }}>
+          <div className="row" style={{ gap: 6, flexWrap: "nowrap", alignItems: "center" }}>
+            <select
+              value={storeId}
+              onChange={(e) => handleSelectStore(e.target.value)}
+              style={{ fontSize: 11, padding: "2px 6px", borderRadius: 6, background: "var(--surface)", border: "1px solid var(--border)", fontWeight: 600, maxWidth: 130 }}
+              aria-label="Seleccionar entorno"
+            >
+              <option value="store_main">🟢 En Vivo</option>
+              <option value="store_demo_beauty">🟣 Demo Belleza</option>
+              <option value="store_demo_cafe">🟤 Demo Café</option>
+            </select>
             <ToneBadge tone={feed.live ? "success" : "neutral"}>
               {feed.live ? "En vivo" : "Sin conexión"}
             </ToneBadge>

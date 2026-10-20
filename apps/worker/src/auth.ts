@@ -65,7 +65,10 @@ const setCookie = (c: Context, token: string, maxAge = DAYS * 86400): void => {
 
 /** Tienda de la sesión actual (o la tienda por defecto si no hay sesión: tests, MCP en proceso). */
 export const storeOf = (c: Context, fallback: string): string =>
-  (c.get as (k: string) => string | undefined)("storeId") ?? fallback;
+  c.req.header("x-store-id") ??
+  c.req.query("storeId") ??
+  (c.get as (k: string) => string | undefined)("storeId") ??
+  fallback;
 export const accountOf = (c: Context): AccountView | undefined =>
   (c.get as (k: string) => AccountView | undefined)("account");
 

@@ -1,6 +1,18 @@
 import { sampleAudit } from "@traxo/audit";
 import { BASE_DAYS, BASE_FREIGHT, CARRIER_PROFILES, weightFactor, zoneFor } from "@traxo/carriers";
-import { DEMO_PRODUCTS, DEMO_STORE, rng } from "@traxo/commerce";
+import {
+  DEMO_BEAUTY_PRODUCTS,
+  DEMO_BEAUTY_STORE,
+  DEMO_CAFE_PRODUCTS,
+  DEMO_CAFE_STORE,
+  DEMO_PRODUCTS,
+  DEMO_STORE,
+  FIRST_VE,
+  LAST_VE,
+  rng,
+  VE_DESTINATIONS,
+  VENEZUELA_STATES,
+} from "@traxo/commerce";
 import {
   type AgentEventKind,
   formatCOP,
@@ -121,6 +133,14 @@ const ROUTES: Array<{ carrier: keyof typeof CARRIER_PROFILES; provider: string; 
   { carrier: "deprisa", provider: "envia-com", w: 2 },
 ];
 
+const ROUTES_VE: Array<{ carrier: keyof typeof CARRIER_PROFILES; provider: string; w: number }> = [
+  { carrier: "flash", provider: "dropi", w: 35 },
+  { carrier: "mrw", provider: "mrw", w: 25 },
+  { carrier: "zoom", provider: "zoom", w: 20 },
+  { carrier: "tealca", provider: "tealca", w: 10 },
+  { carrier: "caracas-express", provider: "caracas-express", w: 10 },
+];
+
 const pickW = <T>(r: () => number, xs: Array<[T, number]>): T => {
   const total = xs.reduce((s, [, w]) => s + w, 0);
   let x = r() * total;
@@ -159,7 +179,7 @@ export type RichSeedResult = {
 };
 
 /** Sube cuando cambian los datos de ejemplo: las bases que ya existen (p. ej. en Railway) se vuelven a sembrar solas. */
-export const RICH_VERSION = 6;
+export const RICH_VERSION = 8;
 
 /**
  * Cuenta admin de la demo: 90 días de operación de "Café de Origen". TODO es de ejemplo y la interfaz lo dice.
@@ -171,9 +191,29 @@ export async function seedRich(
 ): Promise<RichSeedResult> {
   const now = opts.now ?? new Date();
   const storeId = opts.storeId ?? DEMO_STORE.id;
-  const base = await seedDemo(db);
+  const isBeauty = storeId === "store_demo_beauty";
+  const isCafe = storeId === "store_demo_cafe";
+  const isVe = isBeauty || isCafe;
+
+  const catalog = isBeauty
+    ? DEMO_BEAUTY_PRODUCTS
+    : isCafe
+      ? DEMO_CAFE_PRODUCTS
+      : DEMO_PRODUCTS;
+  const storeProfile = isBeauty
+    ? DEMO_BEAUTY_STORE
+    : isCafe
+      ? DEMO_CAFE_STORE
+      : DEMO_STORE;
+  const storeName = isBeauty
+    ? "Davebeauty Sandbox VE"
+    : isCafe
+      ? "Café de Especialidad VE"
+      : "Café de Origen";
+
+  const base = await seedDemo(db, { all: isVe });
   void base;
-  // seedDemo trae 10 pedidos fijos de octubre; en la versión rica los reemplazamos por la historia completa.
+  // seedDemo trae pedidos fijos; en la versión rica los reemplazamos por la historia completa de 90 días.
   // Hijos primero: en una base que ya tenía datos, las llaves foráneas impiden borrar el pedido o el cliente.
   const p = db.prisma;
   await p.trackingEventRow.deleteMany({ where: { shipment: { order: { storeId } } } });
@@ -195,8 +235,8 @@ export async function seedRich(
     data: {
       settings: StoreSettingsSchema.parse({
         autonomy: 1,
-        maxAutoShipmentCost: 60000,
-        preferredProvider: "envia-com",
+        maxAutoShipmentCost: isVe ? 25 : 60000,
+        preferredProvider: isVe ? (isBeauty ? "dropi" : "zoom") : "envia-com",
         confirmCod: "risky",
         riskThreshold: 40,
         prepaidDiscountPct: 5,
@@ -205,8 +245,8 @@ export async function seedRich(
         rich: true,
         richVersion: RICH_VERSION,
         sample: true,
-        vertical: DEMO_STORE.vertical,
-        shipsWith: "Envia.com",
+        vertical: storeProfile.vertical,
+        shipsWith: isVe ? (isBeauty ? "Flash Courier (Dropi VE)" : "Grupo Zoom / MRW") : "Envia.com",
         codShare: 0.66,
       },
     },
@@ -216,7 +256,25 @@ export async function seedRich(
   const at = (msAgo: number) => new Date(now.getTime() - msAgo);
 
   // ---------- Clientes ----------
+  const prefixes = ["412", "414", "424"];
   const customers = Array.from({ length: 150 }, (_, i) => {
+    if (isVe) {
+      const name = `${pick(r, FIRST_VE)} ${pick(r, LAST_VE)}`;
+      const dest = pick(r, VE_DESTINATIONS);
+      const prefix = pick(r, prefixes);
+      const phone = `+58${prefix}${String(1_000_000 + Math.floor(r() * 8_999_999)).slice(0, 7)}`;
+      return {
+        id: `cust_rich_${storeId}_${i + 1}`,
+        name,
+        dane: dest.stateCode,
+        city: dest.city,
+        street: dest.street,
+        department: VENEZUELA_STATES[dest.stateCode]?.name ?? dest.city,
+        phone,
+        consent: r() < 0.72,
+        optOut: i % 31 === 7,
+      };
+    }
     const name = `${pick(r, FIRST)} ${pick(r, LAST)}`;
     const dane = pickW(r, DESTS);
     return {
@@ -224,6 +282,8 @@ export async function seedRich(
       name,
       dane,
       city: cityByDane(dane)?.name ?? "Bogotá",
+      street: pick(r, STREETS),
+      department: cityByDane(dane)?.department ?? "",
       phone: `+573${String(10 + Math.floor(r() * 40)).padStart(2, "0")}${String(1_000_000 + Math.floor(r() * 8_999_999))}`,
       consent: r() < 0.72,
       optOut: i % 31 === 7,
@@ -235,100 +295,288 @@ export async function seedRich(
 
   // ---------- Campañas de ejemplo (antes que los pedidos, para poder atribuirlos) ----------
   const prod = (id: string) =>
-    DEMO_PRODUCTS.find((p) => p.id === id) ?? (DEMO_PRODUCTS[0] as (typeof DEMO_PRODUCTS)[number]);
-  const camps: CampaignSeed[] = [
-    {
-      key: "kit-meta",
-      platform: "meta",
-      productId: "prod_kit",
-      status: "ACTIVE",
-      spend: 842_000,
-      impressions: 186_400,
-      clicks: 4_310,
-      budget: 40_000,
-      utm: "kit-degustacion-meta-2609",
-      daysAgo: 52,
-      sources: ["instagram", "facebook"],
-    },
-    {
-      key: "huila-meta",
-      platform: "meta",
-      productId: "prod_huila",
-      status: "ACTIVE",
-      spend: 516_000,
-      impressions: 121_900,
-      clicks: 2_660,
-      budget: 30_000,
-      utm: "cafe-huila-meta-2609",
-      daysAgo: 38,
-      sources: ["instagram", "facebook"],
-    },
-    {
-      key: "susc-tiktok",
-      platform: "tiktok",
-      productId: "prod_suscripcion",
-      status: "ACTIVE",
-      spend: 388_000,
-      impressions: 412_000,
-      clicks: 5_240,
-      budget: 25_000,
-      utm: "suscripcion-tiktok-2610",
-      daysAgo: 21,
-      sources: ["tiktok"],
-    },
-    {
-      key: "narino-google",
-      platform: "google",
-      productId: "prod_nariño",
-      status: "PAUSED",
-      spend: 294_000,
-      impressions: 48_700,
-      clicks: 1_980,
-      budget: 20_000,
-      utm: "cafe-narino-google-2609",
-      daysAgo: 44,
-      sources: ["google"],
-    },
-    {
-      key: "prensa-meta",
-      platform: "meta",
-      productId: "prod_prensa",
-      status: "PAUSED",
-      spend: 171_000,
-      impressions: 59_300,
-      clicks: 880,
-      budget: 25_000,
-      utm: "prensa-francesa-meta-2610",
-      daysAgo: 17,
-      sources: ["instagram"],
-    },
-    {
-      key: "sierra-google",
-      platform: "google",
-      productId: "prod_sierra",
-      status: "DRAFT",
-      spend: 0,
-      impressions: 0,
-      clicks: 0,
-      budget: 25_000,
-      utm: "cafe-sierra-nevada-google-2610",
-      daysAgo: 4,
-      sources: ["google"],
-    },
-    {
-      key: "kit-tiktok",
-      platform: "tiktok",
-      productId: "prod_kit",
-      status: "DRAFT",
-      spend: 0,
-      impressions: 0,
-      clicks: 0,
-      budget: 30_000,
-      utm: "kit-degustacion-tiktok-2610",
-      daysAgo: 2,
-      sources: ["tiktok"],
-    },
-  ];
+    catalog.find((p) => p.id === id) ?? (catalog[0] as (typeof catalog)[number]);
+  const camps: CampaignSeed[] = isBeauty
+    ? [
+        {
+          key: "mag-meta",
+          platform: "meta",
+          productId: "prod_mag_pack",
+          status: "ACTIVE",
+          spend: 420,
+          impressions: 112_000,
+          clicks: 2_840,
+          budget: 15,
+          utm: "magnesio-trio-meta-2609",
+          daysAgo: 52,
+          sources: ["instagram", "facebook"],
+        },
+        {
+          key: "serum-meta",
+          platform: "meta",
+          productId: "prod_serum_nia",
+          status: "ACTIVE",
+          spend: 260,
+          impressions: 74_000,
+          clicks: 1_820,
+          budget: 10,
+          utm: "niacinamida-meta-2609",
+          daysAgo: 38,
+          sources: ["instagram", "facebook"],
+        },
+        {
+          key: "ceramidas-tiktok",
+          platform: "tiktok",
+          productId: "prod_crema_cer",
+          status: "ACTIVE",
+          spend: 210,
+          impressions: 290_000,
+          clicks: 3_450,
+          budget: 12,
+          utm: "ceramidas-tiktok-2610",
+          daysAgo: 21,
+          sources: ["tiktok"],
+        },
+        {
+          key: "protector-google",
+          platform: "google",
+          productId: "prod_protector",
+          status: "PAUSED",
+          spend: 180,
+          impressions: 32_000,
+          clicks: 1_210,
+          budget: 8,
+          utm: "protector-google-2609",
+          daysAgo: 44,
+          sources: ["google"],
+        },
+        {
+          key: "colageno-meta",
+          platform: "meta",
+          productId: "prod_colageno",
+          status: "PAUSED",
+          spend: 110,
+          impressions: 38_000,
+          clicks: 640,
+          budget: 10,
+          utm: "colageno-meta-2610",
+          daysAgo: 17,
+          sources: ["instagram"],
+        },
+        {
+          key: "mag-google",
+          platform: "google",
+          productId: "prod_mag_pack",
+          status: "DRAFT",
+          spend: 0,
+          impressions: 0,
+          clicks: 0,
+          budget: 15,
+          utm: "magnesio-google-2610",
+          daysAgo: 4,
+          sources: ["google"],
+        },
+        {
+          key: "serum-tiktok",
+          platform: "tiktok",
+          productId: "prod_serum_nia",
+          status: "DRAFT",
+          spend: 0,
+          impressions: 0,
+          clicks: 0,
+          budget: 10,
+          utm: "niacinamida-tiktok-2610",
+          daysAgo: 2,
+          sources: ["tiktok"],
+        },
+      ]
+    : isCafe
+      ? [
+          {
+            key: "bocono-meta",
+            platform: "meta",
+            productId: "prod_cafe_bocono",
+            status: "ACTIVE",
+            spend: 340,
+            impressions: 92_000,
+            clicks: 2_450,
+            budget: 12,
+            utm: "cafe-bocono-meta-2609",
+            daysAgo: 52,
+            sources: ["instagram", "facebook"],
+          },
+          {
+            key: "sanare-meta",
+            platform: "meta",
+            productId: "prod_cafe_sanare",
+            status: "ACTIVE",
+            spend: 220,
+            impressions: 65_000,
+            clicks: 1_620,
+            budget: 10,
+            utm: "cafe-sanare-meta-2609",
+            daysAgo: 38,
+            sources: ["instagram", "facebook"],
+          },
+          {
+            key: "merida-tiktok",
+            platform: "tiktok",
+            productId: "prod_cafe_merida",
+            status: "ACTIVE",
+            spend: 190,
+            impressions: 210_000,
+            clicks: 2_890,
+            budget: 10,
+            utm: "cafe-merida-tiktok-2610",
+            daysAgo: 21,
+            sources: ["tiktok"],
+          },
+          {
+            key: "biscucuy-google",
+            platform: "google",
+            productId: "prod_cafe_biscucuy",
+            status: "PAUSED",
+            spend: 150,
+            impressions: 28_000,
+            clicks: 980,
+            budget: 8,
+            utm: "cafe-biscucuy-google-2609",
+            daysAgo: 44,
+            sources: ["google"],
+          },
+          {
+            key: "miranda-meta",
+            platform: "meta",
+            productId: "prod_cafe_miranda",
+            status: "PAUSED",
+            spend: 95,
+            impressions: 31_000,
+            clicks: 520,
+            budget: 8,
+            utm: "cafe-miranda-meta-2610",
+            daysAgo: 17,
+            sources: ["instagram"],
+          },
+          {
+            key: "tachira-google",
+            platform: "google",
+            productId: "prod_cafe_tachira",
+            status: "DRAFT",
+            spend: 0,
+            impressions: 0,
+            clicks: 0,
+            budget: 10,
+            utm: "cafe-tachira-google-2610",
+            daysAgo: 4,
+            sources: ["google"],
+          },
+          {
+            key: "bocono-tiktok",
+            platform: "tiktok",
+            productId: "prod_cafe_bocono",
+            status: "DRAFT",
+            spend: 0,
+            impressions: 0,
+            clicks: 0,
+            budget: 12,
+            utm: "cafe-bocono-tiktok-2610",
+            daysAgo: 2,
+            sources: ["tiktok"],
+          },
+        ]
+      : [
+          {
+            key: "kit-meta",
+            platform: "meta",
+            productId: "prod_kit",
+            status: "ACTIVE",
+            spend: 842_000,
+            impressions: 186_400,
+            clicks: 4_310,
+            budget: 40_000,
+            utm: "kit-degustacion-meta-2609",
+            daysAgo: 52,
+            sources: ["instagram", "facebook"],
+          },
+          {
+            key: "huila-meta",
+            platform: "meta",
+            productId: "prod_huila",
+            status: "ACTIVE",
+            spend: 516_000,
+            impressions: 121_900,
+            clicks: 2_660,
+            budget: 30_000,
+            utm: "cafe-huila-meta-2609",
+            daysAgo: 38,
+            sources: ["instagram", "facebook"],
+          },
+          {
+            key: "susc-tiktok",
+            platform: "tiktok",
+            productId: "prod_suscripcion",
+            status: "ACTIVE",
+            spend: 388_000,
+            impressions: 412_000,
+            clicks: 5_240,
+            budget: 25_000,
+            utm: "suscripcion-tiktok-2610",
+            daysAgo: 21,
+            sources: ["tiktok"],
+          },
+          {
+            key: "narino-google",
+            platform: "google",
+            productId: "prod_nariño",
+            status: "PAUSED",
+            spend: 294_000,
+            impressions: 48_700,
+            clicks: 1_980,
+            budget: 20_000,
+            utm: "cafe-narino-google-2609",
+            daysAgo: 44,
+            sources: ["google"],
+          },
+          {
+            key: "prensa-meta",
+            platform: "meta",
+            productId: "prod_prensa",
+            status: "PAUSED",
+            spend: 171_000,
+            impressions: 59_300,
+            clicks: 880,
+            budget: 25_000,
+            utm: "prensa-francesa-meta-2610",
+            daysAgo: 17,
+            sources: ["instagram"],
+          },
+          {
+            key: "sierra-google",
+            platform: "google",
+            productId: "prod_sierra",
+            status: "DRAFT",
+            spend: 0,
+            impressions: 0,
+            clicks: 0,
+            budget: 25_000,
+            utm: "cafe-sierra-nevada-google-2610",
+            daysAgo: 4,
+            sources: ["google"],
+          },
+          {
+            key: "kit-tiktok",
+            platform: "tiktok",
+            productId: "prod_kit",
+            status: "DRAFT",
+            spend: 0,
+            impressions: 0,
+            clicks: 0,
+            budget: 30_000,
+            utm: "kit-degustacion-tiktok-2610",
+            daysAgo: 2,
+            sources: ["tiktok"],
+          },
+        ];
   const campBySource = (src: string, ageDays: number) =>
     camps.filter((c) => c.sources.includes(src) && c.status !== "DRAFT" && ageDays <= c.daysAgo);
 
@@ -358,7 +606,7 @@ export async function seedRich(
       const cu = customers[ci] as (typeof customers)[number];
       const nLines = 1 + (r() < 0.35 ? 1 : 0) + (r() < 0.1 ? 1 : 0);
       const lines = Array.from({ length: nLines }, () => {
-        const p = pick(r, DEMO_PRODUCTS);
+        const p = pick(r, catalog);
         return {
           productId: p.id,
           title: p.title,
@@ -377,10 +625,10 @@ export async function seedRich(
         utm.utm_medium = c.platform === "google" ? "cpc" : "paid_social";
       } else if (src !== "directo") utm.utm_medium = src === "whatsapp" ? "chat" : "organic";
       const created = new Date(now.getTime() - d * DAY - Math.floor(r() * 10 * HOUR) - 2 * HOUR);
-      const id = `ord_rich_${seq}`;
+      const id = isVe ? `ord_rich_${storeId}_${seq}` : `ord_rich_${seq}`;
       orders.push({
         id,
-        ext: `ext_rich_${seq}`,
+        ext: isVe ? `ext_rich_${storeId}_${seq}` : `ext_rich_${seq}`,
         number: `#${seq}`,
         customerIdx: ci,
         createdAt: created,
@@ -391,10 +639,10 @@ export async function seedRich(
         address: {
           name: cu.name,
           phone: cu.phone,
-          street: pick(r, STREETS),
+          street: cu.street,
           city: cu.city,
           dane: cu.dane,
-          department: cityByDane(cu.dane)?.department ?? "",
+          department: cu.department,
         },
         utm,
       });
@@ -459,22 +707,27 @@ export async function seedRich(
   orders.forEach((o, i) => {
     const cu = customers[o.customerIdx] as (typeof customers)[number];
     const special = specials.get(i);
-    const zone = zoneFor("11001", o.address.dane);
+    const zone = isVe ? 1 : zoneFor("11001", o.address.dane);
     const weight = o.lines.reduce((s, l) => s + l.weightGrams * l.quantity, 0);
+    const routeList = isVe ? ROUTES_VE : ROUTES;
     const route = pickW(
       r,
-      ROUTES.map((x): [(typeof ROUTES)[number], number] => [x, x.w]),
+      routeList.map((x): [(typeof routeList)[number], number] => [x, x.w]),
     );
     const prof = CARRIER_PROFILES[route.carrier] as (typeof CARRIER_PROFILES)[string];
     const markup = route.provider === "envia-com" ? 0.04 : route.provider === "99envios" ? 0.03 : 0;
-    const freight =
-      Math.round((BASE_FREIGHT[zone] * weightFactor(weight) * prof.price * (1 + markup)) / 100) *
-      100;
+    const freight = isVe
+      ? Number((4.5 * prof.price).toFixed(2))
+      : Math.round((BASE_FREIGHT[zone] * weightFactor(weight) * prof.price * (1 + markup)) / 100) * 100;
     const cod =
       o.payment === "cod"
-        ? Math.max(prof.codMin, Math.round((o.total * prof.codRate) / 100) * 100)
+        ? (isVe
+            ? Math.max(prof.codMin, Number((o.total * prof.codRate).toFixed(2)))
+            : Math.max(prof.codMin, Math.round((o.total * prof.codRate) / 100) * 100))
         : 0;
-    const days_ = BASE_DAYS[zone] + prof.extraDays;
+    const days_ = (isVe ? 2 : BASE_DAYS[zone]) + prof.extraDays;
+    const fmt = (val: number) => (isVe ? `$ ${val.toFixed(2)}` : formatCOP(val));
+
     // Resultado según la edad del pedido.
     const roll = r();
     let outcome:
@@ -535,8 +788,9 @@ export async function seedRich(
                 ? "delivered"
                 : "shipped";
     let address = o.address;
-    if (special === "needAddress") address = { ...address, street: "por el parque, casa azul" };
-    const total = special === "overCap" ? 560_000 : o.total;
+    if (special === "needAddress")
+      address = { ...address, street: isVe ? "por la plaza Bolívar, casa verde" : "por el parque, casa azul" };
+    const total = special === "overCap" ? (isVe ? 140 : 560_000) : o.total;
     store.orders.push({
       id: o.id,
       storeId,
@@ -573,42 +827,50 @@ export async function seedRich(
 
     if (outcome === "received") {
       if (special === "needAddress") {
+        const badStreet = isVe ? "por la plaza Bolívar, casa verde" : "por el parque, casa azul";
         ev(
           "approval.requested",
-          `La dirección "por el parque, casa azul" parece incompleta en el pedido ${o.number}. Necesito que confirmes la dirección con ${address.name}.`,
+          `La dirección "${badStreet}" parece incompleta en el pedido ${o.number}. Necesito que confirmes la dirección con ${address.name}.`,
           new Date(t0 + 45_000),
           o.id,
         );
         store.approvals.push({
-          id: `apr_rich_addr`,
+          id: isVe ? `apr_rich_${storeId}_addr` : "apr_rich_addr",
           storeId,
           orderId: o.id,
           kind: "address",
           title: `Dirección por confirmar en ${o.number}`,
-          detail: `La dirección "por el parque, casa azul" parece incompleta. Necesito que se la confirmes al cliente antes de generar la guía.`,
+          detail: `La dirección "${badStreet}" parece incompleta. Necesito que se la confirmes al cliente antes de generar la guía.`,
           payload: { orderId: o.id },
           status: "pending",
           createdAt: new Date(t0 + 45_000),
         });
       } else if (special === "overCap") {
-        const alt = ["interrapidisimo", "coordinadora", "servientrega", "envia"] as const;
+        const alt = isVe
+          ? (["flash", "mrw", "zoom", "tealca"] as const)
+          : (["interrapidisimo", "coordinadora", "servientrega", "envia"] as const);
         alt.forEach((k, j) =>
           store.quotes.push({
-            id: `qt_rich_cap_${j}`,
+            id: isVe ? `qt_rich_${storeId}_cap_${j}` : `qt_rich_cap_${j}`,
             orderId: o.id,
-            provider: j === 3 ? "99envios" : "envia-com",
+            provider: isVe ? (k === "flash" ? "dropi" : k) : (j === 3 ? "99envios" : "envia-com"),
             carrier: CARRIER_PROFILES[k]?.carrier ?? k,
-            service: "Estándar",
-            freight: 61_000 + j * 4_200,
-            codCommission: 14_000,
+            service: isVe ? "Nacional VE" : "Estándar",
+            freight: isVe ? Number((28 + j * 3.5).toFixed(2)) : 61_000 + j * 4_200,
+            codCommission: isVe ? 4.5 : 14_000,
             supportsCod: true,
-            businessDays: 3 + (j % 2),
+            businessDays: (isVe ? 2 : 3) + (j % 2),
             simulated: true,
             chosen: j === 0,
             score: 0.7 - j * 0.08,
             createdAt: new Date(t0 + 60_000),
           }),
         );
+        const topCarrier = isVe ? "Flash Courier (Dropi)" : "Interrapidísimo directo";
+        const topCostStr = isVe ? "$ 32.50" : "$ 75.000";
+        const topDiffStr = isVe ? "$ 3.50 menos" : "$ 4.200 menos";
+        const topLimitStr = isVe ? "$ 25.00" : "$ 60.000";
+        const topCodStr = isVe ? "$ 4.50" : "$ 14.000";
         ev(
           "quotes.received",
           `Recibí 14 cotizaciones; 4 transportadoras distintas pueden llevarlo.`,
@@ -617,25 +879,25 @@ export async function seedRich(
         );
         ev(
           "carrier.selected",
-          `Elegí Interrapidísimo directo: $ 75.000 en 3 días hábiles. Frente a Coordinadora: $ 4.200 menos. Incluye $ 14.000 de comisión de recaudo.`,
+          `Elegí ${topCarrier}: ${topCostStr} en ${isVe ? 2 : 3} días hábiles. Frente a ${isVe ? "MRW" : "Coordinadora"}: ${topDiffStr}. Incluye ${topCodStr} de comisión de recaudo.`,
           new Date(t0 + 55_000),
           o.id,
         );
         ev(
           "approval.requested",
-          `Dejé lista la guía de ${o.number} con Interrapidísimo ($ 75.000). La guía cuesta $ 75.000, más que tu tope automático de $ 60.000.`,
+          `Dejé lista la guía de ${o.number} con ${topCarrier} (${topCostStr}). La guía cuesta ${topCostStr}, más que tu tope automático de ${topLimitStr}.`,
           new Date(t0 + 60_000),
           o.id,
         );
         store.approvals.push({
-          id: "apr_rich_cap",
+          id: isVe ? `apr_rich_${storeId}_cap` : "apr_rich_cap",
           storeId,
           orderId: o.id,
           kind: "shipment",
-          title: `Aprobar guía de ${o.number} con Interrapidísimo`,
+          title: `Aprobar guía de ${o.number} con ${topCarrier}`,
           detail:
-            "Elegí Interrapidísimo directo: $ 75.000 en 3 días hábiles. La guía cuesta $ 75.000, más que tu tope automático de $ 60.000.",
-          payload: { orderId: o.id, provider: "interrapidisimo", carrier: "Interrapidísimo" },
+            `Elegí ${topCarrier}: ${topCostStr} en ${isVe ? 2 : 3} días hábiles. La guía cuesta ${topCostStr}, más que tu tope automático de ${topLimitStr}.`,
+          payload: { orderId: o.id, provider: isVe ? "dropi" : "interrapidisimo", carrier: topCarrier },
           status: "pending",
           createdAt: new Date(t0 + 60_000),
         });
@@ -646,16 +908,19 @@ export async function seedRich(
           new Date(t0 + 40_000),
           o.id,
         );
+        const discPrice = isVe
+          ? Number((total * 0.95).toFixed(2))
+          : Math.round((total * 0.95) / 100) * 100;
         msg(
           o.customerIdx,
           "out",
-          `Hola ${address.name.split(" ")[0]}, recibimos tu pedido en Café de Origen. Pagas ${formatCOP(total)} al recibir. ¿Confirmas tu dirección y que estarás para recibirlo? Si prefieres pagar ahora tienes 5 % de descuento: ${formatCOP(Math.round((total * 0.95) / 100) * 100)}.`,
+          `Hola ${address.name.split(" ")[0]}, recibimos tu pedido en ${storeName}. Pagas ${fmt(total)} al recibir. ¿Confirmas tu dirección y que estarás para recibirlo? Si prefieres pagar ahora tienes 5 % de descuento: ${fmt(discPrice)}.`,
           new Date(t0 + 41_000),
           "confirmar_contraentrega",
         );
         customersWithAnyMsg.add(o.customerIdx);
         store.approvals.push({
-          id: "apr_rich_noresp",
+          id: isVe ? `apr_rich_${storeId}_noresp` : "apr_rich_noresp",
           storeId,
           orderId: o.id,
           kind: "no_response",
@@ -677,16 +942,22 @@ export async function seedRich(
     }
 
     // Cotizaciones (las 4 mejores vías) y guía.
-    const rivals = (["coordinadora", "interrapidisimo", "servientrega", "envia"] as const)
-      .filter((k) => k !== route.carrier)
-      .slice(0, 3);
+    const rivalList = isVe
+      ? (["flash", "mrw", "zoom", "tealca", "caracas-express"] as const)
+      : (["coordinadora", "interrapidisimo", "servientrega", "envia"] as const);
+    const rivals = rivalList.filter((k) => k !== route.carrier).slice(0, 3);
     const quoteRows = [route.carrier, ...rivals].map((k, j) => {
       const p = CARRIER_PROFILES[k] as (typeof CARRIER_PROFILES)[string];
-      const f = j === 0 ? freight : Math.round((freight * (1.02 + j * 0.05)) / 100) * 100;
+      const f =
+        j === 0
+          ? freight
+          : isVe
+            ? Number((freight * (1.05 + j * 0.05)).toFixed(2))
+            : Math.round((freight * (1.02 + j * 0.05)) / 100) * 100;
       return {
-        id: `qt_rich_${i}_${j}`,
+        id: isVe ? `qt_rich_${storeId}_${i}_${j}` : `qt_rich_${i}_${j}`,
         orderId: o.id,
-        provider: j === 0 ? route.provider : "envia-com",
+        provider: j === 0 ? route.provider : isVe ? (k === "flash" ? "dropi" : k) : "envia-com",
         carrier: p.carrier,
         service: p.service,
         freight: f,
@@ -819,26 +1090,26 @@ export async function seedRich(
       );
       ev(
         "carrier.selected",
-        `Elegí ${prof.carrier} ${route.provider === "envia-com" ? "por Envia.com" : route.provider === "99envios" ? "por 99envios" : "directo"}: ${formatCOP(freight + cod)} en ${days_} días hábiles.${cod ? ` Incluye ${formatCOP(cod)} de comisión de recaudo.` : ""}`,
+        `Elegí ${prof.carrier} ${route.provider === "dropi" ? "por Dropi VE" : route.provider === "envia-com" ? "por Envia.com" : route.provider === "99envios" ? "por 99envios" : "directo"}: ${fmt(freight + cod)} en ${days_} días hábiles.${cod ? ` Incluye ${fmt(cod)} de comisión de recaudo.` : ""}`,
         new Date(t0 + 55_000),
         o.id,
       );
       ev(
         "shipment.created",
-        `Generé la guía ${tn} con ${prof.carrier} (${formatCOP(freight + cod)}). Es una guía simulada.`,
+        `Generé la guía ${tn} con ${prof.carrier} (${fmt(freight + cod)}). Es una guía simulada.`,
         new Date(t0 + 120_000),
         o.id,
       );
       ev(
         "fulfillment.written",
-        "Escribí la guía y el tracking en la tienda (shopify).",
+        `Escribí la guía y el tracking en la tienda (${isBeauty ? "woocommerce" : "shopify"}).`,
         new Date(t0 + 125_000),
         o.id,
       );
       msg(
         o.customerIdx,
         "out",
-        `Hola ${address.name.split(" ")[0]}, tu pedido de Café de Origen ya va en camino con ${prof.carrier}. Guía ${tn}. Llega en ${days_} días hábiles. Rastréalo aquí: https://traxo.invalid/rastreo/${tn}`,
+        `Hola ${address.name.split(" ")[0]}, tu pedido de ${storeName} ya va en camino con ${prof.carrier}. Guía ${tn}. Llega en ${days_} días hábiles. Rastréalo aquí: https://traxo.invalid/rastreo/${tn}`,
         new Date(t0 + 130_000),
         "pedido_en_camino",
       );
@@ -859,7 +1130,7 @@ export async function seedRich(
         msg(
           o.customerIdx,
           "out",
-          `Hola ${address.name.split(" ")[0]}, tu pedido llega hoy. ${o.payment === "cod" ? `Ten listos ${formatCOP(total)} para pagar al recibir. ` : ""}Guía ${tn}.`,
+          `Hola ${address.name.split(" ")[0]}, tu pedido llega hoy. ${o.payment === "cod" ? `Ten listos ${fmt(total)} para pagar al recibir. ` : ""}Guía ${tn}.`,
           new Date(finalTime + 60_000),
           "llega_hoy",
         );
@@ -867,7 +1138,7 @@ export async function seedRich(
       if (outcome === "delivered")
         ev(
           "tracking.updated",
-          `Entregué ${o.number} a ${address.name}${o.payment === "cod" ? ` y se recaudaron ${formatCOP(total)}` : ""}.`,
+          `Entregué ${o.number} a ${address.name}${o.payment === "cod" ? ` y se recaudaron ${fmt(total)}` : ""}.`,
           new Date(finalTime),
           o.id,
         );
@@ -890,10 +1161,15 @@ export async function seedRich(
       );
       customersWithAnyMsg.add(o.customerIdx);
       if (special === "newAddress") {
+        const altStreet = isVe
+          ? "Av. Francisco de Miranda, Res. Parque Cristal apto 5-B"
+          : "Carrera 15 # 100-25 en Bogotá, apto 301";
+        const altCity = isVe ? "Caracas" : "Bogotá";
+        const altDane = isVe ? "VE-A" : "11001";
         msg(
           o.customerIdx,
           "in",
-          "Mejor a la Carrera 15 # 100-25 en Bogotá, apto 301",
+          `Mejor a ${altStreet}`,
           new Date(when.getTime() + 20 * 60_000),
         );
         msg(
@@ -903,24 +1179,24 @@ export async function seedRich(
           new Date(when.getTime() + 21 * 60_000),
         );
         store.approvals.push({
-          id: "apr_rich_newaddr",
+          id: isVe ? `apr_rich_${storeId}_newaddr` : "apr_rich_newaddr",
           storeId,
           orderId: o.id,
           kind: "new_address",
           title: `Nueva dirección para ${o.number}`,
-          detail: `El cliente propone: "Carrera 15 # 100-25 apto 301" (Bogotá). Confírmala para reprogramar.`,
+          detail: `El cliente propone: "${altStreet}" (${altCity}). Confírmala para reprogramar.`,
           payload: {
             orderId: o.id,
             trackingNumber: tn,
-            street: "Carrera 15 # 100-25 apto 301",
-            dane: "11001",
+            street: altStreet,
+            dane: altDane,
           },
           status: "pending",
           createdAt: new Date(when.getTime() + 22 * 60_000),
         });
         ev(
           "approval.requested",
-          `${address.name} dio otra dirección para ${o.number}: "Carrera 15 # 100-25 apto 301". La dejé lista para tu aprobación.`,
+          `${address.name} dio otra dirección para ${o.number}: "${altStreet}". La dejé lista para tu aprobación.`,
           new Date(when.getTime() + 22 * 60_000),
           o.id,
         );
@@ -939,7 +1215,7 @@ export async function seedRich(
       msg(
         o.customerIdx,
         "out",
-        `Listo, reprogramé tu entrega para mañana.${o.payment === "cod" ? ` Ten listos ${formatCOP(total)}.` : ""}`,
+        `Listo, reprogramé tu entrega para mañana.${o.payment === "cod" ? ` Ten listos ${fmt(total)}.` : ""}`,
         new Date(when.getTime() + 16 * 60_000),
       );
       customersWithAnyMsg.add(o.customerIdx);
@@ -967,38 +1243,23 @@ export async function seedRich(
   }
 
   // Aprobaciones ya resueltas (historia).
-  const past: Array<[string, string, string, number, "approved" | "rejected"]> = [
-    [
-      "shipment",
-      "Aprobar guía de #1043 con Servientrega",
-      "La guía cuesta $ 68.400, más que tu tope automático.",
-      11,
-      "approved",
-    ],
-    [
-      "address",
-      "Dirección por confirmar en #1051",
-      "La dirección parece incompleta.",
-      14,
-      "approved",
-    ],
-    [
-      "return",
-      "Una clienta no quiere recibir #1066",
-      "Respondió «no lo quiero» tras la novedad.",
-      19,
-      "approved",
-    ],
-    [
-      "no_response",
-      "Un cliente no confirmó #1072",
-      "Pasaron más de 24 h sin respuesta.",
-      23,
-      "rejected",
-    ],
-    ["unknown_reply", "Respuesta que no entendí", "Escribió: «mmm quien eres».", 27, "approved"],
-    ["shipment", "Aprobar guía de #1090 con TCC", "La guía cuesta $ 82.000.", 31, "rejected"],
-  ];
+  const past: Array<[string, string, string, number, "approved" | "rejected"]> = isVe
+    ? [
+        ["shipment", "Aprobar guía de #1043 con MRW Venezuela", "La guía cuesta $ 28.50, más que tu tope automático.", 11, "approved"],
+        ["address", "Dirección por confirmar en #1051", "La dirección parece incompleta.", 14, "approved"],
+        ["return", "Una clienta no quiere recibir #1066", "Respondió «no lo quiero» tras la novedad.", 19, "approved"],
+        ["no_response", "Un cliente no confirmó #1072", "Pasaron más de 24 h sin respuesta.", 23, "rejected"],
+        ["unknown_reply", "Respuesta que no entendí", "Escribió: «mmm quien eres».", 27, "approved"],
+        ["shipment", "Aprobar guía de #1090 con Tealca", "La guía cuesta $ 31.00.", 31, "rejected"],
+      ]
+    : [
+        ["shipment", "Aprobar guía de #1043 con Servientrega", "La guía cuesta $ 68.400, más que tu tope automático.", 11, "approved"],
+        ["address", "Dirección por confirmar en #1051", "La dirección parece incompleta.", 14, "approved"],
+        ["return", "Una clienta no quiere recibir #1066", "Respondió «no lo quiero» tras la novedad.", 19, "approved"],
+        ["no_response", "Un cliente no confirmó #1072", "Pasaron más de 24 h sin respuesta.", 23, "rejected"],
+        ["unknown_reply", "Respuesta que no entendí", "Escribió: «mmm quien eres».", 27, "approved"],
+        ["shipment", "Aprobar guía de #1090 con TCC", "La guía cuesta $ 82.000.", 31, "rejected"],
+      ];
   past.forEach(([kind, title, detail, d, st], j) =>
     store.approvals.push({
       id: `apr_past_${j}`,
@@ -1017,7 +1278,7 @@ export async function seedRich(
   // ---------- Historial de eventos que no son de un pedido ----------
   ev(
     "store.imported",
-    "Importé tu tienda: 6 productos, 64 clientes y 143 pedidos. Ya puedo trabajar con tus datos.",
+    `Importé tu tienda ${storeName}: ${catalog.length} productos, 64 clientes y 143 pedidos. Ya puedo trabajar con tus datos.`,
     at(90 * DAY),
   );
   ev(
@@ -1027,7 +1288,7 @@ export async function seedRich(
   );
   ev(
     "audit.done",
-    "Auditoría de SEO lista (informe de ejemplo): 71 sobre 15 checks evaluados de 16. Lo primero: Schema de producto (JSON-LD): Añade Product con offers (precio, moneda COP, disponibilidad).",
+    `Auditoría de SEO lista (informe de ejemplo): 71 sobre 15 checks evaluados de 16. Lo primero: Schema de producto (JSON-LD): Añade Product con offers (precio, moneda ${isVe ? "USD/VES" : "COP"}, disponibilidad).`,
     at(2 * DAY),
   );
   ev(
@@ -1054,7 +1315,7 @@ export async function seedRich(
       storeId,
       name: c.name,
       phone: c.phone,
-      email: `${strip(c.name.split(" ")[0] ?? "cliente")}${c.id.slice(-2)}@correo.co`,
+      email: `${strip(c.name.split(" ")[0] ?? "cliente")}${c.id.slice(-2)}@${isVe ? "davebeauty.ve" : "correo.co"}`,
       city: c.city,
       whatsappConsent: c.consent,
       optOutAt: c.optOut ? at(9 * DAY) : null,
@@ -1101,7 +1362,7 @@ export async function seedRich(
       const tokensIn = Math.round(f.inTok * jitter);
       const tokensOut = Math.round(f.outTok * jitter);
       usage.push({
-        id: `use_rich_${d}_${i}`,
+        id: `use_rich_${storeId}_${d}_${i}`,
         storeId,
         kind: "ia",
         feature: f.name,
@@ -1114,7 +1375,7 @@ export async function seedRich(
     }
     if (d % 11 === 4)
       usage.push({
-        id: `use_rich_cr_${d}`,
+        id: `use_rich_${storeId}_cr_${d}`,
         storeId,
         kind: d % 22 === 4 ? "video" : "imagen",
         feature: d % 22 === 4 ? "Higgsfield · video UGC" : "Higgsfield · foto de producto",
@@ -1130,14 +1391,32 @@ export async function seedRich(
   // ---------- Campañas con métricas de ejemplo (el gasto sale de la plataforma, no de Traxo) ----------
   // El gasto sale de la plataforma, no de Traxo: lo fijamos para que el ROAS (ventas ÷ gasto) cuente una historia coherente
   // con los pedidos que de verdad traen esos utm. La de TikTok pierde plata a propósito.
-  const TARGET_ROAS: Record<string, number> = {
-    "kit-meta": 4.6,
-    "huila-meta": 4.1,
-    "narino-google": 3.4,
-    "prensa-meta": 2.6,
-    "susc-tiktok": 0.8,
-  };
-  const CPC = { meta: 190, google: 148, tiktok: 74 } as const;
+  const TARGET_ROAS: Record<string, number> = isBeauty
+    ? {
+        "mag-meta": 4.6,
+        "serum-meta": 4.1,
+        "protector-google": 3.4,
+        "colageno-meta": 2.6,
+        "ceramidas-tiktok": 0.8,
+      }
+    : isCafe
+      ? {
+          "bocono-meta": 4.6,
+          "sanare-meta": 4.1,
+          "biscucuy-google": 3.4,
+          "miranda-meta": 2.6,
+          "merida-tiktok": 0.8,
+        }
+      : {
+          "kit-meta": 4.6,
+          "huila-meta": 4.1,
+          "narino-google": 3.4,
+          "prensa-meta": 2.6,
+          "susc-tiktok": 0.8,
+        };
+  const CPC = isVe
+    ? ({ meta: 0.25, google: 0.35, tiktok: 0.15 } as const)
+    : ({ meta: 190, google: 148, tiktok: 74 } as const);
   const CTR = { meta: 0.021, google: 0.04, tiktok: 0.013 } as const;
   const okStatus = new Map(
     (store.orders as Array<{ id: string; status: string }>).map((o) => [o.id, o.status]),
@@ -1147,7 +1426,10 @@ export async function seedRich(
     const rev = orders
       .filter((o) => o.utm.utm_campaign === c.utm && okStatus.get(o.id) !== "cancelled")
       .reduce((sum, o) => sum + o.total, 0);
-    c.spend = rev > 0 ? Math.round(rev / (TARGET_ROAS[c.key] ?? 3) / 1000) * 1000 : 150_000;
+    const target = TARGET_ROAS[c.key] ?? 3;
+    c.spend = rev > 0
+      ? (isVe ? Number((rev / target).toFixed(2)) : Math.round(rev / target / 1000) * 1000)
+      : (isVe ? 50 : 150_000);
     c.clicks = Math.max(1, Math.round(c.spend / CPC[c.platform]));
     c.impressions = Math.round(c.clicks / CTR[c.platform]);
   }
@@ -1161,8 +1443,8 @@ export async function seedRich(
         price: p.price,
         marginPct: p.cost ? Math.round(((p.price - p.cost) / p.price) * 100) : null,
         unitsSold: 40,
-        topCities: ["Bogotá", "Medellín", "Cali"],
-        storeName: "Café de Origen",
+        topCities: isVe ? ["Caracas", "Valencia", "Maracaibo"] : ["Bogotá", "Medellín", "Cali"],
+        storeName,
         dailyBudget: c.budget,
       },
       new Date(now.getTime() - c.daysAgo * DAY),
@@ -1199,7 +1481,7 @@ export async function seedRich(
           dailyBudget: c.budget,
           audience: {
             ...sug.audience,
-            customerSegment: c.key === "susc-tiktok" ? "recompra" : undefined,
+            customerSegment: c.key === "susc-tiktok" || c.key.includes("tiktok") ? "recompra" : undefined,
           },
           copy: sug.copy,
           creatives: sug.creatives.map((x, j) => ({
@@ -1240,7 +1522,7 @@ export async function seedRich(
   await db.prisma.audience.createMany({
     data: [
       {
-        id: "aud_rich_1",
+        id: `aud_rich_${storeId}_1`,
         storeId,
         name: "Clientes que recompran",
         segment: "recompra",
@@ -1249,7 +1531,7 @@ export async function seedRich(
         createdAt: at(26 * DAY),
       },
       {
-        id: "aud_rich_2",
+        id: `aud_rich_${storeId}_2`,
         storeId,
         name: "Clientes inactivos (60+ días)",
         segment: "inactivo",
@@ -1258,7 +1540,7 @@ export async function seedRich(
         createdAt: at(6 * DAY),
       },
       {
-        id: "aud_rich_3",
+        id: `aud_rich_${storeId}_3`,
         storeId,
         name: "Clientes nuevos (30 días)",
         segment: "nuevo",
@@ -1270,12 +1552,17 @@ export async function seedRich(
   });
 
   // ---------- Auditorías: la anterior (peor) y la actual ----------
-  const seoNow = sampleAudit("seo", "https://cafedeorigen.example", at(2 * DAY));
-  const seoOld = sampleAudit("seo", "https://cafedeorigen.example", at(30 * DAY));
+  const auditUrl = isBeauty
+    ? "https://davebeauty.daverod.tech"
+    : isCafe
+      ? "https://cafeespecialidad.ve"
+      : "https://cafedeorigen.example";
+  const seoNow = sampleAudit("seo", auditUrl, at(2 * DAY));
+  const seoOld = sampleAudit("seo", auditUrl, at(30 * DAY));
   for (const c of seoOld.checks) if (["canonical", "og", "llms"].includes(c.id)) c.status = "fail";
   const { scoreChecks, quickWinsOf } = await import("@traxo/audit");
   Object.assign(seoOld, scoreChecks(seoOld.checks), { quickWins: quickWinsOf(seoOld.checks) });
-  const dis = sampleAudit("diseno", "https://cafedeorigen.example", at(2 * DAY));
+  const dis = sampleAudit("diseno", auditUrl, at(2 * DAY));
   for (const [kind, rep, when] of [
     ["seo", seoOld, 30],
     ["seo", seoNow, 2],

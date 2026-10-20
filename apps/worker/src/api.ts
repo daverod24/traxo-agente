@@ -39,6 +39,22 @@ export function registerApi(app: Hono, rt: Runtime): void {
   const { db } = rt;
   const sid = (c: Context): string => storeOf(c, rt.storeId);
 
+  app.get("/api/stores", async (c) => {
+    const list = await db.prisma.store.findMany({
+      orderBy: { createdAt: "asc" },
+    });
+    return c.json(
+      list.map((s) => ({
+        id: s.id,
+        name: s.name,
+        platform: s.platform,
+        url: s.url,
+        isLive: s.platform === "woocommerce" || s.platform === "shopify",
+        vertical: (s.profile as Record<string, unknown> | null)?.vertical ?? "E-Commerce",
+      })),
+    );
+  });
+
   app.get("/api/state", async (c) => {
     const [settings, orders, shipments, pending, incidents] = await Promise.all([
       getSettings(db, sid(c)),

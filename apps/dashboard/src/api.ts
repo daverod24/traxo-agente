@@ -11,7 +11,14 @@ function token(): string {
     return "";
   }
 }
-const auth = (): Record<string, string> => (token() ? { Authorization: `Bearer ${token()}` } : {});
+const auth = (): Record<string, string> => {
+  const h: Record<string, string> = token() ? { Authorization: `Bearer ${token()}` } : {};
+  try {
+    const cur = localStorage.getItem("traxo-store-id");
+    if (cur) h["X-Store-Id"] = cur;
+  } catch {}
+  return h;
+};
 
 /** Cuando la sesión caduca o se cierra en otra pestaña, el panel vuelve a la pantalla de acceso. */
 const unauth = (): void => {
