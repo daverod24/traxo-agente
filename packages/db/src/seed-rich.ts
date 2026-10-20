@@ -971,8 +971,10 @@ export async function seedRich(
       };
     });
     store.quotes.push(...quoteRows);
-    const tn = `${240_000_000_000 + 1_000_000 + i * 7_919}`;
-    const shipId = `shp_rich_${i}`;
+    const tn = isVe
+      ? `${(isCafe ? 260_000_000_000 : 250_000_000_000) + 1_000_000 + i * 7_919}`
+      : `${240_000_000_000 + 1_000_000 + i * 7_919}`;
+    const shipId = isVe ? `shp_rich_${storeId}_${i}` : `shp_rich_${i}`;
     if (outcome === "cancelled") {
       store.ships.push({
         id: shipId,
@@ -991,7 +993,7 @@ export async function seedRich(
       });
       store.tracks.push(
         {
-          id: `trk_${i}_0`,
+          id: isVe ? `trk_${storeId}_${i}_0` : `trk_${i}_0`,
           shipmentId: shipId,
           status: "created",
           description: "Guía generada",
@@ -999,7 +1001,7 @@ export async function seedRich(
           at: new Date(t0 + 120_000),
         },
         {
-          id: `trk_${i}_1`,
+          id: isVe ? `trk_${storeId}_${i}_1` : `trk_${i}_1`,
           shipmentId: shipId,
           status: "cancelled",
           description: "Guía cancelada por la tienda",
@@ -1066,7 +1068,7 @@ export async function seedRich(
     });
     tl.forEach(([st, desc, h], j) =>
       store.tracks.push({
-        id: `trk_${i}_${j}`,
+        id: isVe ? `trk_${storeId}_${i}_${j}` : `trk_${i}_${j}`,
         shipmentId: shipId,
         status: st,
         description: desc,
@@ -1262,7 +1264,7 @@ export async function seedRich(
       ];
   past.forEach(([kind, title, detail, d, st], j) =>
     store.approvals.push({
-      id: `apr_past_${j}`,
+      id: isVe ? `apr_past_${storeId}_${j}` : `apr_past_${j}`,
       storeId,
       orderId: null,
       kind,
