@@ -50,7 +50,12 @@ export const VENEZUELA_STATES: Record<VenezuelaStateCode, StateMetadata> = {
   "VE-H": { code: "VE-H", name: "Cojedes", capital: "San Carlos", region: "Central" },
   "VE-I": { code: "VE-I", name: "Delta Amacuro", capital: "Tucupita", region: "Guayana" },
   "VE-J": { code: "VE-J", name: "Falcón", capital: "Coro", region: "Centroccidental" },
-  "VE-K": { code: "VE-K", name: "Guárico", capital: "San Juan de los Morros", region: "Los Llanos" },
+  "VE-K": {
+    code: "VE-K",
+    name: "Guárico",
+    capital: "San Juan de los Morros",
+    region: "Los Llanos",
+  },
   "VE-L": { code: "VE-L", name: "Lara", capital: "Barquisimeto", region: "Centroccidental" },
   "VE-M": { code: "VE-M", name: "Mérida", capital: "Mérida", region: "Los Andes" },
   "VE-N": { code: "VE-N", name: "Miranda", capital: "Los Teques", region: "Capital" },
@@ -61,7 +66,12 @@ export const VENEZUELA_STATES: Record<VenezuelaStateCode, StateMetadata> = {
   "VE-T": { code: "VE-T", name: "Trujillo", capital: "Trujillo", region: "Los Andes" },
   "VE-U": { code: "VE-U", name: "Yaracuy", capital: "San Felipe", region: "Centroccidental" },
   "VE-V": { code: "VE-V", name: "Zulia", capital: "Maracaibo", region: "Zuliana" },
-  "VE-W": { code: "VE-W", name: "Dependencias Federales", capital: "Gran Roque", region: "Insular" },
+  "VE-W": {
+    code: "VE-W",
+    name: "Dependencias Federales",
+    capital: "Gran Roque",
+    region: "Insular",
+  },
   "VE-X": { code: "VE-X", name: "La Guaira", capital: "La Guaira", region: "Capital" },
   "VE-Y": { code: "VE-Y", name: "Amazonas", capital: "Puerto Ayacucho", region: "Guayana" },
 };
@@ -168,7 +178,9 @@ export type VenezuelaAddress = z.infer<typeof VenezuelaAddressSchema>;
  */
 export const BcvRateSnapshotSchema = z.object({
   source: z.literal("https://www.bcv.org.ve"),
-  rate: z.string().regex(/^\d+(\.\d{1,6})?$/, "La tasa debe ser un decimal exacto en formato string"),
+  rate: z
+    .string()
+    .regex(/^\d+(\.\d{1,6})?$/, "La tasa debe ser un decimal exacto en formato string"),
   currency: z.literal("VES"),
   baseCurrency: z.literal("USD"),
   publishedAt: z.string().datetime({ message: "publishedAt debe ser una fecha ISO válida" }),
@@ -188,3 +200,4 @@ export function isBcvRateStale(snapshot: BcvRateSnapshot, now = new Date()): boo
 }
 
 export * from "./fixtures.ts";
+export * from "./reconciliation-fixtures.ts";

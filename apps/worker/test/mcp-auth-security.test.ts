@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
-import { Hono } from "hono";
-import { mountMcp } from "../src/mcp.ts";
 import { createTraxoMcp } from "@traxo/mcp-server";
+import { Hono } from "hono";
+import { describe, expect, it } from "vitest";
+import { mountMcp } from "../src/mcp.ts";
 
 describe("L1-A3: Seguridad MCP y Modo Fail-Closed", () => {
   it("deniega acceso con 401 si TRAXO_MCP_TOKEN está vacío o no configurado (Fail-Closed)", async () => {
@@ -71,6 +71,8 @@ describe("L1-A3: Catálogo MCP en Modo Read-Only", () => {
     expect(readOnlyTools).toContain("traxo_estado");
     expect(readOnlyTools).toContain("listar_pedidos");
     expect(readOnlyTools).toContain("cotizar_envio");
+    expect(readOnlyTools).toContain("conciliar_pedidos");
+    expect(readOnlyTools).toContain("consultar_cobertura");
 
     // No debe contener herramientas de compra o modificación
     expect(readOnlyTools).not.toContain("crear_guia");
@@ -78,13 +80,68 @@ describe("L1-A3: Catálogo MCP en Modo Read-Only", () => {
     expect(readOnlyTools).not.toContain("enviar_whatsapp");
   });
 
+  it("herramienta conciliar_pedidos opera de solo lectura y audita discrepancias", async () => {
+    const mockClient = {
+      get: async () => ({}),
+    };
+    const server = createTraxoMcp(mockClient as any, {
+      readOnly: true,
+      tenantId: "tenant_davebeauty_ve",
+    });
+    const tools = (server as any)._registeredTools;
+
+    const res = await tools["conciliar_pedidos"].handler({ limite: 10 });
+    expect(res.isError).toBeFalsy();
+    const text = res.content[0].text;
+    expect(text).toContain("REPORTE DE CONCILIACIÓN");
+    expect(text).toContain("Fuente: reconciliation_engine");
+    expect(text).toContain("Sincronizados: 2");
+    expect(text).toContain("Faltantes en Dropi: 1");
+    expect(text).toContain("Faltantes en WooCommerce: 1");
+    expect(text).toContain("Conflictos de estado: 2");
+    expect(text).toContain("Guías duplicadas: 2");
+    expect(text).toContain("Sin cobertura Dropi: 1");
+  });
+
+  it("herramienta consultar_cobertura responde con fidelidad para localidades VE", async () => {
+    const mockClient = { get: async () => ({}) };
+    const server = createTraxoMcp(mockClient as any, { readOnly: true });
+    const tools = (server as any)._registeredTools;
+
+    // Con cobertura
+    const resCaracas = await tools["consultar_cobertura"].handler({
+      estado: "VE-A",
+      ciudad: "Caracas",
+    });
+    expect(resCaracas.content[0].text).toContain("Cobertura CONFIRMADA");
+
+    // Sin cobertura
+    const resAtabapo = await tools["consultar_cobertura"].handler({
+      estado: "VE-Y",
+      ciudad: "San Fernando de Atabapo",
+    });
+    expect(resAtabapo.content[0].text).toContain("SIN cobertura logística");
+  });
+
   it("aisla pedidos por tenantId e impide acceso cruzado entre tiendas (403)", async () => {
     const mockClient = {
       get: async (path: string) => {
         if (path === "/api/orders") {
           return [
-            { id: "1", number: "#101", tenantId: "tenant_davebeauty", total: 30000, address: { name: "Ana", city: "Caracas" } },
-            { id: "2", number: "#202", tenantId: "tenant_otra_tienda", total: 45000, address: { name: "Luis", city: "Valencia" } },
+            {
+              id: "1",
+              number: "#101",
+              tenantId: "tenant_davebeauty",
+              total: 30000,
+              address: { name: "Ana", city: "Caracas" },
+            },
+            {
+              id: "2",
+              number: "#202",
+              tenantId: "tenant_otra_tienda",
+              total: 45000,
+              address: { name: "Luis", city: "Valencia" },
+            },
           ];
         }
         if (path.includes("/api/orders/")) {
@@ -106,7 +163,10 @@ describe("L1-A3: Catálogo MCP en Modo Read-Only", () => {
     };
 
     // Servidor autenticado solo para Davebeauty
-    const daveServer = createTraxoMcp(mockClient as any, { readOnly: true, tenantId: "tenant_davebeauty" });
+    const daveServer = createTraxoMcp(mockClient as any, {
+      readOnly: true,
+      tenantId: "tenant_davebeauty",
+    });
     const tools = (daveServer as any)._registeredTools;
 
     // 1. listar_pedidos solo retorna pedidos de Davebeauty

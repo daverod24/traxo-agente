@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   BCV_RATE_FIXTURES,
+  isBcvRateStale,
   VENEZUELA_ADDRESS_FIXTURES,
   VenezuelaAddressSchema,
-  isBcvRateStale,
 } from "../src/index.ts";
 
 describe("L2-A4: Fixtures de Direcciones y Cobertura VE", () => {

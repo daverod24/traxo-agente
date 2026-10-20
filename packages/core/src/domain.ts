@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CurrencySchema, type Currency } from "./money.ts";
+import { type Currency, CurrencySchema } from "./money.ts";
 
 export const Platform = z.enum(["shopify", "tiendanube", "woocommerce", "mock"]);
 export type Platform = z.infer<typeof Platform>;
@@ -87,6 +87,85 @@ export const FulfillmentMappedStatusSchema = z.enum([
   "unknown",
 ]);
 export type FulfillmentMappedStatus = z.infer<typeof FulfillmentMappedStatusSchema>;
+
+/**
+ * Esquema de Orden Dropi de Solo Lectura.
+ */
+export const DropiOrderSchema = z.object({
+  id: z.string().min(1, "id de Dropi es requerido"),
+  wooOrderId: z.string().optional(),
+  status: z.string().min(1, "status es requerido"),
+  mappedStatus: FulfillmentMappedStatusSchema,
+  trackingNumber: z.string().optional(),
+  carrier: z.string().optional(),
+  recipientName: z.string().optional(),
+  city: z.string().optional(),
+  stateCode: z.string().optional(),
+  placeId: z.string().optional(),
+  total: z.string().optional(),
+  currency: CurrencySchema.default("USD"),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  simulated: z.boolean().default(false),
+});
+export type DropiOrder = z.infer<typeof DropiOrderSchema>;
+
+/**
+ * Tipos de Discrepancia en Conciliación.
+ */
+export const ReconciliationDiscrepancyTypeSchema = z.enum([
+  "synced",
+  "missing_in_dropi",
+  "missing_in_woo",
+  "status_mismatch",
+  "duplicate_tracking",
+  "unmapped_locality",
+  "api_error",
+  "rate_limited",
+]);
+export type ReconciliationDiscrepancyType = z.infer<typeof ReconciliationDiscrepancyTypeSchema>;
+
+/**
+ * Elemento de Conciliación individual.
+ */
+export const ReconciliationItemSchema = z.object({
+  wooOrderId: z.string().optional(),
+  dropiOrderId: z.string().optional(),
+  trackingNumber: z.string().optional(),
+  wooStatus: z.string().optional(),
+  dropiStatus: z.string().optional(),
+  mappedDropiStatus: FulfillmentMappedStatusSchema.optional(),
+  discrepancyType: ReconciliationDiscrepancyTypeSchema,
+  severity: z.enum(["none", "info", "warning", "critical"]),
+  message: z.string(),
+  requiresManualReview: z.boolean().default(false),
+  timestamp: z.string(),
+});
+export type ReconciliationItem = z.infer<typeof ReconciliationItemSchema>;
+
+/**
+ * Reporte Completo de Conciliación Multi-Tenant.
+ */
+export const ReconciliationReportSchema = z.object({
+  reportId: z.string(),
+  tenantId: z.string(),
+  storeId: z.string(),
+  source: z.literal("reconciliation_engine"),
+  generatedAt: z.string(),
+  totalAudited: z.number().int().nonnegative(),
+  summary: z.object({
+    synced: z.number().int().nonnegative(),
+    missingInDropi: z.number().int().nonnegative(),
+    missingInWoo: z.number().int().nonnegative(),
+    statusMismatches: z.number().int().nonnegative(),
+    duplicateTrackings: z.number().int().nonnegative(),
+    unmappedLocalities: z.number().int().nonnegative(),
+    apiErrors: z.number().int().nonnegative(),
+    requiresAttention: z.number().int().nonnegative(),
+  }),
+  items: z.array(ReconciliationItemSchema),
+});
+export type ReconciliationReport = z.infer<typeof ReconciliationReportSchema>;
 
 /**
  * Contrato de Evento Logístico Normalizado.

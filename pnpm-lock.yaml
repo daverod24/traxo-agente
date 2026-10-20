@@ -234,9 +234,15 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: 1.32.1
         version: 1.32.1(zod@4.6.7)
+      '@traxo/commerce':
+        specifier: workspace:*
+        version: link:../../packages/commerce
       '@traxo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@traxo/market-ve':
+        specifier: workspace:*
+        version: link:../../packages/market-ve
       tsx:
         specifier: ^4.23.15
         version: 4.23.15

@@ -134,17 +134,16 @@ export class WooCommerce implements CommerceAdapter {
   async listProducts(opts: { page?: number; limit?: number } = {}): Promise<Product[]> {
     const page = opts.page ?? 1;
     const perPage = opts.limit ?? 100;
-    const rows =
-      await this.call<
-        Array<{
-          id: number;
-          name: string;
-          price: string;
-          weight?: string;
-          images?: Array<{ src: string }>;
-          short_description?: string;
-        }>
-      >(`/products?page=${page}&per_page=${perPage}`);
+    const rows = await this.call<
+      Array<{
+        id: number;
+        name: string;
+        price: string;
+        weight?: string;
+        images?: Array<{ src: string }>;
+        short_description?: string;
+      }>
+    >(`/products?page=${page}&per_page=${perPage}`);
     return rows.map((p) => ({
       id: `prod_${p.id}`,
       externalId: String(p.id),
@@ -159,20 +158,21 @@ export class WooCommerce implements CommerceAdapter {
   async listCustomers(opts: { page?: number; limit?: number } = {}): Promise<Customer[]> {
     const page = opts.page ?? 1;
     const perPage = opts.limit ?? 100;
-    const rows =
-      await this.call<
-        Array<{
-          id: number;
-          first_name: string;
-          last_name: string;
-          email: string;
-          billing?: { phone?: string; city?: string };
-        }>
-      >(`/customers?page=${page}&per_page=${perPage}`);
+    const rows = await this.call<
+      Array<{
+        id: number;
+        first_name: string;
+        last_name: string;
+        email: string;
+        billing?: { phone?: string; city?: string };
+      }>
+    >(`/customers?page=${page}&per_page=${perPage}`);
     return rows.map((c) => {
       const rawPhone = c.billing?.phone ?? "";
       const isVE = rawPhone.startsWith("+58") || rawPhone.startsWith("04");
-      const phone = isVE ? (normalizePhoneVE(rawPhone) ?? rawPhone) : (normalizePhone(rawPhone) ?? rawPhone);
+      const phone = isVE
+        ? (normalizePhoneVE(rawPhone) ?? rawPhone)
+        : (normalizePhone(rawPhone) ?? rawPhone);
       return {
         id: `cust_${c.id}`,
         externalId: String(c.id),

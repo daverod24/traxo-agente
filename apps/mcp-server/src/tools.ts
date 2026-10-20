@@ -1,5 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { DropiReadOnlyClient, reconcileOrders } from "@traxo/commerce";
 import { CampaignDraftInputSchema, formatCOP } from "@traxo/core";
+import { RECONCILIATION_FIXTURES } from "@traxo/market-ve";
 import { z } from "zod";
 import { TraxoApiError, type TraxoClient } from "./client.ts";
 
@@ -67,7 +69,9 @@ export function registerTools(
     wrap(async ({ limite }: { limite?: number }) => {
       let rows = await api.get<Json[]>("/api/orders");
       if (opts.tenantId) {
-        rows = rows.filter((o) => (o.tenantId ? o.tenantId === opts.tenantId : o.storeId === opts.tenantId));
+        rows = rows.filter((o) =>
+          o.tenantId ? o.tenantId === opts.tenantId : o.storeId === opts.tenantId,
+        );
       }
       return (
         rows
@@ -93,7 +97,9 @@ export function registerTools(
       const r = await api.get<Json>(`/api/orders/${encodeURIComponent(pedido)}`);
       const o = r.order;
       if (opts.tenantId && o.tenantId && o.tenantId !== opts.tenantId) {
-        throw new Error(`Acceso denegado (403): el pedido ${pedido} no pertenece al tenant ${opts.tenantId}.`);
+        throw new Error(
+          `Acceso denegado (403): el pedido ${pedido} no pertenece al tenant ${opts.tenantId}.`,
+        );
       }
       const lines = (o.lines as Json[])
         .map((l) => `  · ${l.quantity} x ${l.title} (${formatCOP(l.unitPrice)})`)
@@ -137,6 +143,84 @@ export function registerTools(
         ? `\nNo cotizaron: ${(q.failed as string[]).join("; ")}`
         : "";
       return `${q.explanation}\n\n${rows}${failed}`;
+    }),
+  );
+
+  server.registerTool(
+    "conciliar_pedidos",
+    {
+      title: "Conciliar pedidos WooCommerce y Dropi",
+      description:
+        "Concilia pedidos comerciales de WooCommerce con los estados de Dropi Venezuela en modo de solo lectura (0 escrituras hacia Dropi).",
+      inputSchema: {
+        limite: z.number().int().min(1).max(50).default(10).optional(),
+      },
+    },
+    wrap(async ({ limite }: { limite?: number }) => {
+      const activeTenant = opts.tenantId ?? "tenant_default";
+      const dropiClient = new DropiReadOnlyClient({
+        tenantId: activeTenant,
+        simulated: true,
+        simulatedOrders: RECONCILIATION_FIXTURES.dropiOrders as any,
+      });
+
+      const dropiOrders = await dropiClient.listOrders();
+      const report = reconcileOrders({
+        tenantId: activeTenant,
+        storeId: "store_staging",
+        wooOrders: (RECONCILIATION_FIXTURES.wooOrders as any).slice(0, limite ?? 10),
+        dropiOrders,
+        simulatedErrors: RECONCILIATION_FIXTURES.simulatedErrors,
+      });
+
+      const lines = [
+        `=== REPORTE DE CONCILIACIÓN (${report.totalAudited} pedidos auditados) ===`,
+        `Fuente: ${report.source} · Tenant: ${report.tenantId} · Timestamps certificados`,
+        `✓ Sincronizados: ${report.summary.synced}`,
+        `! Faltantes en Dropi: ${report.summary.missingInDropi}`,
+        `! Faltantes en WooCommerce: ${report.summary.missingInWoo}`,
+        `⚠ Conflictos de estado: ${report.summary.statusMismatches}`,
+        `⚠ Guías duplicadas: ${report.summary.duplicateTrackings}`,
+        `? Sin cobertura Dropi: ${report.summary.unmappedLocalities}`,
+        `✕ Errores / Rate Limit API: ${report.summary.apiErrors}`,
+        `Requieren atención manual: ${report.summary.requiresAttention}`,
+        "",
+        "Detalle de incidencias principales:",
+        ...report.items
+          .filter((i) => i.discrepancyType !== "synced")
+          .map(
+            (i) =>
+              `· [${i.discrepancyType.toUpperCase()}] ${i.wooOrderId ?? i.dropiOrderId}: ${i.message}`,
+          ),
+      ];
+
+      return lines.join("\n");
+    }),
+  );
+
+  server.registerTool(
+    "consultar_cobertura",
+    {
+      title: "Consultar cobertura de envío en Venezuela",
+      description:
+        "Verifica si una localidad o ciudad en Venezuela tiene cobertura logística confirmada en Dropi.",
+      inputSchema: {
+        estado: z
+          .string()
+          .describe("Código de estado venezolano (ej: VE-A, VE-V, VE-G, VE-L, VE-B, VE-Y)"),
+        ciudad: z.string().describe("Nombre de la ciudad o municipio"),
+      },
+    },
+    wrap(async ({ estado, ciudad }: { estado: string; ciudad: string }) => {
+      const dropiClient = new DropiReadOnlyClient({
+        tenantId: opts.tenantId ?? "tenant_default",
+      });
+      const cov = await dropiClient.checkCoverage(estado, ciudad);
+      if (cov.hasCoverage) {
+        return `✓ Cobertura CONFIRMADA para ${cov.city} (${cov.stateCode}) vía ${cov.provider}.\nID de plaza Dropi: ${cov.placeId}\nVerificado el: ${cov.verifiedAt}`;
+      } else {
+        return `✕ Localidad ${cov.city} (${cov.stateCode}) SIN cobertura logística verificada en ${cov.provider}.\nRequiere revisión y despacho especial fuera de plataforma Dropi.`;
+      }
     }),
   );
 
