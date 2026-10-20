@@ -664,7 +664,9 @@ export async function seedRich(
   const days = (n: number) => n * DAY;
   const ev = (kind: AgentEventKind, summary: string, when: Date, orderId?: string) =>
     store.runs.push({
-      id: `run_${store.runs.length}_${when.getTime().toString(36)}`,
+      id: isVe
+        ? `run_${storeId}_${store.runs.length}_${when.getTime().toString(36)}`
+        : `run_${store.runs.length}_${when.getTime().toString(36)}`,
       storeId,
       orderId: orderId ?? null,
       kind,
@@ -673,12 +675,12 @@ export async function seedRich(
     });
   const conv = (idx: number) => {
     const cu = customers[idx] as (typeof customers)[number];
-    if (!store.convs.has(cu.id)) store.convs.set(cu.id, `conv_rich_${cu.id}`);
+    if (!store.convs.has(cu.id)) store.convs.set(cu.id, isVe ? `conv_rich_${storeId}_${cu.id}` : `conv_rich_${cu.id}`);
     return store.convs.get(cu.id) as string;
   };
   const msg = (idx: number, dir: "in" | "out", text: string, when: Date, template?: string) =>
     store.messages.push({
-      id: `msg_rich_${store.messages.length}`,
+      id: isVe ? `msg_rich_${storeId}_${store.messages.length}` : `msg_rich_${store.messages.length}`,
       conversationId: conv(idx),
       direction: dir,
       text,
@@ -1464,7 +1466,7 @@ export async function seedRich(
           };
     await db.prisma.campaignDraft.create({
       data: {
-        id: `cmp_rich_${c.key}`,
+        id: isVe ? `cmp_rich_${storeId}_${c.key}` : `cmp_rich_${c.key}`,
         storeId,
         platform: c.platform,
         product: p.title,
