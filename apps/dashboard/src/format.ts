@@ -20,9 +20,16 @@ export const copShort = (n: number): string => {
   return cop(n);
 };
 
+export const DEFAULT_BCV_RATE = 48.45;
+
 /** Conversión referencial a Bolívares usando la tasa BCV */
-export const vesFromUsd = (usd: number, rate: number = 881.0664): string => {
+export const vesFromUsd = (usd: number, rate: number = DEFAULT_BCV_RATE): string => {
   return money(usd * rate, "VES");
+};
+
+/** Formateo bimoneda completo: USD principal con equivalente oficial en Bolívares */
+export const bimoneda = (usd: number, rate: number = DEFAULT_BCV_RATE): string => {
+  return `${money(usd, "USD")} (${money(usd * rate, "VES")})`;
 };
 
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -54,6 +61,8 @@ export const plural = (n: number, one: string, many: string): string => (n === 1
 
 /** Transportadoras y rutas de despacho (Venezuela y regionales) */
 const VIA: Record<string, string> = {
+  dropi: "Flash Courier (Dropi VE)",
+  flash: "Flash Courier (Dropi VE)",
   mrw: "MRW Venezuela",
   zoom: "Grupo Zoom",
   tealca: "Tealca",
@@ -69,15 +78,17 @@ export const viaLabel = (provider: string): string => VIA[provider] ?? provider;
 
 /** Etiquetas cortas para tablas y badges */
 export const viaShort = (provider: string): string =>
-  provider === "mrw"
-    ? "MRW"
-    : provider === "zoom"
-      ? "Zoom"
-      : provider === "tealca"
-        ? "Tealca"
-        : provider === "caracas-express"
-          ? "Caracas"
-          : (VIA[provider] ?? provider);
+  provider === "dropi" || provider === "flash"
+    ? "Flash Courier"
+    : provider === "mrw"
+      ? "MRW"
+      : provider === "zoom"
+        ? "Zoom"
+        : provider === "tealca"
+          ? "Tealca"
+          : provider === "caracas-express"
+            ? "Caracas"
+            : (VIA[provider] ?? provider);
 
 /** Métodos de pago venezolanos e internacionales */
 export const paymentLabel = (p: string): string => {

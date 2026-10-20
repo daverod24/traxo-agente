@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { canAutoCreateShipment, formatCOP, quoteTotal } from "../src/index.ts";
+import { canAutoCreateShipment, formatBimoneda, formatCOP, quoteTotal } from "../src/index.ts";
 
 describe("formatCOP", () => {
   it("usa punto de miles y sin decimales", () => {
     expect(formatCOP(125000)).toBe("$ 125.000");
     expect(formatCOP(4820000)).toBe("$ 4.820.000");
     expect(formatCOP(0)).toBe("$ 0");
+  });
+});
+
+describe("formatBimoneda", () => {
+  it("formatea en USD con decimales y su equivalente oficial BCV en Bolívares", () => {
+    // 100 USD a tasa 48.45 = Bs. 4.845,00
+    expect(formatBimoneda(100, 48.45)).toBe("$ 100.00 (Bs. 4.845,00 BCV)");
+    expect(formatBimoneda(22.5, 48.45)).toBe("$ 22.50 (Bs. 1.090,13 BCV)");
   });
 });
 

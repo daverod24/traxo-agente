@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { cop, timeEs } from "./format.ts";
+import { cop, timeEs, vesFromUsd } from "./format.ts";
 
 /* ---------- Iconos: trazo 1,75, 24×24, puntas redondeadas, currentColor. `spark` es solo del agente. ---------- */
 const PATHS: Record<string, ReactNode> = {
@@ -215,8 +215,13 @@ export function Money({
       </span>
     );
   return (
-    <span className="num" style={{ fontWeight: 700 }}>
-      {cop(value)}
+    <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end" }}>
+      <span className="num" style={{ fontWeight: 700 }}>
+        {cop(value)}
+      </span>
+      <small style={{ color: "var(--muted)", fontSize: "0.75rem", fontWeight: 500 }}>
+        {vesFromUsd(value)}
+      </small>
     </span>
   );
 }

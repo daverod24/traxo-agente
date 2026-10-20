@@ -51,6 +51,11 @@ export function carriersFromEnv(env: Env = process.env): CarriersSetup {
     ["INTERRAPIDISIMO_TOKEN", "Interrapidísimo (documentación privada)"],
     ["ENVIA_CO_USER", "Envía (sin documentación pública)"],
   ];
+  if (env.DROPI_MCP_URL || env.DROPI_TOKEN) {
+    notes.push(
+      `Dropi Logística VE (Flash Courier): conectado vía MCP oficial (${env.DROPI_MCP_URL ?? "https://mcp.dropi.co/mcp"}).`,
+    );
+  }
   for (const [key, label] of pending) {
     if (env[key])
       notes.push(

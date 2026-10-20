@@ -1,6 +1,11 @@
-import { formatCOP, type Quote, quoteTotal, type StoreSettings } from "@traxo/core";
+import { formatBimoneda, formatCOP, type Quote, quoteTotal, type StoreSettings } from "@traxo/core";
 
 const VIA: Record<string, string> = {
+  dropi: "por Dropi VE (Flash Courier)",
+  mrw: "directo",
+  zoom: "directo",
+  tealca: "directo",
+  "caracas-express": "directo",
   "envia-com": "por Envia.com",
   "99envios": "por 99envios",
   coordinadora: "directo",
@@ -11,6 +16,11 @@ const VIA: Record<string, string> = {
 
 /** Cómo se dice la vía en una frase: "por Envia.com" o "directo". */
 export const viaLabel = (provider: string): string => VIA[provider] ?? `por ${provider}`;
+
+const fmtMoney = (val: number): string =>
+  val < 1000 && (process.env.MARKET === "VE" || process.env.TRAXO_CURRENCY === "USD")
+    ? formatBimoneda(val)
+    : formatCOP(val);
 
 export type Reliability = Record<string, number>;
 
@@ -77,18 +87,18 @@ export function selectQuote(quotes: Quote[], opts: SelectOptions): Selection | u
 
   const winner = ranking[0] as ScoredQuote;
   const second = ranking[1];
-  let explanation = `Elegí ${winner.carrier} ${viaLabel(winner.provider)}: ${formatCOP(winner.total)} en ${winner.businessDays} ${winner.businessDays === 1 ? "día hábil" : "días hábiles"}.`;
+  let explanation = `Elegí ${winner.carrier} ${viaLabel(winner.provider)}: ${fmtMoney(winner.total)} en ${winner.businessDays} ${winner.businessDays === 1 ? "día hábil" : "días hábiles"}.`;
   if (second) {
     const diff = second.total - winner.total;
     const dd = second.businessDays - winner.businessDays;
     const bits: string[] = [];
-    if (diff > 0) bits.push(`${formatCOP(diff)} menos`);
-    if (diff < 0) bits.push(`${formatCOP(-diff)} más`);
+    if (diff > 0) bits.push(`${fmtMoney(diff)} menos`);
+    if (diff < 0) bits.push(`${fmtMoney(-diff)} más`);
     if (dd > 0) bits.push(`${dd} ${dd === 1 ? "día" : "días"} más rápido`);
     if (dd < 0) bits.push(`${-dd} ${dd === -1 ? "día" : "días"} más lento`);
     if (bits.length) explanation += ` Frente a ${second.carrier}: ${bits.join(" y ")}.`;
   }
   if (opts.codAmount > 0)
-    explanation += ` Incluye ${formatCOP(winner.codCommission)} de comisión de recaudo.`;
+    explanation += ` Incluye ${fmtMoney(winner.codCommission)} de comisión de recaudo.`;
   return { winner, ranking, explanation };
 }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useResource } from "./api.ts";
 import { HBars, LineChart } from "./charts.tsx";
 import { EmptyState } from "./components.tsx";
-import { cop, copShort } from "./format.ts";
+import { DEFAULT_BCV_RATE, cop, copShort, vesFromUsd } from "./format.ts";
 import type { StoreStatus, UsageReport } from "./types.ts";
 import { Banner, CHANNELS, ChannelMark, SampleTag, Tabs } from "./ui.tsx";
 import type { Ctx } from "./views.tsx";
@@ -30,7 +30,22 @@ export function UsoAgentico({ ctx }: { ctx: Ctx }) {
           costos y las horas son estimados: abajo ves los supuestos.
         </p>
       </div>
-      {sample && <SampleTag />}
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div
+          className="badge bcv-badge"
+          style={{
+            padding: "6px 12px",
+            background: "rgba(37, 99, 235, 0.1)",
+            color: "#2563eb",
+            borderRadius: 8,
+            fontSize: "0.85rem",
+            fontWeight: 600,
+          }}
+        >
+          🇻🇪 Tasa Oficial BCV: Bs. {DEFAULT_BCV_RATE.toFixed(2).replace(".", ",")} / USD
+        </div>
+        {sample && <SampleTag />}
+      </div>
     </div>
   );
 
@@ -62,7 +77,7 @@ export function UsoAgentico({ ctx }: { ctx: Ctx }) {
           <span className="value num">{u ? hours(u.value.hoursSaved) : "—"}</span>
           <span className="caption">
             {u
-              ? `${n(u.value.automatedActions)} acciones automáticas · ${copShort(u.value.savedCop)} de tiempo`
+              ? `${n(u.value.automatedActions)} acciones automáticas · ${copShort(u.value.savedCop)} de tiempo (${vesFromUsd(u.value.savedCop)})`
               : ""}
           </span>
         </div>
@@ -71,8 +86,8 @@ export function UsoAgentico({ ctx }: { ctx: Ctx }) {
           <span className="value num">{u ? copShort(u.cost.totalCop) : "—"}</span>
           <span className="caption">
             {u?.cost.perOrderCop == null
-              ? "IA y créditos"
-              : `${cop(u.cost.perOrderCop)} por pedido`}
+              ? `IA y créditos · ${vesFromUsd(u?.cost.totalCop ?? 0)}`
+              : `${cop(u.cost.perOrderCop)} por pedido (${vesFromUsd(u.cost.perOrderCop)})`}
           </span>
         </div>
         <div className="kpi">
@@ -260,9 +275,9 @@ export function UsoAgentico({ ctx }: { ctx: Ctx }) {
           <summary>Supuestos del cálculo</summary>
           <p className="caption" style={{ marginTop: 8 }}>
             Son estimados, no una factura. La hora de trabajo se valora en{" "}
-            {u ? cop(u.assumptions.hourCop) : "—"} (cámbialo con <code>TRAXO_HOUR_COP</code>). El
+            {u ? cop(u.assumptions.hourCop) : "—"} / {u ? vesFromUsd(u.assumptions.hourCop) : "—"} (cámbialo con <code>TRAXO_HOUR_COP</code>). El
             costo de IA usa los precios por millón de tokens de{" "}
-            <code>TRAXO_AI_USD_PER_MTOK_IN/OUT</code> y el dólar de <code>TRAXO_USD_COP</code>. Los
+            <code>TRAXO_AI_USD_PER_MTOK_IN/OUT</code> y la tasa oficial BCV de <code>TRAXO_BCV_RATE</code> (Bs. {DEFAULT_BCV_RATE.toFixed(2).replace(".", ",")} / USD). Los
             créditos de Higgsfield solo cuentan si se anotan al agregarlos a la biblioteca.
           </p>
         </details>

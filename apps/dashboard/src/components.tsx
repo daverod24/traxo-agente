@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { cop, days, viaLabel } from "./format.ts";
+import { cop, days, vesFromUsd, viaLabel } from "./format.ts";
 import type { OrderRow } from "./types.ts";
 import { AgentMark, Button, Icon } from "./ui.tsx";
 
@@ -320,7 +320,12 @@ export function QuoteBars({ quotes }: { quotes: OrderRow["quotes"] }) {
                 }}
               />
             </div>
-            <div className="price num">{cop(total)}</div>
+            <div className="price num">
+              <div>{cop(total)}</div>
+              <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block" }}>
+                {vesFromUsd(total)}
+              </small>
+            </div>
           </div>
         );
       })}

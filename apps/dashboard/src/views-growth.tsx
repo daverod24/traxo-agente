@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { del, get, post, useResource } from "./api.ts";
 import { HBars } from "./charts.tsx";
 import { EmptyState, Sheet } from "./components.tsx";
-import { cop, copShort, dateEs, phoneEs, plural } from "./format.ts";
+import { cop, copShort, dateEs, phoneEs, plural, vesFromUsd } from "./format.ts";
 import type {
   Attribution,
   AudienceRow,
@@ -194,7 +194,12 @@ export function Clientes({ ctx }: { ctx: Ctx }) {
                   </td>
                   <td>{c.city ?? "—"}</td>
                   <td className="right num">{c.orders}</td>
-                  <td className="right num nowrap">{cop(c.spent)}</td>
+                  <td className="right num nowrap">
+                    <div>{cop(c.spent)}</div>
+                    <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block" }}>
+                      {vesFromUsd(c.spent)}
+                    </small>
+                  </td>
                   <td>
                     <ToneBadge
                       tone={c.optOut ? "critical" : c.whatsappConsent ? "success" : "neutral"}
@@ -504,7 +509,7 @@ function Campanas({ ctx }: { ctx: Ctx }) {
             <span className="label">Gasto en anuncios</span>
             <span className="value num">{known.length ? copShort(spend) : "N/A"}</span>
             <span className="caption">
-              {sample ? "datos de ejemplo" : "lo que reporta la plataforma"}
+              {spend > 0 ? `${vesFromUsd(spend)} (BCV)` : sample ? "datos de ejemplo" : "lo que reporta la plataforma"}
             </span>
           </div>
           <div className="kpi">
@@ -515,7 +520,7 @@ function Campanas({ ctx }: { ctx: Ctx }) {
           <div className="kpi">
             <span className="label">Ventas atribuidas</span>
             <span className="value num">{copShort(revenue)}</span>
-            <span className="caption">pedidos con ese utm</span>
+            <span className="caption">{revenue > 0 ? `${vesFromUsd(revenue)} (BCV)` : "pedidos con ese utm"}</span>
           </div>
           <div className="kpi">
             <span className="label">ROAS combinado</span>
@@ -1118,9 +1123,19 @@ function Productos({ ctx }: { ctx: Ctx }) {
             {top.map((p) => (
               <tr key={p.id}>
                 <td style={{ fontWeight: 600 }}>{p.title}</td>
-                <td className="right num">{cop(p.price)}</td>
+                <td className="right num">
+                  <div>{cop(p.price)}</div>
+                  <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block" }}>
+                    {vesFromUsd(p.price)}
+                  </small>
+                </td>
                 <td className="right num">{p.unitsSold}</td>
-                <td className="right num">{cop(p.revenue)}</td>
+                <td className="right num">
+                  <div>{cop(p.revenue)}</div>
+                  <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block" }}>
+                    {vesFromUsd(p.revenue)}
+                  </small>
+                </td>
                 <td className="right num">{margin(p)}</td>
               </tr>
             ))}

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useResource } from "./api.ts";
 import { HBars, LineChart, Spark } from "./charts.tsx";
 import { EmptyState } from "./components.tsx";
-import { cop, copShort } from "./format.ts";
+import { DEFAULT_BCV_RATE, cop, copShort, vesFromUsd } from "./format.ts";
 import type { Attribution, Logistics, Overview, StoreStatus } from "./types.ts";
 import { PlatformBadge, SampleTag, StatusBadge, Tabs } from "./ui.tsx";
 import type { Ctx } from "./views.tsx";
@@ -48,7 +48,22 @@ export function Reportes({ ctx }: { ctx: Ctx }) {
             no se puede saber dice N/A.
           </p>
         </div>
-        {sample && <SampleTag />}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div
+            className="badge bcv-badge"
+            style={{
+              padding: "6px 12px",
+              background: "rgba(37, 99, 235, 0.1)",
+              color: "#2563eb",
+              borderRadius: 8,
+              fontSize: "0.85rem",
+              fontWeight: 600,
+            }}
+          >
+            🇻🇪 Tasa Oficial BCV: Bs. {DEFAULT_BCV_RATE.toFixed(2).replace(".", ",")} / USD
+          </div>
+          {sample && <SampleTag />}
+        </div>
       </div>
 
       <div className="grid-stats six">
@@ -60,11 +75,12 @@ export function Reportes({ ctx }: { ctx: Ctx }) {
         <div className="kpi">
           <span className="label">Ventas</span>
           <span className="value num">{t ? copShort(t.revenue) : "—"}</span>
-          <span className="caption">sin cancelados</span>
+          <span className="caption">{t ? `${vesFromUsd(t.revenue)} (BCV)` : "sin cancelados"}</span>
         </div>
         <div className="kpi">
           <span className="label">Ticket promedio</span>
           <span className="value num">{t?.avgTicket == null ? "N/A" : copShort(t.avgTicket)}</span>
+          <span className="caption">{t?.avgTicket ? `${vesFromUsd(t.avgTicket)} (BCV)` : ""}</span>
         </div>
         <div className="kpi">
           <span className="label">Contraentrega</span>
@@ -154,10 +170,12 @@ export function Reportes({ ctx }: { ctx: Ctx }) {
             <div className="kpi">
               <span className="label">Cobrado en entregas</span>
               <span className="value num">{copShort(logi?.cod.collected ?? 0)}</span>
+              <span className="caption">{vesFromUsd(logi?.cod.collected ?? 0)} (BCV)</span>
             </div>
             <div className="kpi">
               <span className="label">En ruta por cobrar</span>
               <span className="value num">{copShort(logi?.cod.inTransit ?? 0)}</span>
+              <span className="caption">{vesFromUsd(logi?.cod.inTransit ?? 0)} (BCV)</span>
             </div>
           </div>
           {logi && (
@@ -207,8 +225,24 @@ export function Reportes({ ctx }: { ctx: Ctx }) {
                     <StatusBadge status={c.status} />
                   </td>
                   <td className="right num">{c.orders}</td>
-                  <td className="right num nowrap">{cop(c.revenue)}</td>
-                  <td className="right num nowrap">{c.spend == null ? "N/A" : cop(c.spend)}</td>
+                  <td className="right num nowrap">
+                    <div>{cop(c.revenue)}</div>
+                    <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block" }}>
+                      {vesFromUsd(c.revenue)}
+                    </small>
+                  </td>
+                  <td className="right num nowrap">
+                    {c.spend == null ? (
+                      "N/A"
+                    ) : (
+                      <div>
+                        <div>{cop(c.spend)}</div>
+                        <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block" }}>
+                          {vesFromUsd(c.spend)}
+                        </small>
+                      </div>
+                    )}
+                  </td>
                   <td
                     className="right num"
                     style={
@@ -285,7 +319,12 @@ export function Reportes({ ctx }: { ctx: Ctx }) {
                   <td className="right num">{c.deliveredPct} %</td>
                   <td className="right num">{c.incidentPct} %</td>
                   <td className="right num">{c.returnedPct} %</td>
-                  <td className="right num nowrap">{cop(c.avgCost)}</td>
+                  <td className="right num nowrap">
+                    <div>{cop(c.avgCost)}</div>
+                    <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block" }}>
+                      {vesFromUsd(c.avgCost)}
+                    </small>
+                  </td>
                   <td className="right num">{c.avgDays ?? "N/A"}</td>
                 </tr>
               ))}

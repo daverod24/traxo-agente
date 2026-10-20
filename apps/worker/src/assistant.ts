@@ -17,7 +17,24 @@ export type AssistantReply = {
   mode: "datos" | "claude";
 };
 
-const cop = (n: number): string => `$ ${Math.round(n).toLocaleString("es-CO").replace(/,/g, ".")}`;
+const isVe = process.env.MARKET === "VE" || process.env.TRAXO_CURRENCY === "USD";
+const BCV_RATE = Number(process.env.TRAXO_BCV_RATE) || 48.45;
+
+const cop = (n: number): string => {
+  if (isVe) {
+    const usd = `$ ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const ves = `Bs. ${(n * BCV_RATE).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `${usd} (${ves} BCV)`;
+  }
+  return `$ ${Math.round(n).toLocaleString("es-CO").replace(/,/g, ".")}`;
+};
+
+const copKpi = (n: number): string => {
+  if (isVe) {
+    return `$ ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  return `$ ${Math.round(n).toLocaleString("es-CO").replace(/,/g, ".")}`;
+};
 const pct = (a: number, b: number): string => (b ? `${Math.round((a / b) * 100)} %` : "N/A");
 const norm = (s: string): string => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
@@ -141,7 +158,7 @@ export function answer(s: Snap, question: string): AssistantReply {
           : "• Ninguna campaña pierde dinero.",
       ].join("\n"),
       kpis: [
-        { label: "Ventas 7 días", value: cop(w.revenue) },
+        { label: "Ventas 7 días", value: copKpi(w.revenue) },
         { label: "Pedidos", value: String(w.orders) },
         { label: "Por aprobar", value: String(s.approvals.length) },
         { label: "Con novedad", value: String(inc) },
@@ -163,9 +180,9 @@ export function answer(s: Snap, question: string): AssistantReply {
     return reply({
       answer: `En ${label} vendiste **${cop(a.revenue)}** en ${a.orders} pedidos, con un ticket promedio de ${cop(a.ticket)}. ${cod.length ? `${pct(cod.length, a.orders)} fue contraentrega.` : ""}`,
       kpis: [
-        { label: "Ventas", value: cop(a.revenue) },
+        { label: "Ventas", value: copKpi(a.revenue) },
         { label: "Pedidos", value: String(a.orders) },
-        { label: "Ticket promedio", value: cop(a.ticket) },
+        { label: "Ticket promedio", value: copKpi(a.ticket) },
       ],
       links: [{ label: "Abrir reportes", view: "reportes" }],
       sources: ["pedidos"],

@@ -175,20 +175,33 @@ export class MockCarrierProvider implements CarrierProvider {
   }
 
   async quote(draft: ShipmentDraft): Promise<Quote[]> {
-    const zone = zoneFor(draft.origin.dane, draft.destination.dane);
+    const isVe =
+      draft.destination.dane?.startsWith("VE") ||
+      draft.origin.dane?.startsWith("VE") ||
+      process.env.MARKET === "VE" ||
+      process.env.TRAXO_CURRENCY === "USD";
+    const zone = isVe ? 1 : zoneFor(draft.origin.dane, draft.destination.dane);
     const out: Quote[] = [];
     for (const key of this.carriers) {
       const p = CARRIER_PROFILES[key];
       if (!p || p.uncovered?.includes(draft.destination.dane)) continue;
       if (draft.destination.dane === "00000") continue;
-      const freight =
-        Math.round(
-          (BASE_FREIGHT[zone] * weightFactor(draft.weightGrams) * p.price * (1 + this.markup)) /
-            100,
-        ) * 100;
+      const baseFreightUSD = 4.5;
+      const freight = isVe
+        ? Number(
+            (baseFreightUSD * weightFactor(draft.weightGrams) * p.price * (1 + this.markup)).toFixed(
+              2,
+            ),
+          )
+        : Math.round(
+            (BASE_FREIGHT[zone] * weightFactor(draft.weightGrams) * p.price * (1 + this.markup)) /
+              100,
+          ) * 100;
       const cod =
         draft.codAmount > 0
-          ? Math.max(p.codMin, Math.round((draft.codAmount * p.codRate) / 100) * 100)
+          ? isVe
+            ? Number(Math.max(p.codMin, draft.codAmount * p.codRate).toFixed(2))
+            : Math.max(p.codMin, Math.round((draft.codAmount * p.codRate) / 100) * 100)
           : 0;
       out.push({
         provider: this.id,
@@ -197,8 +210,8 @@ export class MockCarrierProvider implements CarrierProvider {
         freight,
         codCommission: p.supportsCod ? cod : 0,
         supportsCod: p.supportsCod,
-        businessDays: BASE_DAYS[zone] + p.extraDays,
-        currency: "COP",
+        businessDays: (isVe ? 2 : BASE_DAYS[zone]) + p.extraDays,
+        currency: isVe ? "USD" : "COP",
         simulated: true,
       });
     }
@@ -266,8 +279,39 @@ function hash(s: string): number {
   return h;
 }
 
-/** Las seis vías del plan, simuladas: 2 agregadores y 4 transportadoras directas. */
-export function mockProviders(): MockCarrierProvider[] {
+/** Las vías del plan, simuladas: por defecto Colombia (14 transportadoras) o Venezuela si MARKET=VE. */
+export function mockProviders(market?: string): MockCarrierProvider[] {
+  const isVe = (market ?? process.env.MARKET) === "VE";
+  if (isVe) {
+    return [
+      new MockCarrierProvider({
+        id: "dropi",
+        label: "Dropi Logística VE",
+        carriers: ["flash", "mrw", "zoom"],
+        markup: 0.02,
+      }),
+      new MockCarrierProvider({
+        id: "mrw",
+        label: "MRW Venezuela (directa)",
+        carriers: ["mrw"],
+      }),
+      new MockCarrierProvider({
+        id: "zoom",
+        label: "Grupo Zoom (directa)",
+        carriers: ["zoom"],
+      }),
+      new MockCarrierProvider({
+        id: "tealca",
+        label: "Tealca (directa)",
+        carriers: ["tealca"],
+      }),
+      new MockCarrierProvider({
+        id: "caracas-express",
+        label: "Caracas Express (Bajo Demanda)",
+        carriers: ["caracas-express"],
+      }),
+    ];
+  }
   return [
     new MockCarrierProvider({
       id: "envia-com",
@@ -297,31 +341,5 @@ export function mockProviders(): MockCarrierProvider[] {
       carriers: ["servientrega"],
     }),
     new MockCarrierProvider({ id: "envia-co", label: "Envía (directa)", carriers: ["envia"] }),
-    new MockCarrierProvider({
-      id: "dropi",
-      label: "Dropi Logística VE",
-      carriers: ["flash", "mrw", "zoom"],
-      markup: 0.02,
-    }),
-    new MockCarrierProvider({
-      id: "mrw",
-      label: "MRW Venezuela (directa)",
-      carriers: ["mrw"],
-    }),
-    new MockCarrierProvider({
-      id: "zoom",
-      label: "Grupo Zoom (directa)",
-      carriers: ["zoom"],
-    }),
-    new MockCarrierProvider({
-      id: "tealca",
-      label: "Tealca (directa)",
-      carriers: ["tealca"],
-    }),
-    new MockCarrierProvider({
-      id: "caracas-express",
-      label: "Caracas Express (Bajo Demanda)",
-      carriers: ["caracas-express"],
-    }),
   ];
 }
