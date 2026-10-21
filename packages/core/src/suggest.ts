@@ -74,14 +74,14 @@ export function suggestCampaign(i: SuggestInput, now = new Date()): Suggestion {
   if (i.platform === "google") {
     headlines = [
       `${name} a domicilio`,
-      "Contraentrega en Colombia",
-      "Tostado esta semana",
+      "Envíos a todo el país",
+      "Calidad garantizada",
       "Compra fácil y segura",
       "Envío en 2 a 4 días",
     ].map((h) => fit(h, L.headline));
     primaryTexts = [
       fit(`${name}. ${base}`, L.primaryText),
-      fit(`Café de origen colombiano. ${promise[i.objective]}.`, L.primaryText),
+      fit(`Selección de alta calidad. ${promise[i.objective]}.`, L.primaryText),
     ];
     descriptions = [
       fit(`${name} de ${i.storeName}. Pago contra entrega y envío a todo el país.`, L.description),
@@ -113,11 +113,11 @@ export function suggestCampaign(i: SuggestInput, now = new Date()): Suggestion {
   const creatives: Suggestion["creatives"] = [
     {
       kind: "image",
-      prompt: `Fotografía de producto de ${name} sobre una mesa de madera clara, luz natural de mañana, fondo desenfocado de cocina colombiana, composición limpia, espacio libre arriba para texto`,
+      prompt: `Fotografía de producto de ${name} sobre una mesa elegante, luz natural de mañana, fondo desenfocado, composición limpia, espacio libre arriba para texto`,
     },
     {
       kind: "image",
-      prompt: `Persona en Colombia sirviendo ${name} en una taza de cerámica, plano medio, ambiente cálido, estilo documental, sin texto`,
+      prompt: `Persona disfrutando de ${name}, plano medio, ambiente cálido, estilo documental, sin texto`,
     },
     {
       kind: "video",

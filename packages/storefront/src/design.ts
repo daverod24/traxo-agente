@@ -215,10 +215,13 @@ export function defaultDesign(input: {
         : first
           ? `${first}, directo a tu puerta`.slice(0, 90)
           : `Bienvenido a ${brand}`.slice(0, 90);
+  const isCo = process.env.MARKET === "CO";
   const benefits = [
     {
-      title: "Enviamos a toda Colombia",
-      text: "Elegimos la transportadora que mejor llega a tu ciudad.",
+      title: isCo ? "Enviamos a toda Colombia" : "Envíos a toda Venezuela",
+      text: isCo
+        ? "Elegimos la transportadora que mejor llega a tu ciudad."
+        : "MRW, Zoom, Tealca o Flash Courier directo a tu ciudad.",
     },
     ...(cod
       ? [{ title: "Pagas al recibir", text: "Contraentrega en las ciudades con cobertura." }]

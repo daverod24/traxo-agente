@@ -147,7 +147,7 @@ export async function approve(rt: Runtime, id: string): Promise<ApprovalResult> 
     }
 
     // 3. Notificar al cliente por WhatsApp con la plantilla de pago conciliado
-    const bcvRate = Number(process.env.TRAXO_BCV_RATE) || 48.45;
+    const bcvRate = Number(process.env.TRAXO_BCV_RATE) || 880.0;
     const text = render("pago_conciliado", {
       nombre: order.address.name,
       tienda: rt.storeName,

@@ -42,11 +42,11 @@ describe("asistente conversacional venezolanizado (Fase 8)", () => {
     const s = await snapshot(db, "store_demo_beauty");
     const reply = answer(s, "¿Cuál es la tasa oficial del BCV hoy?");
     expect(reply.answer).toContain("Banco Central de Venezuela (BCV)");
-    expect(reply.answer).toContain("48.45");
+    expect(reply.answer).toContain("880");
     expect(reply.answer).toMatch(/10\.00.*Bs\./);
     expect(reply.kpis).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ label: "Tasa Oficial BCV", value: "Bs. 48.45" }),
+        expect.objectContaining({ label: "Tasa Oficial BCV", value: "Bs. 880.00" }),
         expect.objectContaining({ label: "Moneda Base", value: "USD ($)" }),
       ]),
     );
@@ -86,7 +86,7 @@ describe("asistente conversacional venezolanizado (Fase 8)", () => {
     const sVe = await snapshot(db, "store_demo_beauty");
     const promptVe = systemPromptForStore(sVe);
     expect(promptVe).toContain("agente de Traxo para Venezuela");
-    expect(promptVe).toContain("48.45 Bs./USD");
+    expect(promptVe).toContain("880 Bs./USD");
     expect(promptVe).toContain("Flash Courier (Dropi VE)");
     expect(promptVe).toContain("Pago Móvil, Zelle, USDT y contraentrega");
   });
@@ -116,7 +116,7 @@ describe("asistente conversacional venezolanizado (Fase 8)", () => {
 
     // Pregunta de tasa BCV en endpoint
     const resBcv = await askStore("store_demo_beauty", "tasa bcv");
-    expect(resBcv.answer).toMatch(/48\.45/);
+    expect(resBcv.answer).toMatch(/880/);
   });
 
   it("endpoint /api/assistant/suggestions retorna sugerencias venezolanas y tasa BCV", async () => {
@@ -125,7 +125,7 @@ describe("asistente conversacional venezolanizado (Fase 8)", () => {
     });
     expect(res.status).toBe(200);
     const data = (await res.json()) as { suggestions: string[]; bcvRate?: number; currency?: string };
-    expect(data.bcvRate).toBe(48.45);
+    expect(data.bcvRate).toBe(880.0);
     expect(data.currency).toBe("USD/VES");
     expect(data.suggestions).toContain("¿Cuál es la tasa oficial BCV hoy?");
   });

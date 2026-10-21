@@ -149,7 +149,7 @@ export function registerApi(app: Hono, rt: Runtime): void {
 
     const { newId } = await import("@traxo/core");
     const id = newId("apr");
-    const bcvRate = Number(process.env.TRAXO_BCV_RATE) || 48.45;
+    const bcvRate = Number(process.env.TRAXO_BCV_RATE) || 880.0;
     const amountUsd = body.amount ?? order.total;
     const amountBs = (amountUsd * bcvRate).toFixed(2);
 
@@ -186,6 +186,77 @@ export function registerApi(app: Hono, rt: Runtime): void {
     );
 
     return c.json({ ok: true, approval });
+  });
+
+  /**
+   * Endpoint de conciliación automática con pasarelas venezolanas:
+   * MisPidi (Sofitasa), AvilaPay, Bancrecer Connect Pago Móvil.
+   */
+  app.post("/api/payments/validate-ve", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as {
+      orderId: string;
+      gateway: "mispidi" | "avilapay" | "bancrecer";
+      reference: string;
+      amountBs?: number;
+      amountUsd?: number;
+      phone?: string;
+      idNumber?: string;
+      rawPayload?: any;
+      signature?: string;
+    };
+    if (!body.orderId || !body.reference || !body.gateway) {
+      return c.json({ ok: false, message: "Faltan datos requeridos (orderId, reference, gateway)." }, 400);
+    }
+    const order = await db.prisma.order.findUnique({ where: { id: body.orderId } });
+    if (!order) return c.json({ ok: false, message: "Pedido no encontrado." }, 404);
+
+    const { VenezuelanPaymentOrchestrator } = await import("@traxo/payments");
+    const orchestrator = new VenezuelanPaymentOrchestrator();
+    const bcvRate = Number(process.env.TRAXO_BCV_RATE) || 880.0;
+    const amountUsd = body.amountUsd ?? order.total;
+    const amountBs = body.amountBs ?? amountUsd * bcvRate;
+
+    const validation = await orchestrator.validatePayment(body.gateway, {
+      reference: body.reference,
+      amountBs,
+      amountUsd,
+      phone: body.phone,
+      idNumber: body.idNumber,
+      rawPayload: body.rawPayload,
+      signature: body.signature,
+    });
+
+    if (validation.verified) {
+      const id = newId("apr");
+      const title = `Conciliación Automática ${body.gateway.toUpperCase()}: ${order.number}`;
+      const detail = `Validado con éxito vía ${validation.provider}. Ref: ${validation.reference}. Monto: Bs. ${amountBs.toFixed(2)} ($ ${amountUsd.toFixed(2)} USD @ ${bcvRate}).`;
+
+      await db.prisma.approval.create({
+        data: {
+          id,
+          storeId: order.storeId,
+          orderId: order.id,
+          kind: "payment_reconciliation",
+          title,
+          detail,
+          payload: {
+            orderId: order.id,
+            method: body.gateway === "bancrecer" ? "pago_movil" : body.gateway,
+            reference: validation.reference,
+            amount: amountUsd,
+            senderBank: validation.bank,
+            gateway: body.gateway,
+            verifiedAt: validation.timestamp,
+          },
+        },
+      });
+
+      // Auto-aprueba y sincroniza WooCommerce a processing
+      const result = await approve(rt, id);
+      return c.json({ ok: true, verified: true, validation, result });
+    }
+
+    return c.json({ ok: false, verified: false, message: validation.message, validation }, 422);
   });
 
   app.get("/api/conversations", async (c) => {

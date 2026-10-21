@@ -115,7 +115,7 @@ export function formatCOP(value: number): string {
 /**
  * Formato dual bimoneda USD con referencia oficial BCV en Bolívares (VES).
  */
-export function formatBimoneda(usdAmount: number, bcvRate = 48.45): string {
+export function formatBimoneda(usdAmount: number, bcvRate = 880.0): string {
   const sign = usdAmount < 0 ? "−" : "";
   const abs = Math.abs(usdAmount);
   const usdStr = `${sign}$ ${abs.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

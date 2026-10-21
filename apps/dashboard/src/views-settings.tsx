@@ -15,8 +15,8 @@ const CITIES: Array<[string, string]> = [
   ["VE-B", "Barcelona / Lechería (Anzoátegui)"],
   ["VE-D", "Maracay (Aragua)"],
   ["VE-P", "Porlamar (Nueva Esparta)"],
-  ["11001", "Bogotá (Colombia)"],
-  ["05001", "Medellín (Colombia)"],
+  ["VE-T", "San Cristóbal (Táchira)"],
+  ["VE-F", "Ciudad Guayana / Pto. Ordaz (Bolívar)"],
 ];
 const PROVIDERS: Array<[string, string]> = [
   ["", "Sin preferencia (Costo / Tiempo)"],
@@ -32,7 +32,7 @@ const PROVIDERS: Array<[string, string]> = [
 /* ============================== CONEXIONES ============================== */
 const HUB: Array<[string, string, string]> = [
   ["whatsapp", "WhatsApp Business", "Compra asistida y confirmaciones (+58)"],
-  ["pago-movil", "Pago Móvil / Bancos VE", "Conciliación de referencias en Bs."],
+  ["pago-movil", "Pago Móvil / Bancrecer / MisPidi / AvilaPay", "Conciliación automática y referencias en Bs. BCV"],
   ["crypto", "USDT (Binance Pay / TRC20)", "Cobro en stablecoins sin comisiones"],
   ["dropi", "Dropi Venezuela MCP", "Catálogo y logística nacional"],
   ["instagram", "Instagram DM", "Venta conversacional"],

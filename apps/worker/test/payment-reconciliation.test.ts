@@ -19,7 +19,7 @@ describe("conciliación de pagos en Venezuela (Pago Móvil, Zelle, USDT) y actua
   it("al aprobar una conciliación de Pago Móvil, actualiza el pedido a prepago, notifica por WhatsApp y cambia el estado en WooCommerce", async () => {
     process.env.MARKET = "VE";
     process.env.TRAXO_CURRENCY = "USD";
-    process.env.TRAXO_BCV_RATE = "48.45";
+    process.env.TRAXO_BCV_RATE = "880.00";
 
     // 1. Crear pedido demo venezolano
     const o = buildDemoOrder({

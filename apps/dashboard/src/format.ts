@@ -20,7 +20,7 @@ export const copShort = (n: number): string => {
   return cop(n);
 };
 
-export const DEFAULT_BCV_RATE = 48.45;
+export const DEFAULT_BCV_RATE = 880.00;
 
 /** Conversión referencial a Bolívares usando la tasa BCV */
 export const vesFromUsd = (usd: number, rate: number = DEFAULT_BCV_RATE): string => {

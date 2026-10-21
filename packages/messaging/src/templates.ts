@@ -28,7 +28,7 @@ export type Vars = {
 const first = (n: string): string => n.split(" ")[0] ?? n;
 
 const isVe = () => process.env.MARKET === "VE" || process.env.TRAXO_CURRENCY === "USD";
-const BCV = () => Number(process.env.TRAXO_BCV_RATE) || 48.45;
+const BCV = () => Number(process.env.TRAXO_BCV_RATE) || 880.0;
 
 const fmtMonto = (m: number | undefined, rate?: number): string => {
   if (m == null) return "";

@@ -92,17 +92,20 @@ export function buildGutenbergPattern(d: StoreDesign): string {
 ${d.products
   .slice(0, 4)
   .map(
-    (p) => `    <!-- wp:column -->
+    (p) => {
+      const bcvRate = Number(process.env.TRAXO_BCV_RATE) || 880.0;
+      return `    <!-- wp:column -->
     <div class="wp-block-column">
       ${p.image ? `<!-- wp:image --><figure class="wp-block-image"><img src="${escapeHtml(p.image)}" alt="${escapeHtml(p.title)}"/></figure><!-- /wp:image -->` : ""}
       <!-- wp:heading {"level":3} -->
       <h3 class="wp-block-heading">${escapeHtml(p.title)}</h3>
       <!-- /wp:heading -->
       <!-- wp:paragraph -->
-      <p><strong>$ ${p.price.toFixed(2)} USD</strong> (Bs. ${(p.price * 48.45).toFixed(2)} BCV)</p>
+      <p><strong>$ ${p.price.toFixed(2)} USD</strong> (Bs. ${(p.price * bcvRate).toFixed(2)} BCV)</p>
       <!-- /wp:paragraph -->
     </div>
-    <!-- /wp:column -->`,
+    <!-- /wp:column -->`;
+    },
   )
   .join("\n")}
   </div>
@@ -225,7 +228,7 @@ export function buildHeadlessAstroPackage(d: StoreDesign): Record<string, string
       contact: d.contact,
       currency: "USD",
       secondaryCurrency: "VES",
-      bcvRate: 48.45,
+      bcvRate: Number(process.env.TRAXO_BCV_RATE) || 880.0,
     },
     null,
     2,

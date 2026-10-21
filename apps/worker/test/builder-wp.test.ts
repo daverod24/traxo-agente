@@ -16,7 +16,7 @@ describe("Store Builder: Gutenberg patterns y publicación en WordPress", () => 
         MARKET: "VE",
         TRAXO_CURRENCY: "USD",
         TRAXO_SECONDARY_CURRENCY: "VES",
-        TRAXO_BCV_RATE: "48.45",
+        TRAXO_BCV_RATE: "880.00",
       },
       { db },
     );

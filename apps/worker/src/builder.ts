@@ -96,7 +96,7 @@ async function polishCopy(storeId: string, d: StoreDesign): Promise<StoreDesign>
   const out = await askClaude(storeId, {
     feature: "Diseño de tienda",
     system:
-      "Eres redactor de e-commerce para Colombia. Escribes los textos de la portada de una tienda en español natural y cercano. " +
+      "Eres redactor de e-commerce para Venezuela y Latinoamérica. Escribes los textos de la portada de una tienda en español natural y cercano. " +
       "No inventes cifras, premios, reseñas, años de experiencia ni promesas de envío gratis. Si no sabes algo, no lo menciones. " +
       'Responde SOLO un JSON: {"tagline":"máx 120","headline":"máx 90","sub":"máx 220","story":"máx 500, solo si hay base real para escribirla","cta":"máx 28"}.',
     user: `Marca y catálogo:\n<datos>${JSON.stringify({ brand: d.brand, tone: d.tone, style: d.style, products: d.products.map((p) => p.title) }).slice(0, 1500)}</datos>`,

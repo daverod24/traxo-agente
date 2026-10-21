@@ -388,6 +388,7 @@ function Detalle({
   const isShopify = project.platform === "shopify";
   const isWoo = project.platform === "woocommerce";
   const [publishing, setPublishing] = useState(false);
+  const [publishedPage, setPublishedPage] = useState<{ id?: number; link?: string; slug?: string; title?: string } | null>(null);
 
   const getZip = async () => {
     try {
@@ -404,11 +405,12 @@ function Detalle({
   const publishToWp = async () => {
     setPublishing(true);
     try {
-      const res = await post<{ ok: boolean; message?: string; page?: { link?: string } }>(
+      const res = await post<{ ok: boolean; message?: string; page?: { id?: number; link?: string; slug?: string; title?: string } }>(
         `/api/builder/${project.id}/publish-wp`,
         {},
       );
       if (res.ok) {
+        if (res.page) setPublishedPage(res.page);
         ctx.toast(res.message ?? "Página publicada con éxito en WordPress.");
         onChanged();
       } else {
@@ -486,6 +488,41 @@ function Detalle({
                   </Button>
                 )}
               </div>
+              {isWoo && (publishedPage || project.status === "subido") && (
+                <div className="card" style={{ marginTop: 10, padding: 12, background: "var(--surface-sunken, #f8fafc)", border: "1px solid var(--border)" }}>
+                  <div className="row between" style={{ marginBottom: 6 }}>
+                    <strong style={{ fontSize: 13 }}>📍 Ubicación y Acceso Directo:</strong>
+                    <ToneBadge tone="success">Publicado en WordPress</ToneBadge>
+                  </div>
+                  <ul className="caption" style={{ margin: "0 0 8px 16px", padding: 0 }}>
+                    <li><strong>Base de Datos Traxo:</strong> Tabla <code>SiteProject</code> (ID: {project.id})</li>
+                    <li><strong>WordPress CMS:</strong> Tabla <code>wp_posts</code> (Página Gutenberg con <code>templateLock="contentOnly"</code>)</li>
+                    <li><strong>Stack Headless:</strong> Componentes Astro en <code>paquete-astro-gutenberg.zip</code></li>
+                  </ul>
+                  <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                    <a
+                      className="btn primary sm"
+                      href={publishedPage?.link || "http://localhost:8080/inicio/"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      🌐 Ver página en vivo
+                    </a>
+                    <a
+                      className="btn ghost sm"
+                      href={
+                        publishedPage?.id
+                          ? `http://localhost:8080/wp-admin/post.php?post=${publishedPage.id}&action=edit`
+                          : "http://localhost:8080/wp-admin/edit.php?post_type=page"
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      ✏️ Editar en wp-admin (Gutenberg)
+                    </a>
+                  </div>
+                </div>
+              )}
             </li>
             <li>
               <strong>Pule el diseño con Claude (opcional).</strong>

@@ -191,7 +191,7 @@ export function registerGrowthApi(app: Hono, rt: Runtime): void {
     const out = await askClaude(sid(c), {
       feature: "Copy de anuncios",
       system:
-        "Eres redactor publicitario para e-commerce en Colombia. Reescribes el copy de un anuncio: gancho claro, beneficio concreto, tono cercano, sin promesas falsas ni cifras inventadas. " +
+        "Eres redactor publicitario para e-commerce en Venezuela y Latinoamérica. Reescribes el copy de un anuncio: gancho claro, beneficio concreto, tono cercano, sin promesas falsas ni cifras inventadas. " +
         `Límites estrictos de caracteres (${platform.data}): título ${lim.headline}, texto principal ${lim.primaryText}, descripción ${lim.description}. ` +
         'Responde SOLO un JSON: {"headlines":[...],"primaryTexts":[...],"descriptions":[...]} con la misma cantidad de elementos que el original.',
       user: `Producto: ${String(b.productTitle ?? "").slice(0, 120)}. Objetivo: ${String(b.objective ?? "ventas").slice(0, 40)}. Tono: ${String(b.tone ?? "cercano").slice(0, 40)}.\n<datos>${JSON.stringify(b.copy).slice(0, 2500)}</datos>`,

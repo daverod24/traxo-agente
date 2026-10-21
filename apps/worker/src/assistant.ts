@@ -18,7 +18,7 @@ export type AssistantReply = {
 };
 
 const isVe = process.env.MARKET === "VE" || process.env.TRAXO_CURRENCY === "USD";
-const BCV_RATE = Number(process.env.TRAXO_BCV_RATE) || 48.45;
+const BCV_RATE = Number(process.env.TRAXO_BCV_RATE) || 880.0;
 
 const cop = (n: number, isVenezuelan = isVe): string => {
   if (isVenezuelan) {
