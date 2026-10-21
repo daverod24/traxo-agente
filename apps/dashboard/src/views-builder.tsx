@@ -389,6 +389,12 @@ function Detalle({
   const isWoo = project.platform === "woocommerce";
   const [publishing, setPublishing] = useState(false);
   const [publishedPage, setPublishedPage] = useState<{ id?: number; link?: string; slug?: string; title?: string } | null>(null);
+  const store = useResource<StoreStatus>("/api/store/status", ctx.tick).data;
+  const storeUrl = (store?.url && !store.url.includes("nginx"))
+    ? store.url.replace(/\/$/, "")
+    : (typeof window !== "undefined" && window.location.hostname !== "localhost")
+      ? `${window.location.protocol}//${window.location.hostname.replace(/^traxo\./, "api.")}`
+      : "http://localhost:8080";
 
   const getZip = async () => {
     try {
@@ -502,7 +508,7 @@ function Detalle({
                   <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
                     <a
                       className="btn primary sm"
-                      href={publishedPage?.link || "http://localhost:8080/inicio/"}
+                      href={publishedPage?.link || `${storeUrl}/inicio/`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -512,8 +518,8 @@ function Detalle({
                       className="btn ghost sm"
                       href={
                         publishedPage?.id
-                          ? `http://localhost:8080/wp-admin/post.php?post=${publishedPage.id}&action=edit`
-                          : "http://localhost:8080/wp-admin/edit.php?post_type=page"
+                          ? `${storeUrl}/wp-admin/post.php?post=${publishedPage.id}&action=edit`
+                          : `${storeUrl}/wp-admin/edit.php?post_type=page`
                       }
                       target="_blank"
                       rel="noopener noreferrer"
