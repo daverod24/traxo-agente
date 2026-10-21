@@ -131,6 +131,63 @@ export function registerApi(app: Hono, rt: Runtime): void {
     );
   });
 
+  app.post("/api/approvals/payment-reconciliation", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as {
+      orderId: string;
+      method: "pago_movil" | "zelle" | "usdt" | "transferencia_bs";
+      reference: string;
+      amount?: number;
+      senderName?: string;
+      senderBank?: string;
+      senderPhone?: string;
+    };
+    if (!body.orderId || !body.reference) {
+      return c.json({ ok: false, message: "Falta orderId o referencia." }, 400);
+    }
+    const order = await db.prisma.order.findUnique({ where: { id: body.orderId } });
+    if (!order) return c.json({ ok: false, message: "Pedido no encontrado." }, 404);
+
+    const { newId } = await import("@traxo/core");
+    const id = newId("apr");
+    const bcvRate = Number(process.env.TRAXO_BCV_RATE) || 48.45;
+    const amountUsd = body.amount ?? order.total;
+    const amountBs = (amountUsd * bcvRate).toFixed(2);
+
+    const title = `Conciliar pago ${body.method.replace("_", " ").toUpperCase()}: ${order.number}`;
+    const detail = `Cliente reportó pago de $ ${amountUsd.toFixed(2)} (Bs. ${amountBs} BCV) vía ${body.method}. Referencia: ${body.reference}.`;
+
+    const approval = await db.prisma.approval.create({
+      data: {
+        id,
+        storeId: order.storeId,
+        orderId: order.id,
+        kind: "payment_reconciliation",
+        title,
+        detail,
+        payload: {
+          orderId: order.id,
+          method: body.method,
+          reference: body.reference,
+          amount: amountUsd,
+          senderName: body.senderName,
+          senderBank: body.senderBank,
+          senderPhone: body.senderPhone,
+        },
+      },
+    });
+
+    rt.bus.emit(
+      "approval.requested",
+      `Reportaron pago para ${order.number} vía ${body.method} (${body.reference}). Espera tu validación.`,
+      {
+        orderId: order.id,
+        approvalId: id,
+      },
+    );
+
+    return c.json({ ok: true, approval });
+  });
+
   app.get("/api/conversations", async (c) => {
     const rows = await db.prisma.conversation.findMany({
       where: { storeId: sid(c) },

@@ -933,6 +933,26 @@ export async function seedRich(
           status: "pending",
           createdAt: at(HOUR),
         });
+        if (isVe) {
+          store.approvals.push({
+            id: `apr_rich_${storeId}_pago_movil`,
+            storeId,
+            orderId: o.id,
+            kind: "payment_reconciliation",
+            title: `Conciliar Pago Móvil: ${o.number} (${address.name})`,
+            detail: `Cliente reportó Pago Móvil por $ ${o.total.toFixed(2)} (Bs. ${(o.total * 48.45).toFixed(2)} BCV) desde Banesco. Referencia: 498172 (Tel: ${address.phone}).`,
+            payload: {
+              orderId: o.id,
+              method: "pago_movil",
+              reference: "498172",
+              amount: o.total,
+              senderBank: "Banesco",
+              senderPhone: address.phone,
+            },
+            status: "pending",
+            createdAt: at(30 * 60_000),
+          });
+        }
         ev(
           "approval.requested",
           `${address.name} no respondió la confirmación de ${o.number} en 24 h. Te dejo decidir: enviarlo igual o cancelarlo.`,

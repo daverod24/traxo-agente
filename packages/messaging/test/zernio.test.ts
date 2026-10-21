@@ -132,4 +132,46 @@ describe("selección y plantillas", () => {
     expect(t).toContain("Hola Valentina");
     expect(t).toContain("$ 136.000");
   });
+
+  it("renderiza plantillas venezolanas de Pago Móvil, Zelle y conciliación en bimoneda", () => {
+    process.env.MARKET = "VE";
+    process.env.TRAXO_CURRENCY = "USD";
+    process.env.TRAXO_BCV_RATE = "48.45";
+
+    const pm = render("datos_pago_movil", {
+      nombre: "Valeria Mendoza",
+      tienda: "Davebeauty",
+      monto: 55,
+      banco: "Bancrecer",
+      telefono: "0412-1234567",
+      cedula: "V-18765432",
+    });
+    expect(pm).toContain("Hola Valeria");
+    expect(pm).toContain("$ 55.00");
+    expect(pm).toContain("BCV");
+    expect(pm).toContain("Bancrecer");
+    expect(pm).toContain("0412-1234567");
+
+    const zelle = render("datos_zelle", {
+      nombre: "Carlos Villalobos",
+      tienda: "Davebeauty",
+      monto: 34,
+      emailZelle: "pagos@davebeauty.ve",
+    });
+    expect(zelle).toContain("$ 34.00 USD");
+    expect(zelle).toContain("pagos@davebeauty.ve");
+
+    const conciliado = render("pago_conciliado", {
+      nombre: "Valeria Mendoza",
+      tienda: "Davebeauty",
+      monto: 55,
+      referencia: "ref_987654",
+      transportadora: "Flash Courier",
+    });
+    expect(conciliado).toContain("ref_987654");
+    expect(conciliado).toContain("Flash Courier");
+
+    delete process.env.MARKET;
+    delete process.env.TRAXO_CURRENCY;
+  });
 });

@@ -18,6 +18,8 @@ export interface CommerceAdapter {
   /** Escribe la guía en la tienda (fulfillment + tracking). */
   addFulfillment(orderId: string, input: FulfillmentInput): Promise<void>;
   addNote(orderId: string, note: string): Promise<void>;
+  /** Actualiza el estado del pedido en la plataforma (ej: 'processing' al conciliar pago). */
+  updateOrderStatus?(orderId: string, status: string, note?: string): Promise<void>;
   /** Verifica la firma del webhook con el cuerpo CRUDO. */
   verifyWebhook(headers: Record<string, string | undefined>, rawBody: string): boolean;
   /** Convierte el payload de la plataforma en un Order de Traxo (o undefined si el tema no es de pedido nuevo). */

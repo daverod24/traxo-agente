@@ -4,7 +4,12 @@ export type TemplateName =
   | "novedad_entrega"
   | "confirmar_contraentrega"
   | "pago_recibido"
-  | "pedido_cancelado";
+  | "pedido_cancelado"
+  | "datos_pago_movil"
+  | "datos_zelle"
+  | "datos_usdt"
+  | "datos_transferencia_bs"
+  | "pago_conciliado";
 
 export type OutboundMessage = {
   /** Teléfono en E.164. */

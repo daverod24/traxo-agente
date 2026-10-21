@@ -1,6 +1,7 @@
 import { formatCOP, type Quote } from "@traxo/core";
 import { addTrackingEvents, getSettings, orderFromRow } from "@traxo/db";
 import { findCity, normalizeStreet } from "@traxo/geo-co";
+import { render } from "@traxo/messaging";
 import { createAndNotify, draftFor, handleNewOrder, recordMessage } from "./agent.ts";
 import { cancelOrder } from "./confirmation.ts";
 import type { Runtime } from "./runtime.ts";
@@ -108,6 +109,84 @@ export async function approve(rt: Runtime, id: string): Promise<ApprovalResult> 
     return { ok: true, message: "Devolución registrada." };
   }
 
+  if ((a.kind === "payment" || a.kind === "payment_reconciliation") && order) {
+    const method = payload.method ?? "Pago Móvil";
+    const ref = payload.reference ?? payload.ref ?? "Sin referencia";
+    const amount = payload.amount ? Number(payload.amount) : order.total;
+
+    // 1. Marcar la orden como pagada / prepagada en la base de datos de Traxo
+    await rt.db.prisma.order.update({
+      where: { id: order.id },
+      data: {
+        payment: "prepaid",
+        status: "confirmed",
+      },
+    });
+
+    // 2. Si la tienda está conectada a WooCommerce y tiene externalId, actualizar estado a 'processing'
+    const adapter = (rt.commerceMap as Record<string, any>)?.[order.storeId] ?? rt.commerce;
+    if (order.externalId && adapter) {
+      if (typeof adapter.updateOrderStatus === "function") {
+        try {
+          await adapter.updateOrderStatus(
+            order.externalId,
+            "processing",
+            `Pago conciliado vía Traxo (${method}, Ref: ${ref}).`,
+          );
+        } catch (e) {
+          console.warn("No se pudo actualizar estado en WooCommerce:", e);
+        }
+      } else if (typeof adapter.addNote === "function") {
+        try {
+          await adapter.addNote(
+            order.externalId,
+            `Pago conciliado vía Traxo (${method}, Ref: ${ref}).`,
+          );
+        } catch {}
+      }
+    }
+
+    // 3. Notificar al cliente por WhatsApp con la plantilla de pago conciliado
+    const bcvRate = Number(process.env.TRAXO_BCV_RATE) || 48.45;
+    const text = render("pago_conciliado", {
+      nombre: order.address.name,
+      tienda: rt.storeName,
+      monto: amount,
+      referencia: ref,
+      tasaBcv: bcvRate,
+      transportadora: "Flash Courier",
+    });
+
+    try {
+      const sent = await rt.messaging.send({
+        to: order.address.phone,
+        text,
+        idempotencyKey: `${a.id}:payment_ok`,
+      });
+      await recordMessage(rt.db, order, text, "pago_conciliado", sent.simulated);
+    } catch (e) {
+      console.warn("Error enviando WhatsApp de pago conciliado:", e);
+    }
+
+    rt.bus.emit(
+      "payment.reconciled",
+      `Concilié el pago de ${order.number} vía ${method} (Ref: ${ref}). Pedido confirmado para despacho.`,
+      { orderId: order.id },
+    );
+    await done();
+
+    // 4. Retomar flujo logístico del pedido ahora que está pagado y confirmado
+    const out = await handleNewOrder(
+      rt,
+      { ...order, payment: "prepaid", status: "confirmed" },
+      { skipConfirmation: true },
+    );
+    return {
+      ok: true,
+      message: `Pago de ${order.number} conciliado (${method} ${ref}). ${out.status === "shipped" ? `Guía ${out.trackingNumber} generada.` : "Pedido listo para despacho."}`,
+    };
+  }
+
   await done();
   return { ok: true, message: "Marcada como resuelta." };
 }
@@ -124,6 +203,22 @@ export async function reject(rt: Runtime, id: string): Promise<ApprovalResult> {
     const row = await rt.db.prisma.order.findUnique({ where: { id: a.orderId } });
     if (row) await cancelOrder(rt, orderFromRow(row), "no confirmó y decidiste no enviarlo");
     return { ok: true, message: "Pedido cancelado. No se generó ninguna guía." };
+  }
+  if ((a.kind === "payment" || a.kind === "payment_reconciliation") && a.orderId) {
+    const row = await rt.db.prisma.order.findUnique({ where: { id: a.orderId } });
+    if (row) {
+      const order = orderFromRow(row);
+      const text = `Hola ${order.address.name.split(" ")[0]}, no pudimos validar el comprobante de pago para tu pedido ${order.number}. Por favor contáctanos con tu número de referencia para verificarlo.`;
+      try {
+        const sent = await rt.messaging.send({
+          to: order.address.phone,
+          text,
+          idempotencyKey: `${a.id}:payment_rejected`,
+        });
+        await recordMessage(rt.db, order, text, undefined, sent.simulated);
+      } catch {}
+    }
+    return { ok: true, message: "Comprobante de pago rechazado. Se notificó al cliente." };
   }
   rt.bus.emit("approval.requested", `Rechazaste: ${a.title}. No hice nada.`, {
     orderId: a.orderId ?? undefined,

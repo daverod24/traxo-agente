@@ -223,6 +223,16 @@ export class WooCommerce implements CommerceAdapter {
     await this.call(`/orders/${orderId}/notes`, { method: "POST", body: JSON.stringify({ note }) });
   }
 
+  async updateOrderStatus(orderId: string, status: string, note?: string): Promise<void> {
+    await this.call(`/orders/${orderId}`, {
+      method: "PUT",
+      body: JSON.stringify({ status }),
+    });
+    if (note) {
+      await this.addNote(orderId, note);
+    }
+  }
+
   verifyWebhook(headers: Record<string, string | undefined>, rawBody: string): boolean {
     const sig = header(headers, "x-wc-webhook-signature");
     return (

@@ -84,20 +84,28 @@ export class ZernioMessaging implements MessagingProvider {
   }
 
   async send(msg: OutboundMessage): Promise<SentMessage> {
+    // Normalizar destino venezolano si viene como 0412... o 58412...
+    const cleanTo = msg.to.startsWith("04")
+      ? `+58${msg.to.slice(1)}`
+      : msg.to.startsWith("58")
+        ? `+${msg.to}`
+        : msg.to;
+
     // Con plantilla se puede iniciar o reabrir la conversación (también fuera de la ventana de 24 h).
     const body = msg.template
       ? {
           profileId: this.cfg.profileId,
           channel: "whatsapp",
-          to: msg.to,
+          to: cleanTo,
           templateName: msg.template.name,
-          templateLanguage: this.cfg.templateLanguage ?? "es_CO",
+          templateLanguage:
+            this.cfg.templateLanguage ?? (process.env.MARKET === "VE" ? "es_VE" : "es_CO"),
           templateParams: msg.template.params,
         }
       : {
           profileId: this.cfg.profileId,
           channel: "whatsapp",
-          to: msg.to,
+          to: cleanTo,
           text: msg.text,
           ...(msg.buttons?.length
             ? { interactive: { type: "buttons", buttons: msg.buttons.map((b) => ({ title: b })) } }
@@ -111,7 +119,7 @@ export class ZernioMessaging implements MessagingProvider {
     );
     return {
       id: out.messageId ?? out.id ?? msg.idempotencyKey,
-      to: msg.to,
+      to: cleanTo,
       text: msg.text,
       at: new Date().toISOString(),
       simulated: false,
