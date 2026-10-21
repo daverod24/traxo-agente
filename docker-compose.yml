@@ -1,0 +1,64 @@
+services:
+  traxo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: traxo_app
+    restart: unless-stopped
+    expose:
+      - "8787"
+    networks:
+      - dokploy-network
+    volumes:
+      - traxo_data:/app/.traxo-data
+    environment:
+      PORT: "8787"
+      NODE_ENV: production
+      TRAXO_DEMO: "${TRAXO_DEMO:-0}"
+      TRAXO_STORE_NAME: "${TRAXO_STORE_NAME:-Davebeauty}"
+      TRAXO_STORE_URL: "${TRAXO_STORE_URL:-https://api.daverod.tech}"
+      WOOCOMMERCE_URL: "${WOOCOMMERCE_URL:-https://api.daverod.tech}"
+      WOOCOMMERCE_KEY: "${WOOCOMMERCE_KEY:-}"
+      WOOCOMMERCE_SECRET: "${WOOCOMMERCE_SECRET:-}"
+      TRAXO_SESSION_SECRET: "${TRAXO_SESSION_SECRET:-}"
+      TRAXO_API_TOKEN: "${TRAXO_API_TOKEN:-}"
+      TRAXO_ADMIN_EMAIL: "${TRAXO_ADMIN_EMAIL:-}"
+      TRAXO_ADMIN_PASSWORD: "${TRAXO_ADMIN_PASSWORD:-}"
+      TRAXO_AUDIT_LIVE: "1"
+      MARKET: "VE"
+      TRAXO_CURRENCY: "USD"
+      TRAXO_SECONDARY_CURRENCY: "VES"
+      TRAXO_BCV_RATE: "${TRAXO_BCV_RATE:-880.00}"
+      DROPI_MCP_URL: "${DROPI_MCP_URL:-https://mcp.dropi.co/mcp}"
+      MISPIDI_ENV: "${MISPIDI_ENV:-production}"
+      MISPIDI_API_KEY: "${MISPIDI_API_KEY:-}"
+      MISPIDI_SECRET_KEY: "${MISPIDI_SECRET_KEY:-}"
+      AVILAPAY_ENV: "${AVILAPAY_ENV:-production}"
+      AVILAPAY_API_KEY: "${AVILAPAY_API_KEY:-}"
+      AVILAPAY_MERCHANT_ID: "${AVILAPAY_MERCHANT_ID:-}"
+      BANCRECER_ENV: "${BANCRECER_ENV:-production}"
+      BANCRECER_CLIENT_ID: "${BANCRECER_CLIENT_ID:-}"
+      BANCRECER_CLIENT_SECRET: "${BANCRECER_CLIENT_SECRET:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "512M"
+        reservations:
+          cpus: "0.1"
+          memory: "128M"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+volumes:
+  traxo_data:
+    name: traxo_data
+    driver: local
+
+networks:
+  dokploy-network:
+    external: true
