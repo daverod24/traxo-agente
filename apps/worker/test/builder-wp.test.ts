@@ -46,6 +46,7 @@ describe("Store Builder: Gutenberg patterns y publicación en WordPress", () => 
         brand: "Davebeauty K-Beauty",
         platform: "woocommerce",
         style: "botanico",
+        tone: "profesional",
         tagline: "Cosmética coreana y bienestar botánico en Venezuela",
         ai: false,
       }),

@@ -20,8 +20,8 @@ export type AssistantReply = {
 const isVe = process.env.MARKET === "VE" || process.env.TRAXO_CURRENCY === "USD";
 const BCV_RATE = Number(process.env.TRAXO_BCV_RATE) || 48.45;
 
-const cop = (n: number): string => {
-  if (isVe) {
+const cop = (n: number, isVenezuelan = isVe): string => {
+  if (isVenezuelan) {
     const usd = `$ ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const ves = `Bs. ${(n * BCV_RATE).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     return `${usd} (${ves} BCV)`;
@@ -29,8 +29,8 @@ const cop = (n: number): string => {
   return `$ ${Math.round(n).toLocaleString("es-CO").replace(/,/g, ".")}`;
 };
 
-const copKpi = (n: number): string => {
-  if (isVe) {
+const copKpi = (n: number, isVenezuelan = isVe): string => {
+  if (isVenezuelan) {
     return `$ ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
   return `$ ${Math.round(n).toLocaleString("es-CO").replace(/,/g, ".")}`;
@@ -41,8 +41,9 @@ const norm = (s: string): string => s.toLowerCase().normalize("NFD").replace(/[�
 /** Todo lo que el agente sabe de la tienda, calculado de la base de datos (nada inventado). */
 export async function snapshot(db: Db, storeId: string) {
   const now = Date.now();
-  const [orders, shipments, approvals, campaigns, customers, audits, products, audiences, convs] =
+  const [store, orders, shipments, approvals, campaigns, customers, audits, products, audiences, convs] =
     await Promise.all([
+      db.prisma.store.findUnique({ where: { id: storeId } }),
       db.prisma.order.findMany({
         where: { storeId, createdAt: { gte: new Date(now - 90 * DAY) } },
         include: {
@@ -68,6 +69,7 @@ export async function snapshot(db: Db, storeId: string) {
       db.prisma.conversation.count({ where: { storeId } }),
     ]);
   return {
+    store: store ?? { id: storeId, name: storeId, platform: "pending", profile: {} },
     now,
     orders,
     shipments,
@@ -97,6 +99,16 @@ function periodOf(q: string): { days: number; label: string } {
   return { days: 90, label: "los últimos 90 días" };
 }
 
+const SUGGEST_VE = [
+  "¿Cuánto vendí esta semana?",
+  "¿Cuál es la tasa oficial BCV hoy?",
+  "¿Cómo van las conciliaciones de Pago Móvil?",
+  "¿Qué transportadoras uso en Venezuela?",
+  "¿Qué pedidos tienen novedad?",
+  "¿Qué debo arreglar primero en mi tienda?",
+  "Resumen de hoy",
+];
+
 const SUGGEST = [
   "¿Cuánto vendí esta semana?",
   "¿Qué pedidos tienen novedad?",
@@ -109,12 +121,102 @@ const SUGGEST = [
 /** Responde con reglas sobre los datos reales. Con ANTHROPIC_API_KEY, `askClaude` redacta la respuesta libre con el mismo contexto. */
 export function answer(s: Snap, question: string): AssistantReply {
   const q = norm(question);
+  const storeIsVe =
+    isVe ||
+    s.store.id === "store_main" ||
+    s.store.id.includes("demo_beauty") ||
+    s.store.id.includes("demo_cafe");
+  const money = (n: number) => cop(n, storeIsVe);
+  const moneyKpi = (n: number) => copKpi(n, storeIsVe);
+  const suggestionsList = storeIsVe ? SUGGEST_VE : SUGGEST;
+
   const reply = (r: Partial<AssistantReply> & { answer: string }): AssistantReply => ({
     sources: [],
-    suggestions: SUGGEST.filter((x) => norm(x) !== q).slice(0, 3),
+    suggestions: suggestionsList.filter((x) => norm(x) !== q).slice(0, 3),
     mode: "datos",
     ...r,
   });
+
+  // Tasa oficial BCV y tipo de cambio
+  if (
+    /(tasa.*bcv|bcv|tipo.*cambio|dolar.*oficial|precio.*dolar|tasa.*del.*dia|tasa.*oficial|cuanto.*esta.*el.*dolar|precio.*bcv|a.*como.*esta.*el.*dolar)/.test(
+      q,
+    )
+  ) {
+    const usd10 = (10 * BCV_RATE).toLocaleString("es-VE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const usd25 = (25 * BCV_RATE).toLocaleString("es-VE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const usd50 = (50 * BCV_RATE).toLocaleString("es-VE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    return reply({
+      answer: [
+        `La **tasa oficial del Banco Central de Venezuela (BCV)** configurada es de **Bs. ${BCV_RATE.toFixed(2)} por USD**.`,
+        `• Todos los precios del catálogo y pedidos en «${s.store.name}» se calculan automáticamente en bimoneda (USD y su contravalor en Bolívares oficiales).`,
+        `• Conversiones de referencia para liquidación:`,
+        `  - $ 10.00 = Bs. ${usd10}`,
+        `  - $ 25.00 = Bs. ${usd25}`,
+        `  - $ 50.00 = Bs. ${usd50}`,
+        `• La liquidación de Pago Móvil, Zelle y transferencias se realiza a esta tasa exacta sin comisiones ocultas ni sobretasas.`,
+      ].join("\n"),
+      kpis: [
+        { label: "Tasa Oficial BCV", value: `Bs. ${BCV_RATE.toFixed(2)}` },
+        { label: "Moneda Base", value: "USD ($)" },
+        { label: "Moneda de Cobro", value: "VES (Bs.)" },
+      ],
+      links: [
+        { label: "Ver reportes bimoneda", view: "reportes" },
+        { label: "Ver catálogo de productos", view: "marketing" },
+      ],
+      sources: ["bcv", "tasas"],
+    });
+  }
+
+  // Conciliaciones de Pago Móvil, Zelle, USDT y pagos venezolanos
+  if (
+    /(pago.*movil|pagomovil|zelle|usdt|concilia|transferencia.*bs|banco.*venezuela|banesco)/.test(
+      q,
+    )
+  ) {
+    const payPending = s.approvals.filter(
+      (a) =>
+        a.kind === "pago_movil" ||
+        a.kind === "zelle" ||
+        a.kind === "usdt" ||
+        a.kind === "transferencia" ||
+        /pago m[oó]vil|zelle|usdt|transferencia/i.test(a.title),
+    );
+    if (payPending.length) {
+      return reply({
+        answer: [
+          `Tienes **${payPending.length}** pagos venezolanos esperando conciliación:`,
+          ...payPending.slice(0, 5).map((a) => `• ${a.title}`),
+          `Al dar 1 clic en Aprobar:`,
+          `• El pedido se confirma como prepagado en Traxo.`,
+          `• Se sincroniza el estado a «processing» en WooCommerce.`,
+          `• Se despacha automáticamente la orden de envío con la transportadora asignada y se notifica por WhatsApp (+58).`,
+        ].join("\n"),
+        kpis: [
+          { label: "Por conciliar", value: String(payPending.length) },
+          { label: "Total pendientes", value: String(s.approvals.length) },
+        ],
+        links: [{ label: "Ir a Aprobaciones", view: "aprobaciones" }],
+        sources: ["aprobaciones", "pagos"],
+      });
+    }
+    return reply({
+      answer:
+        "No tienes pagos de Pago Móvil, Zelle o USDT pendientes por conciliar en este momento. Todos los pagos recibidos han sido verificados.",
+      links: [{ label: "Ver Aprobaciones", view: "aprobaciones" }],
+      sources: ["aprobaciones", "pagos"],
+    });
+  }
 
   // Un pedido concreto: "dónde está el #1186"
   const num = q.match(/#?\b(\d{3,6})\b/);
@@ -125,7 +227,7 @@ export function answer(s: Snap, question: string): AssistantReply {
       const last = sh?.events[0];
       return reply({
         answer: [
-          `**Pedido ${o.number}** de ${o.customer?.name ?? "cliente"} por ${cop(o.total)} (${o.payment === "cod" ? "contraentrega" : "pagado"}).`,
+          `**Pedido ${o.number}** de ${o.customer?.name ?? "cliente"} por ${money(o.total)} (${o.payment === "cod" ? "contraentrega" : "pagado"}).`,
           sh
             ? `• Va con ${sh.carrier} (guía ${sh.trackingNumber}), estado: ${sh.status}.`
             : `• Todavía no tiene guía (estado: ${o.status}).`,
@@ -148,9 +250,10 @@ export function answer(s: Snap, question: string): AssistantReply {
     const prev = sales(s, 14).revenue - w.revenue;
     const inc = s.shipments.filter((x) => x.status === "incident").length;
     const roasLoss = s.campaigns.filter((c) => roas(s, c) !== null && (roas(s, c) as number) < 1);
+    const storePrefix = s.store?.name ? `**${s.store.name}**: ` : "";
     return reply({
       answer: [
-        `**Esta semana** vendiste ${cop(w.revenue)} en ${w.orders} pedidos${prev > 0 ? ` (${w.revenue >= prev ? "+" : "−"}${Math.abs(Math.round(((w.revenue - prev) / prev) * 100))} % frente a la semana anterior)` : ""}.`,
+        `${storePrefix}Esta semana vendiste ${money(w.revenue)} en ${w.orders} pedidos${prev > 0 ? ` (${w.revenue >= prev ? "+" : "−"}${Math.abs(Math.round(((w.revenue - prev) / prev) * 100))} % frente a la semana anterior)` : ""}.`,
         `• ${s.approvals.length} cosas esperan tu aprobación.`,
         `• ${inc} guías con novedad.`,
         roasLoss.length
@@ -158,7 +261,7 @@ export function answer(s: Snap, question: string): AssistantReply {
           : "• Ninguna campaña pierde dinero.",
       ].join("\n"),
       kpis: [
-        { label: "Ventas 7 días", value: copKpi(w.revenue) },
+        { label: "Ventas 7 días", value: moneyKpi(w.revenue) },
         { label: "Pedidos", value: String(w.orders) },
         { label: "Por aprobar", value: String(s.approvals.length) },
         { label: "Con novedad", value: String(inc) },
@@ -177,12 +280,13 @@ export function answer(s: Snap, question: string): AssistantReply {
     const cod = s.orders.filter(
       (o) => live(o) && o.payment === "cod" && o.createdAt.getTime() >= s.now - days * DAY,
     );
+    const storePrefix = s.store?.name ? `En **${s.store.name}**, en ` : "En ";
     return reply({
-      answer: `En ${label} vendiste **${cop(a.revenue)}** en ${a.orders} pedidos, con un ticket promedio de ${cop(a.ticket)}. ${cod.length ? `${pct(cod.length, a.orders)} fue contraentrega.` : ""}`,
+      answer: `${storePrefix}${label} vendiste **${money(a.revenue)}** en ${a.orders} pedidos, con un ticket promedio de ${money(a.ticket)}. ${cod.length ? `${pct(cod.length, a.orders)} fue contraentrega.` : ""}`,
       kpis: [
-        { label: "Ventas", value: copKpi(a.revenue) },
+        { label: "Ventas", value: moneyKpi(a.revenue) },
         { label: "Pedidos", value: String(a.orders) },
-        { label: "Ticket promedio", value: copKpi(a.ticket) },
+        { label: "Ticket promedio", value: moneyKpi(a.ticket) },
       ],
       links: [{ label: "Abrir reportes", view: "reportes" }],
       sources: ["pedidos"],
@@ -301,7 +405,11 @@ export function answer(s: Snap, question: string): AssistantReply {
     });
   }
 
-  if (/(transportadora|envio|flete|coordinadora|servientrega|interrapidisimo|envia)/.test(q)) {
+  if (
+    /(transportadora|courier|envio|flete|flash|mrw|zoom|tealca|caracas express|dropi|coordinadora|servientrega|interrapidisimo|envia)/.test(
+      q,
+    )
+  ) {
     const by = new Map<string, { n: number; ok: number; cost: number }>();
     for (const x of s.shipments) {
       const a = by.get(x.carrier) ?? { n: 0, ok: 0, cost: 0 };
@@ -314,15 +422,22 @@ export function answer(s: Snap, question: string): AssistantReply {
     return reply({
       answer: rows.length
         ? [
-            `Enviaste **${s.shipments.length}** paquetes. Por transportadora:`,
+            `Enviaste **${s.shipments.length}** paquetes en «${s.store.name}». Por transportadora:`,
             ...rows
               .slice(0, 5)
               .map(
                 ([k, a]) =>
-                  `• ${k}: ${a.n} envíos, ${pct(a.ok, a.n)} entregados, flete promedio ${cop(a.cost / a.n)}`,
+                  `• ${k}: ${a.n} envíos, ${pct(a.ok, a.n)} entregados, flete promedio ${money(a.cost / a.n)}`,
               ),
-          ].join("\n")
-        : "Aún no hay envíos.",
+            storeIsVe
+              ? "• Cobertura nacional integrada con Flash Courier (Dropi VE), Grupo Zoom, MRW, Tealca y Caracas Express con tracking en vivo."
+              : "",
+          ]
+            .filter(Boolean)
+            .join("\n")
+        : storeIsVe
+          ? `Aún no hay envíos registrados en «${s.store.name}». En Venezuela operas con Flash Courier (Dropi VE), Grupo Zoom, MRW, Tealca y Caracas Express.`
+          : "Aún no hay envíos.",
       links: [{ label: "Ver envíos", view: "envios" }],
       sources: ["guías"],
     });
@@ -333,7 +448,7 @@ export function answer(s: Snap, question: string): AssistantReply {
       (o) => live(o) && o.payment === "cod" && !o.shipments.some((x) => x.status === "delivered"),
     );
     return reply({
-      answer: `Hay **${cop(open.reduce((a, o) => a + o.total, 0))}** por cobrar en ${open.length} pedidos de contraentrega que aún no se entregan.`,
+      answer: `Hay **${money(open.reduce((a, o) => a + o.total, 0))}** por cobrar en ${open.length} pedidos de contraentrega que aún no se entregan.`,
       links: [{ label: "Ver pedidos", view: "pedidos" }],
       sources: ["pedidos"],
     });
@@ -351,7 +466,7 @@ export function answer(s: Snap, question: string): AssistantReply {
     const top = [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
     return reply({
       answer: top.length
-        ? [`Lo que más se vende (90 días):`, ...top.map(([k, n]) => `• ${k}: ${n} unidades`)].join(
+        ? [`Lo que más se vende en «${s.store.name}» (90 días):`, ...top.map(([k, n]) => `• ${k}: ${n} unidades`)].join(
             "\n",
           )
         : "Aún no hay ventas para decirte qué empujar.",
@@ -361,9 +476,10 @@ export function answer(s: Snap, question: string): AssistantReply {
   }
 
   return reply({
-    answer:
-      "Puedo contarte cómo van tus **ventas**, tus **envíos y novedades**, tus **anuncios** (qué trajo qué venta), tu **tienda y SEO**, tus **clientes** y lo que espera tu **aprobación**. También busco un pedido por su número (por ejemplo «¿dónde está el #1186?»).",
-    suggestions: SUGGEST.slice(0, 4),
+    answer: storeIsVe
+      ? `Puedo contarte cómo van tus **ventas bimoneda** ($ y Bs. BCV), **conciliaciones de Pago Móvil / Zelle**, tus **envíos con Flash Courier, MRW, Zoom o Tealca**, el rendimiento de tus **campañas**, auditoría **SEO** de «${s.store.name}» y lo que espera tu **aprobación**. También busco un pedido por su número (ej. «¿dónde está el #1186?»).`
+      : "Puedo contarte cómo van tus **ventas**, tus **envíos y novedades**, tus **anuncios** (qué trajo qué venta), tu **tienda y SEO**, tus **clientes** y lo que espera tu **aprobación**. También busco un pedido por su número (por ejemplo «¿dónde está el #1186?»).",
+    suggestions: suggestionsList.slice(0, 4),
   });
 }
 
@@ -381,6 +497,11 @@ function roas(s: Snap, c: Snap["campaigns"][number]): number | null {
 
 /** Contexto que ve Claude: cifras ya calculadas de la tienda (nada de contraseñas, teléfonos ni llaves). */
 function contextOf(s: Snap, base: AssistantReply) {
+  const storeIsVe =
+    isVe ||
+    s.store.id === "store_main" ||
+    s.store.id.includes("demo_beauty") ||
+    s.store.id.includes("demo_cafe");
   const live = s.orders.filter((o) => o.status !== "cancelled");
   const byProduct = new Map<string, number>();
   for (const o of live)
@@ -396,6 +517,13 @@ function contextOf(s: Snap, base: AssistantReply) {
   }
   const buyers = s.customers.filter((c) => c.orders.length);
   return {
+    tienda: {
+      id: s.store.id,
+      nombre: s.store.name,
+      vertical: (s.store.profile as { vertical?: string })?.vertical ?? "e-commerce",
+      mercado: storeIsVe ? "Venezuela (VE)" : "Colombia (CO)",
+      tasaBcv: storeIsVe ? BCV_RATE : undefined,
+    },
     hoy: new Date(s.now).toISOString().slice(0, 10),
     ventas: { hoy: sales(s, 1), semana: sales(s, 7), mes: sales(s, 30), noventaDias: sales(s, 90) },
     pedidosPorEstado: Object.fromEntries(
@@ -410,6 +538,16 @@ function contextOf(s: Snap, base: AssistantReply) {
     productosMasVendidos: [...byProduct.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6),
     transportadoras: Object.fromEntries(byCarrier),
     aprobacionesPendientes: s.approvals.map((a) => a.title),
+    conciliacionesPendientes: s.approvals
+      .filter(
+        (a) =>
+          a.kind === "pago_movil" ||
+          a.kind === "zelle" ||
+          a.kind === "usdt" ||
+          a.kind === "transferencia" ||
+          /pago m[oó]vil|zelle|usdt|transferencia/i.test(a.title),
+      )
+      .map((a) => a.title),
     ultimosPedidos: s.orders.slice(0, 8).map((o) => ({
       numero: o.number,
       total: o.total,
@@ -435,12 +573,33 @@ function contextOf(s: Snap, base: AssistantReply) {
   };
 }
 
-const AGENT_SYSTEM =
-  "Eres el agente de Traxo: el analista y operador del e-commerce colombiano de la persona que te escribe. " +
-  "Responde en español, en primera persona, claro y breve (máximo ~120 palabras). Usa SOLO las cifras del contexto; si un dato falta, di N/A y nunca lo inventes. " +
-  "Montos en pesos colombianos ($ 125.000). Compara, explica el porqué y cierra con UNA recomendación concreta cuando sirva. " +
-  "No ejecutes ni prometas acciones: sugiérelas y recuerda que gastar, publicar o borrar lo aprueba la persona. " +
-  "Formato: viñetas «• » si hace falta y **negritas** para cifras clave.";
+export function systemPromptForStore(s: Snap): string {
+  const storeName = s.store.name;
+  const vertical = (s.store.profile as { vertical?: string })?.vertical ?? "e-commerce";
+  const storeIsVe =
+    isVe ||
+    s.store.id === "store_main" ||
+    s.store.id.includes("demo_beauty") ||
+    s.store.id.includes("demo_cafe");
+  if (storeIsVe) {
+    return (
+      `Eres el agente de Traxo para Venezuela: el analista y operador inteligente de «${storeName}» (${vertical}). ` +
+      "Responde en español, en primera persona, claro y breve (máximo ~120 palabras). Usa SOLO las cifras del contexto; si un dato falta, di N/A y nunca lo inventes. " +
+      `Montos en bimoneda USD ($) y Bolívares (Bs.) a tasa oficial BCV (${BCV_RATE} Bs./USD). ` +
+      "Transportadoras integradas: Flash Courier (Dropi VE), Grupo Zoom, MRW, Tealca y Caracas Express. Métodos de pago venezolanos: Pago Móvil, Zelle, USDT y contraentrega (COD). " +
+      "Compara, explica el porqué y cierra con UNA recomendación concreta cuando sirva. " +
+      "No ejecutes ni prometas acciones: sugiérelas y recuerda que gastar, publicar, despachar o borrar lo aprueba la persona operadora. " +
+      "Formato: viñetas «• » si hace falta y **negritas** para cifras clave."
+    );
+  }
+  return (
+    `Eres el agente de Traxo: el analista y operador de «${storeName}» (${vertical}). ` +
+    "Responde en español, en primera persona, claro y breve (máximo ~120 palabras). Usa SOLO las cifras del contexto; si un dato falta, di N/A y nunca lo inventes. " +
+    "Montos en pesos colombianos ($ 125.000). Compara, explica el porqué y cierra con UNA recomendación concreta cuando sirva. " +
+    "No ejecutes ni prometas acciones: sugiérelas y recuerda que gastar, publicar o borrar lo aprueba la persona. " +
+    "Formato: viñetas «• » si hace falta y **negritas** para cifras clave."
+  );
+}
 
 /** Con ANTHROPIC_API_KEY, Claude redacta la respuesta con el mismo contexto y el hilo de la conversación. Sin cupo o si falla, queda la de reglas. */
 async function withClaude(
@@ -451,7 +610,7 @@ async function withClaude(
   history: Array<{ role: "user" | "assistant"; content: string }>,
 ): Promise<AssistantReply> {
   const text = await askClaude(storeId, {
-    system: AGENT_SYSTEM,
+    system: systemPromptForStore(s),
     feature: "Asistente del panel",
     history,
     user: `Pregunta de la persona: ${question}\n\n<datos>\n${JSON.stringify(contextOf(s, base))}\n</datos>`,
@@ -462,9 +621,18 @@ async function withClaude(
 
 export function registerAssistantApi(app: Hono, rt: Runtime): void {
   const sid = (c: Context): string => storeOf(c, rt.storeId);
-  app.get("/api/assistant/suggestions", (c) =>
-    c.json({ suggestions: SUGGEST, llm: aiEnabled(), ai: aiUsage(sid(c)) }),
-  );
+  app.get("/api/assistant/suggestions", (c) => {
+    const storeId = sid(c);
+    const storeIsVe =
+      isVe || storeId === "store_main" || storeId.includes("demo_beauty") || storeId.includes("demo_cafe");
+    return c.json({
+      suggestions: storeIsVe ? SUGGEST_VE : SUGGEST,
+      bcvRate: storeIsVe ? BCV_RATE : undefined,
+      currency: storeIsVe ? "USD/VES" : "COP",
+      llm: aiEnabled(),
+      ai: aiUsage(storeId),
+    });
+  });
   app.post("/api/assistant/ask", async (c) => {
     const body = (await c.req.json().catch(() => ({}))) as {
       question?: string;

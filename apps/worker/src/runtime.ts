@@ -60,27 +60,30 @@ export async function createRuntime(
     await seedDemo(db, { all: true });
   }
 
-  // Datos de ejemplo ricos (90 días de operación) para las tiendas demo
+  // Datos de ejemplo ricos (90 días de operación) para las tiendas demo o la principal en pruebas
   let reseed: (() => Promise<void>) | undefined;
   if (opts.rich) {
     const demoStores = await db.prisma.store.findMany({
       where: { id: { in: ["store_demo_beauty", "store_demo_cafe", "store_demo"] } },
     });
-    for (const demoStore of demoStores) {
-      const prof = demoStore.profile as { rich?: boolean; richVersion?: number } | null;
+    const targets = demoStores.length > 0 ? demoStores : await db.prisma.store.findMany({ take: 1 });
+    for (const targetStore of targets) {
+      const prof = targetStore.profile as { rich?: boolean; richVersion?: number } | null;
       if (!prof?.rich || (prof.richVersion ?? 1) < RICH_VERSION) {
-        await seedRich(db, { storeId: demoStore.id });
+        await seedRich(db, { storeId: targetStore.id });
       }
     }
     reseed = async () => {
-      for (const demoStore of demoStores) {
-        await seedRich(db, { storeId: demoStore.id });
+      for (const targetStore of targets) {
+        await seedRich(db, { storeId: targetStore.id });
       }
     };
   }
 
   // La tienda por defecto del runtime es store_main si hay credenciales WooCommerce, o store_demo
   const store = (env.WOOCOMMERCE_KEY ? await db.prisma.store.findUnique({ where: { id: "store_main" } }) : null) ??
+    (await db.prisma.store.findUnique({ where: { id: "store_demo" } })) ??
+    (await db.prisma.store.findUnique({ where: { id: "store_demo_beauty" } })) ??
     (await db.prisma.store.findFirst({ orderBy: { createdAt: "asc" } })) as NonNullable<
       Awaited<ReturnType<Db["prisma"]["store"]["findFirst"]>>
     >;
