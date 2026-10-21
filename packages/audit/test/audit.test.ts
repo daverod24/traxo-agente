@@ -136,3 +136,68 @@ describe("protección SSRF", () => {
     ).toEqual([true, true, false, true, false, true, true]);
   });
 });
+
+describe("auditoría con estándares venezolanos y visibilidad en IA (AEO)", () => {
+  const GOOD_VE = `<!doctype html><html lang="es-VE"><head>
+<title>Davebeauty | Cosmética coreana y bienestar en Venezuela</title>
+<meta name="description" content="Tienda multimarca de belleza y skincare botánico en Venezuela. Envíos rápidos por Flash Courier y pagos por Pago Móvil o Zelle.">
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="canonical" href="https://davebeauty.daverod.tech/">
+<meta property="og:title" content="Davebeauty"><meta property="og:image" content="https://davebeauty.daverod.tech/og.jpg"><link rel="icon" href="/favicon.ico">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Davebeauty","url":"https://davebeauty.daverod.tech"}</script></head>
+<body><h1>Cosmética y cuidado facial en Caracas</h1><a href="https://wa.me/584121234567">WhatsApp</a><button>Comprar ahora</button>
+<p>Despacho directo con Flash Courier (Dropi) y MRW. Pagos por Pago Móvil o Zelle. Precio: $ 18.00 USD (Bs. 872,10 BCV).</p>
+<img src="p1.jpg" alt="Suero Niacinamida" width="100" height="100" loading="lazy">
+<img src="p2.jpg" alt="Crema Hidratante" width="100" height="100" loading="lazy">
+<img src="p3.jpg" alt="Protector Solar" width="100" height="100" loading="lazy">
+</body></html>`;
+
+  const ROBOTS_VE = `User-agent: *\nAllow: /\nSitemap: https://davebeauty.daverod.tech/sitemap-index.xml\nLLMs-txt: https://davebeauty.daverod.tech/llms.txt`;
+
+  function fakeVeSite() {
+    return (async (url: string) => {
+      const path = new URL(url).pathname;
+      if (path === "/") return new Response(GOOD_VE, { status: 200 });
+      if (path === "/robots.txt") return new Response(ROBOTS_VE, { status: 200 });
+      if (path === "/sitemap.xml") return new Response("Not found", { status: 404 });
+      if (path === "/sitemap-index.xml")
+        return new Response("<sitemapindex><sitemap><loc>https://davebeauty.daverod.tech/sitemap-0.xml</loc></sitemap></sitemapindex>", {
+          status: 200,
+        });
+      if (path === "/llms.txt") return new Response("# Davebeauty LLMs", { status: 200 });
+      return new Response("Not found", { status: 404 });
+    }) as unknown as typeof fetch;
+  }
+
+  it("reconoce Schema Organization/WebSite, resuelve sitemap-index y evalúa AEO", async () => {
+    const r = await auditUrl("seo", "https://davebeauty.daverod.tech", {
+      fetch: fakeVeSite(),
+      resolve: pub,
+    });
+    expect(r.source).toBe("live");
+    expect(r.score).toBeGreaterThan(90);
+
+    const by = Object.fromEntries(r.checks.map((c) => [c.id, c.status]));
+    expect(by.schema).toBe("pass");
+    expect(by.sitemap).toBe("pass");
+    expect(by.llms).toBe("pass");
+    expect(by.ai_crawlers).toBe("pass");
+    expect(by.lang).toBe("pass");
+  });
+
+  it("en diseño valida precios bimoneda USD/VES y transportadoras venezolanas", async () => {
+    const r = await auditUrl("diseno", "https://davebeauty.daverod.tech", {
+      fetch: fakeVeSite(),
+      resolve: pub,
+    });
+    expect(r.source).toBe("live");
+    expect(r.score).toBeGreaterThan(90);
+
+    const by = Object.fromEntries(r.checks.map((c) => [c.id, c.status]));
+    expect(by.cta).toBe("pass");
+    expect(by.trust).toBe("pass");
+    expect(by.cop).toBe("pass");
+    const copCheck = r.checks.find((c) => c.id === "cop");
+    expect(copCheck?.title).toContain("dólares o bimoneda");
+    expect(copCheck?.evidence).toContain("USD / Bs. BCV");
+  });
+});

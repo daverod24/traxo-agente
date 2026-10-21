@@ -36,6 +36,7 @@ export async function assertPublicUrl(
   raw: string,
   resolve: (host: string) => Promise<string[]> = async (h) =>
     (await lookup(h, { all: true })).map((a) => a.address),
+  allowLocal = Boolean(process.env.TRAXO_ALLOW_LOCAL_AUDIT === "1"),
 ): Promise<URL> {
   let u: URL;
   try {
@@ -47,12 +48,14 @@ export async function assertPublicUrl(
   if (u.protocol !== "http:" && u.protocol !== "https:")
     throw new UnsafeUrlError("Solo se pueden revisar páginas http o https.");
   const host = u.hostname.replace(/^\[|\]$/g, "");
-  if (host === "localhost" || host.endsWith(".local") || host.endsWith(".internal"))
-    throw new UnsafeUrlError("No se pueden revisar direcciones internas.");
-  const addrs = isIP(host) ? [host] : await resolve(host).catch(() => []);
-  if (addrs.length === 0) throw new UnsafeUrlError("No pude resolver ese dominio.");
-  if (addrs.some(isPrivateAddress))
-    throw new UnsafeUrlError("No se pueden revisar direcciones internas.");
+  if (!allowLocal) {
+    if (host === "localhost" || host.endsWith(".local") || host.endsWith(".internal"))
+      throw new UnsafeUrlError("No se pueden revisar direcciones internas.");
+    const addrs = isIP(host) ? [host] : await resolve(host).catch(() => []);
+    if (addrs.length === 0) throw new UnsafeUrlError("No pude resolver ese dominio.");
+    if (addrs.some(isPrivateAddress))
+      throw new UnsafeUrlError("No se pueden revisar direcciones internas.");
+  }
   return u;
 }
 
@@ -66,11 +69,13 @@ export async function safeGet(
     resolve?: (h: string) => Promise<string[]>;
     maxBytes?: number;
     timeoutMs?: number;
+    allowLocal?: boolean;
   } = {},
 ): Promise<Fetched> {
   const f = opts.fetch ?? fetch;
   const max = opts.maxBytes ?? 1_500_000;
-  let url = (await assertPublicUrl(raw, opts.resolve)).toString();
+  const allowLocal = opts.allowLocal ?? Boolean(process.env.TRAXO_ALLOW_LOCAL_AUDIT === "1");
+  let url = (await assertPublicUrl(raw, opts.resolve, allowLocal)).toString();
   for (let hop = 0; hop < 4; hop++) {
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), opts.timeoutMs ?? 8000);
@@ -88,6 +93,7 @@ export async function safeGet(
           await assertPublicUrl(
             new URL(res.headers.get("location") as string, url).toString(),
             opts.resolve,
+            allowLocal,
           )
         ).toString();
         continue;

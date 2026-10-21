@@ -24,6 +24,13 @@ const text = (html: string, name: string): string[] =>
   );
 const pct = (a: number, b: number): number => (b === 0 ? 0 : Math.round((a / b) * 100));
 
+export const isVeContext = (url: string, html = ""): boolean => {
+  if ((process.env.MARKET ?? "").toUpperCase() === "VE") return true;
+  if (/davebeauty|\.ve\b|venezuela|cafeespecialidad/i.test(url)) return true;
+  if (/pago\s*m[oó]vil|bcv|tasa\s*oficial|bol[ií]vares|caracas|valencia|maracaibo/i.test(html)) return true;
+  return false;
+};
+
 const mk = (
   id: string,
   group: string,
@@ -41,6 +48,7 @@ export function seoChecks(
   llms: Fetched | undefined,
 ): Check[] {
   const html = page.body;
+  const isVe = isVeContext(page.url, html);
   const out: Check[] = [];
   out.push(
     mk(
@@ -140,7 +148,7 @@ export function seoChecks(
       !lang ? "fail" : lang.toLowerCase().startsWith("es") ? "pass" : "warn",
       "bajo",
       lang ? `lang="${lang}"` : "No hay atributo lang",
-      'Declara lang="es-CO" en <html>.',
+      isVe ? 'Declara lang="es-VE" (o "es") en <html>.' : 'Declara lang="es-CO" en <html>.',
     ),
   );
   out.push(
@@ -207,19 +215,32 @@ export function seoChecks(
     ...html.matchAll(/<script\b[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi),
   ].map((m) => m[1] ?? "");
   const hasProduct = ld.some((j) => /"@type"\s*:\s*"?(Product|Offer)/i.test(j));
+  const hasOrg = ld.some((j) =>
+    /"@type"\s*:\s*"?(Organization|OnlineStore|Store|Brand|WebSite)/i.test(j),
+  );
   out.push(
     mk(
       "schema",
       "Datos estructurados",
-      "Schema de producto (JSON-LD)",
-      hasProduct ? "pass" : ld.length ? "warn" : "fail",
+      "Schema de producto y entidad (JSON-LD)",
+      hasProduct || hasOrg ? "pass" : ld.length ? "warn" : "fail",
       "alto",
       hasProduct
         ? "Product/Offer encontrado"
-        : ld.length
-          ? `${ld.length} bloque(s) JSON-LD, ninguno de producto`
-          : "Sin JSON-LD",
-      "Añade Product con offers (precio, moneda COP, disponibilidad).",
+        : hasOrg
+          ? "Entidad Organization/WebSite encontrada (Knowledge Graph & IA)"
+          : ld.length
+            ? `${ld.length} bloque(s) JSON-LD sin Product u Organization`
+            : "Sin JSON-LD",
+      hasProduct
+        ? undefined
+        : hasOrg
+          ? (isVe
+              ? "En páginas de detalle, añade schema Product con precios en USD o Bs."
+              : "En fichas de producto, añade schema Product con offers.")
+          : (isVe
+              ? "Añade Organization o Product con ofertas (precio USD o Bs. BCV, disponibilidad)."
+              : "Añade Product con offers (precio, moneda COP, disponibilidad)."),
     ),
   );
   out.push(
@@ -241,18 +262,47 @@ export function seoChecks(
       sitemap?.status === 200 && /<urlset|<sitemapindex/i.test(sitemap.body) ? "pass" : "warn",
       "medio",
       sitemap ? `HTTP ${sitemap.status}` : "No se pudo consultar",
-      "Publica /sitemap.xml y envíalo a Search Console.",
+      "Publica /sitemap.xml o /sitemap-index.xml y envíalo a Search Console.",
     ),
   );
+  const llmsInRobots = /LLMs-txt:\s*(https?:\/\/[^\s]+|\/[^\s]+)/i.test(robots?.body ?? "");
+  const hasLlms = llms?.status === 200 || llmsInRobots;
   out.push(
     mk(
       "llms",
       "Visibilidad en IA",
       "llms.txt para asistentes de IA",
-      llms?.status === 200 ? "pass" : "warn",
+      hasLlms ? "pass" : "warn",
       "bajo",
-      llms ? `HTTP ${llms.status}` : "No se pudo consultar",
+      llms?.status === 200
+        ? "HTTP 200"
+        : llmsInRobots
+          ? "Declarado en robots.txt"
+          : "No se pudo consultar",
       "Opcional: publica /llms.txt resumiendo tu catálogo.",
+    ),
+  );
+  const hasRobots = robots?.status === 200;
+  const blocksAi =
+    hasRobots &&
+    /User-agent:\s*(GPTBot|ChatGPT-User|ClaudeBot|PerplexityBot|Google-Extended)\s*[\r\n]+Disallow:\s*\//i.test(
+      robots?.body ?? "",
+    );
+  out.push(
+    mk(
+      "ai_crawlers",
+      "Visibilidad en IA",
+      "Permite rastreadores de IA (AEO)",
+      !hasRobots ? "na" : blocksAi ? "warn" : "pass",
+      "medio",
+      !hasRobots
+        ? "Sin robots.txt para evaluar rastreadores de IA"
+        : blocksAi
+          ? "Bloquea bots de IA en robots.txt"
+          : "Permite indexación de asistentes de IA (ChatGPT, Claude, Perplexity)",
+      blocksAi
+        ? "Si deseas visibilidad en búsquedas generativas (AEO/GEO), permite el rastreo de bots de IA."
+        : undefined,
     ),
   );
   out.push(
@@ -271,6 +321,7 @@ export function seoChecks(
 
 export function designChecks(page: Fetched): Check[] {
   const html = page.body;
+  const isVe = isVeContext(page.url, html);
   const out: Check[] = [];
   out.push(
     mk(
@@ -355,18 +406,26 @@ export function designChecks(page: Fetched): Check[] {
       "Pon un botón de compra claro en el primer pantallazo.",
     ),
   );
-  const trust = /(env[ií]o|devoluci|garant[ií]a|contraentrega|contra entrega|pago seguro)/i.test(
-    plain,
-  );
+  const trust = isVe
+    ? /(env[ií]o|despacho|devoluci|garant[ií]a|contraentrega|contra entrega|pago seguro|pago m[oó]vil|zelle|usdt|bcv|mrw|zoom|tealca|flash)/i.test(
+        plain,
+      )
+    : /(env[ií]o|devoluci|garant[ií]a|contraentrega|contra entrega|pago seguro)/i.test(plain);
   out.push(
     mk(
       "trust",
       "Confianza",
-      "Envío, devoluciones o contraentrega a la vista",
+      "Envío, devoluciones o medios de pago a la vista",
       trust ? "pass" : "warn",
       "alto",
-      trust ? "Menciona envío, devoluciones o contraentrega" : "No se mencionan",
-      "Di cuánto tarda el envío y si hay contraentrega: en Colombia sube la conversión.",
+      trust
+        ? isVe
+          ? "Menciona envíos (MRW/Zoom/Flash) o medios de pago confiables (Pago Móvil/Zelle)"
+          : "Menciona envío, devoluciones o contraentrega"
+        : "No se mencionan",
+      isVe
+        ? "Di cuánto tarda el envío (Flash Courier, MRW, Zoom) y si aceptas Pago Móvil, Zelle o contraentrega: en Venezuela genera máxima confianza."
+        : "Di cuánto tarda el envío y si hay contraentrega: en Colombia sube la conversión.",
     ),
   );
   out.push(
@@ -382,17 +441,26 @@ export function designChecks(page: Fetched): Check[] {
       "Añade un botón de WhatsApp: es el canal de soporte que más se usa.",
     ),
   );
+  const hasPricingVe = /(\$\s?\d+(\.\d{2})?|USD|Bs\.?|VES|BCV)/i.test(plain);
+  const hasPricingCo = /(\$\s?\d{1,3}(\.\d{3})+|COP)/.test(plain);
+  const passPricing = isVe ? hasPricingVe : hasPricingCo;
   out.push(
     mk(
       "cop",
       "Precios",
-      "Precios en pesos colombianos",
-      /(\$\s?\d{1,3}(\.\d{3})+|COP)/.test(plain) ? "pass" : "warn",
+      isVe ? "Precios en dólares o bimoneda (USD / Bs. BCV)" : "Precios en pesos colombianos",
+      passPricing ? "pass" : "warn",
       "medio",
-      /(\$\s?\d{1,3}(\.\d{3})+|COP)/.test(plain)
-        ? "Precios con formato COP"
-        : "No se encontró un precio con formato $ 125.000",
-      "Muestra el precio como $ 125.000.",
+      passPricing
+        ? isVe
+          ? "Precios en formato USD / Bs. BCV detectados"
+          : "Precios con formato COP"
+        : isVe
+          ? "No se encontró un precio claro en USD ni en Bolívares"
+          : "No se encontró un precio con formato $ 125.000",
+      isVe
+        ? "Muestra precios claros en USD y su equivalente en Bolívares (Bs.) a tasa oficial BCV."
+        : "Muestra el precio como $ 125.000.",
     ),
   );
   const kb = Math.round(Buffer.byteLength(html) / 1024);
@@ -459,11 +527,26 @@ export async function auditUrl(
     ...(page.truncated ? ["La página es muy grande: se leyó hasta el tope de 1,5 MB."] : []),
   ];
   if (kind === "seo") {
-    const [robots, sitemap, llms] = await Promise.all([
-      side("/robots.txt"),
-      side("/sitemap.xml"),
-      side("/llms.txt"),
-    ]);
+    const robots = await side("/robots.txt");
+    let sitemapPath = "/sitemap.xml";
+    if (robots?.body) {
+      const match = /Sitemap:\s*(https?:\/\/[^\s]+|\/[^\s]+)/i.exec(robots.body);
+      if (match?.[1]) {
+        try {
+          const u = new URL(match[1], origin);
+          sitemapPath = `${u.pathname}${u.search}`;
+        } catch {}
+      }
+    }
+    let sitemap = await side(sitemapPath);
+    if (!sitemap || sitemap.status === 404) {
+      const alt = sitemapPath === "/sitemap.xml" ? "/sitemap-index.xml" : "/sitemap.xml";
+      const altSitemap = await side(alt);
+      if (altSitemap && altSitemap.status === 200) {
+        sitemap = altSitemap;
+      }
+    }
+    const llms = await side("/llms.txt");
     return buildReport("seo", "live", page.url, seoChecks(page, robots, sitemap, llms), notes);
   }
   return buildReport("diseno", "live", page.url, designChecks(page), notes);

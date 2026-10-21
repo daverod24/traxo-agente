@@ -16,6 +16,9 @@ export function sampleAudit(
   url = "https://cafedeorigen.example",
   at = new Date(),
 ): AuditReport {
+  const isVe =
+    (process.env.MARKET ?? "").toUpperCase() === "VE" ||
+    /davebeauty|\.ve\b|venezuela|cafeespecialidad/i.test(url);
   const notes = [
     "Informe de ejemplo para la demo: no se midió una tienda real.",
     "Conecta una tienda y lanza la auditoría sobre su URL para ver sus datos.",
@@ -34,7 +37,9 @@ export function sampleAudit(
           "Título de la página",
           "warn",
           "alto",
-          "72 caracteres: «Café de Origen | Café de especialidad colombiano tostado en Bogotá, envíos»",
+          isVe
+            ? "72 caracteres: «Davebeauty | Cosmética coreana y cuidado botánico en Venezuela, envíos»"
+            : "72 caracteres: «Café de Origen | Café de especialidad colombiano tostado en Bogotá, envíos»",
           "Ajústalo a 30–65 caracteres.",
         ),
         c(
@@ -46,7 +51,14 @@ export function sampleAudit(
           "No hay meta description.",
           "Escribe 70–160 caracteres que inviten a hacer clic.",
         ),
-        c("h1", "Contenido", "Un solo H1", "pass", "medio", "1 H1: «Café colombiano de origen»"),
+        c(
+          "h1",
+          "Contenido",
+          "Un solo H1",
+          "pass",
+          "medio",
+          isVe ? "1 H1: «Cuidado botánico y K-Beauty Venezuela»" : "1 H1: «Café colombiano de origen»",
+        ),
         c(
           "canonical",
           "Técnico",
@@ -56,7 +68,7 @@ export function sampleAudit(
           "No se encontró",
           'Añade <link rel="canonical"> para evitar contenido duplicado.',
         ),
-        c("lang", "Técnico", "Idioma declarado", "pass", "bajo", 'lang="es-CO"'),
+        c("lang", "Técnico", "Idioma declarado", "pass", "bajo", isVe ? 'lang="es-VE"' : 'lang="es-CO"'),
         c(
           "viewport",
           "Técnico",
@@ -87,11 +99,13 @@ export function sampleAudit(
         c(
           "schema",
           "Datos estructurados",
-          "Schema de producto (JSON-LD)",
+          "Schema de producto y entidad (JSON-LD)",
           "fail",
           "alto",
           "Sin JSON-LD",
-          "Añade Product con offers (precio, moneda COP, disponibilidad).",
+          isVe
+            ? "Añade Organization o Product con offers (precio en USD o VES a tasa BCV, disponibilidad)."
+            : "Añade Product con offers (precio, moneda COP, disponibilidad).",
         ),
         c("robots", "Rastreo", "robots.txt", "pass", "medio", "HTTP 200"),
         c("sitemap", "Rastreo", "sitemap.xml", "pass", "medio", "HTTP 200"),
@@ -160,11 +174,15 @@ export function sampleAudit(
       c(
         "trust",
         "Confianza",
-        "Envío, devoluciones o contraentrega a la vista",
+        "Envío, devoluciones o medios de pago a la vista",
         "warn",
         "alto",
-        "Menciona envío, pero no la contraentrega ni las devoluciones",
-        "Di cuánto tarda el envío y si hay contraentrega: en Colombia sube la conversión.",
+        isVe
+          ? "Menciona envíos, pero no Pago Móvil ni tiempos de entrega"
+          : "Menciona envío, pero no la contraentrega ni las devoluciones",
+        isVe
+          ? "Di cuánto tarda el envío (Flash Courier, MRW, Zoom) y si aceptas Pago Móvil, Zelle o contraentrega: en Venezuela genera máxima confianza."
+          : "Di cuánto tarda el envío y si hay contraentrega: en Colombia sube la conversión.",
       ),
       c(
         "wa",
@@ -178,10 +196,10 @@ export function sampleAudit(
       c(
         "cop",
         "Precios",
-        "Precios en pesos colombianos",
+        isVe ? "Precios en dólares o bimoneda (USD / Bs. BCV)" : "Precios en pesos colombianos",
         "pass",
         "medio",
-        "Precios con formato COP",
+        isVe ? "Precios en formato USD ($ 18.00) y Bs. BCV" : "Precios con formato COP",
       ),
       c("weight", "Rendimiento", "Peso del HTML", "pass", "bajo", "212 KB"),
       c(
