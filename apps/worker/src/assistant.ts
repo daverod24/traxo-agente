@@ -274,6 +274,28 @@ export function answer(s: Snap, question: string): AssistantReply {
     });
   }
 
+  if (/(producto|catalogo|margen|empujar|vende mas|mas vendido|top vendido)/.test(q)) {
+    const by = new Map<string, number>();
+    for (const o of s.orders.filter(live))
+      for (const l of (o.lines as Array<{
+        title?: string;
+        quantity?: number;
+        unitPrice?: number;
+      }>) ?? [])
+        by.set(l.title ?? "?", (by.get(l.title ?? "?") ?? 0) + (l.quantity ?? 1));
+    const top = [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+    return reply({
+      answer: top.length
+        ? [
+            `Lo que más se vende en «${s.store.name}» (90 días):`,
+            ...top.map(([k, n]) => `• ${k}: ${n} unidades`),
+          ].join("\n")
+        : "Aún no hay ventas para decirte qué empujar.",
+      links: [{ label: "Qué empujar", view: "marketing" }],
+      sources: ["pedidos", "catálogo"],
+    });
+  }
+
   if (/(vend|venta|ingres|factur|ticket)/.test(q)) {
     const { days, label } = periodOf(q);
     const a = sales(s, days);
@@ -451,27 +473,6 @@ export function answer(s: Snap, question: string): AssistantReply {
       answer: `Hay **${money(open.reduce((a, o) => a + o.total, 0))}** por cobrar en ${open.length} pedidos de contraentrega que aún no se entregan.`,
       links: [{ label: "Ver pedidos", view: "pedidos" }],
       sources: ["pedidos"],
-    });
-  }
-
-  if (/(producto|catalogo|margen|empujar|vende mas|mas vendido)/.test(q)) {
-    const by = new Map<string, number>();
-    for (const o of s.orders.filter(live))
-      for (const l of (o.lines as Array<{
-        title?: string;
-        quantity?: number;
-        unitPrice?: number;
-      }>) ?? [])
-        by.set(l.title ?? "?", (by.get(l.title ?? "?") ?? 0) + (l.quantity ?? 1));
-    const top = [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
-    return reply({
-      answer: top.length
-        ? [`Lo que más se vende en «${s.store.name}» (90 días):`, ...top.map(([k, n]) => `• ${k}: ${n} unidades`)].join(
-            "\n",
-          )
-        : "Aún no hay ventas para decirte qué empujar.",
-      links: [{ label: "Qué empujar", view: "marketing" }],
-      sources: ["pedidos", "catálogo"],
     });
   }
 
