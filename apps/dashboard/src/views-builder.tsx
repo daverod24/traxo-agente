@@ -237,7 +237,9 @@ function Nuevo({
           <span className="caption">
             {plat === "shopify"
               ? "Genero un tema completo para subir a Shopify."
-              : "Genero un sitio estático y el diseño en JSON (el tema automático es solo para Shopify)."}
+              : plat === "woocommerce"
+                ? "Genero patrones Gutenberg con templateLock: contentOnly y componentes Astro Headless."
+                : "Genero un sitio estático y el diseño en JSON."}
           </span>
         </label>
       </div>
@@ -384,12 +386,38 @@ function Detalle({
   };
 
   const isShopify = project.platform === "shopify";
+  const isWoo = project.platform === "woocommerce";
+  const [publishing, setPublishing] = useState(false);
+
   const getZip = async () => {
     try {
-      await download(`/api/builder/${project.id}/theme.zip`, "tienda.zip");
+      await download(
+        `/api/builder/${project.id}/theme.zip`,
+        isShopify ? "tema-shopify.zip" : isWoo ? "paquete-astro-gutenberg.zip" : "sitio.zip",
+      );
       onChanged();
     } catch {
       ctx.toast("No pude descargar el archivo.");
+    }
+  };
+
+  const publishToWp = async () => {
+    setPublishing(true);
+    try {
+      const res = await post<{ ok: boolean; message?: string; page?: { link?: string } }>(
+        `/api/builder/${project.id}/publish-wp`,
+        {},
+      );
+      if (res.ok) {
+        ctx.toast(res.message ?? "Página publicada con éxito en WordPress.");
+        onChanged();
+      } else {
+        ctx.toast(res.message ?? "No se pudo publicar en WordPress.");
+      }
+    } catch {
+      ctx.toast("Error de conexión al publicar en WordPress.");
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -421,7 +449,7 @@ function Detalle({
           )}
         </div>
         <p className="caption" style={{ marginTop: 8 }}>
-          Así se ve la portada. En {isShopify ? "Shopify" : "tu plataforma"} verás tus productos y
+          Así se ve la portada. En {isShopify ? "Shopify" : isWoo ? "WooCommerce / Astro" : "tu plataforma"} verás tus productos y
           fotos reales.
         </p>
       </section>
@@ -434,15 +462,30 @@ function Detalle({
           </div>
           <ol className="steps">
             <li>
-              <strong>Descarga {isShopify ? "el tema" : "el sitio"}.</strong>
+              <strong>Descarga {isShopify ? "el tema" : isWoo ? "el paquete Astro + Gutenberg" : "el sitio"}.</strong>
               <span className="caption">
                 {isShopify
                   ? "En Shopify: Tienda online → Temas → Agregar tema → Subir archivo zip. Queda sin publicar."
-                  : "Incluye la portada en HTML y el diseño en JSON para llevarlo a tu plantilla."}
+                  : isWoo
+                    ? "Incluye gutenberg-pattern.html con templateLock: contentOnly y componentes Astro Headless."
+                    : "Incluye la portada en HTML y el diseño en JSON para llevarlo a tu plantilla."}
               </span>
-              <Button variant="primary" icon="upload" sm onClick={getZip}>
-                Descargar .zip
-              </Button>
+              <div className="row" style={{ gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                <Button variant="primary" icon="upload" sm onClick={getZip}>
+                  Descargar .zip
+                </Button>
+                {isWoo && (
+                  <Button
+                    variant="secondary"
+                    icon="arrow-right"
+                    sm
+                    onClick={publishToWp}
+                    busy={publishing}
+                  >
+                    Publicar en WordPress
+                  </Button>
+                )}
+              </div>
             </li>
             <li>
               <strong>Pule el diseño con Claude (opcional).</strong>

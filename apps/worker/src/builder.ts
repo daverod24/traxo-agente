@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
+  buildGutenbergPattern,
+  buildHeadlessAstroPackage,
   buildShopifyTheme,
   defaultDesign,
   lintTheme,
@@ -31,9 +33,12 @@ const slug = (s: string): string =>
     .replace(/^-|-$/g, "")
     .slice(0, 40) || "tienda";
 
-/** El tema real solo existe para Shopify; para las demás plataformas se entrega el sitio estático y el diseño en JSON. */
+/** El tema real existe para Shopify y para WooCommerce / Astro Headless (Gutenberg + tokens). */
 export function filesFor(platform: string, d: StoreDesign): Record<string, string> {
   if (platform === "shopify") return buildShopifyTheme(d);
+  if (platform === "woocommerce" || platform === "astro") {
+    return buildHeadlessAstroPackage(d);
+  }
   return {
     "index.html": previewHtml(d),
     "diseno.json": `${JSON.stringify(d, null, 2)}\n`,
@@ -294,5 +299,123 @@ export function registerBuilderApi(app: Hono, rt: Runtime): void {
       `attachment; filename="${slug((r.design as StoreDesign).brand)}-${r.platform === "shopify" ? "tema-shopify" : "sitio"}.zip"`,
     );
     return c.body(zipFiles(files) as unknown as ArrayBuffer);
+  });
+
+  // Exportar patrón Gutenberg con templateLock: "contentOnly"
+  app.get("/api/builder/:id/gutenberg", async (c) => {
+    const r = await find(c);
+    if (!r) return notFound(c);
+    const pattern = buildGutenbergPattern(r.design as StoreDesign);
+    return c.json({
+      ok: true,
+      html: pattern,
+      templateLock: "contentOnly",
+    });
+  });
+
+  // Publicar página directamente en WordPress mediante REST API (/wp-json/wp/v2/pages)
+  app.post("/api/builder/:id/publish-wp", async (c) => {
+    const r = await find(c);
+    if (!r) return notFound(c);
+
+    const body = (await c.req.json().catch(() => ({}))) as {
+      title?: string;
+      slug?: string;
+      status?: "publish" | "draft";
+    };
+
+    const store = await db.prisma.store.findUnique({ where: { id: sid(c) } });
+    const wcUrl =
+      process.env.WOOCOMMERCE_URL || process.env.TRAXO_STORE_URL || store?.url || "http://nginx";
+    const wcKey = process.env.WOOCOMMERCE_KEY;
+    const wcSecret = process.env.WOOCOMMERCE_SECRET;
+
+    const gutenbergHtml = buildGutenbergPattern(r.design as StoreDesign);
+    const pageTitle = body.title || r.name;
+    const pageSlug = body.slug || slug(r.name);
+    const pageStatus = body.status || "publish";
+
+    if (!wcKey || !wcSecret) {
+      await db.prisma.siteProject.update({
+        where: { id: r.id },
+        data: { status: "subido", updatedAt: new Date() },
+      });
+      return c.json({
+        ok: true,
+        simulated: true,
+        page: {
+          id: 999,
+          title: pageTitle,
+          slug: pageSlug,
+          status: pageStatus,
+          link: `${wcUrl.replace(/\/$/, "")}/${pageSlug}/`,
+        },
+        message: "Página simulada (sin credenciales WOOCOMMERCE_KEY configuradas).",
+      });
+    }
+
+    try {
+      const auth = Buffer.from(`${wcKey}:${wcSecret}`).toString("base64");
+      const wpRes = await fetch(`${wcUrl.replace(/\/$/, "")}/wp-json/wp/v2/pages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${auth}`,
+        },
+        body: JSON.stringify({
+          title: pageTitle,
+          content: gutenbergHtml,
+          status: pageStatus,
+          slug: pageSlug,
+        }),
+      });
+
+      if (!wpRes.ok) {
+        const err = await wpRes.text().catch(() => "");
+        return c.json(
+          {
+            ok: false,
+            message: `WordPress respondió ${wpRes.status}: ${err.slice(0, 200)}`,
+          },
+          400,
+        );
+      }
+
+      const created = (await wpRes.json()) as {
+        id: number;
+        link: string;
+        slug: string;
+        status: string;
+        title: { rendered?: string; raw?: string };
+        blocks?: unknown[];
+      };
+
+      await db.prisma.siteProject.update({
+        where: { id: r.id },
+        data: { status: "subido", updatedAt: new Date() },
+      });
+
+      return c.json({
+        ok: true,
+        simulated: false,
+        page: {
+          id: created.id,
+          title: created.title?.rendered || created.title?.raw || pageTitle,
+          slug: created.slug || pageSlug,
+          status: created.status || pageStatus,
+          link: created.link,
+          blocksCount: Array.isArray(created.blocks) ? created.blocks.length : undefined,
+        },
+        message: `Página "${pageTitle}" publicada con éxito en WordPress con templateLock: contentOnly.`,
+      });
+    } catch (e) {
+      return c.json(
+        {
+          ok: false,
+          message: `Error de conexión con WordPress: ${(e as Error).message}`,
+        },
+        500,
+      );
+    }
   });
 }

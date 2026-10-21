@@ -56,7 +56,7 @@ export function paletteProblems(p: Palette): string[] {
     );
 }
 
-export const STYLE_IDS = ["calido", "limpio", "audaz", "premium"] as const;
+export const STYLE_IDS = ["calido", "limpio", "audaz", "premium", "botanico"] as const;
 export type StyleId = (typeof STYLE_IDS)[number];
 
 /** Fuentes que Shopify aloja: nombre → handle del selector de fuentes (regular y negrita). */
@@ -123,6 +123,19 @@ export const STYLES: Record<
       accentText: "#1A1308",
     },
     fonts: { heading: "Playfair Display", body: "Inter" },
+  },
+  botanico: {
+    label: "Botánico y Cosmética (Davebeauty)",
+    text: "Crema cálido, salvia botánica y oro rosa. Diseñado para K-Beauty, bienestar y cuidado personal.",
+    palette: {
+      bg: "#FDFBF7",
+      surface: "#FFFFFF",
+      text: "#1F1D1D",
+      muted: "#665E55",
+      accent: "#E0A96D",
+      accentText: "#1F1D1D",
+    },
+    fonts: { heading: "Playfair Display", body: "DM Sans" },
   },
 };
 

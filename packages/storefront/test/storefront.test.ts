@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  buildGutenbergPattern,
+  buildHeadlessAstroPackage,
   buildShopifyTheme,
   contrast,
   defaultDesign,
@@ -175,5 +177,44 @@ describe("zip y vista previa", () => {
       products: [{ title: "a", price: 1, imageUrl: "javascript:alert(1)" }],
     });
     expect(d.products[0]?.image).toBeUndefined();
+  });
+});
+
+describe("patrones Gutenberg y Astro Headless", () => {
+  it("genera bloques Gutenberg con templateLock contentOnly para WordPress", () => {
+    const d = defaultDesign({
+      brand: "Davebeauty",
+      style: "botanico",
+      products: [{ title: "Suero Niacinamida", price: 18, imageUrl: "https://cdn.test/serum.jpg" }],
+      whatsapp: "+58 412 123 4567",
+    });
+
+    const gutenberg = buildGutenbergPattern(d);
+    expect(gutenberg).toContain('<!-- wp:group {"templateLock":"contentOnly"');
+    expect(gutenberg).toContain("<!-- wp:heading");
+    expect(gutenberg).toContain("Suero Niacinamida");
+    expect(gutenberg).toContain("$ 18.00 USD");
+    expect(gutenberg).toContain("BCV");
+    expect(gutenberg).toContain("Pago Móvil");
+  });
+
+  it("genera el paquete completo para Astro Headless", () => {
+    const d = defaultDesign({
+      brand: "Café de Especialidad VE",
+      style: "calido",
+      products: [{ title: "Boconó Pacamara 250 g", price: 12 }],
+    });
+
+    const pkg = buildHeadlessAstroPackage(d);
+    expect(pkg["gutenberg-pattern.html"]).toBeDefined();
+    expect(pkg["src/theme/tokens.json"]).toBeDefined();
+    expect(pkg["src/pages/index.astro"]).toBeDefined();
+    expect(pkg["src/components/Hero.astro"]).toBeDefined();
+    expect(pkg["src/components/TrustBadges.astro"]).toBeDefined();
+
+    const tokens = JSON.parse(pkg["src/theme/tokens.json"] ?? "{}");
+    expect(tokens.brand).toBe("Café de Especialidad VE");
+    expect(tokens.style).toBe("calido");
+    expect(tokens.palette.accent).toBe(STYLES.calido.palette.accent);
   });
 });
