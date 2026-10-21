@@ -179,7 +179,7 @@ export type RichSeedResult = {
 };
 
 /** Sube cuando cambian los datos de ejemplo: las bases que ya existen (p. ej. en Railway) se vuelven a sembrar solas. */
-export const RICH_VERSION = 8;
+export const RICH_VERSION = 9;
 
 /**
  * Cuenta admin de la demo: 90 días de operación de "Café de Origen". TODO es de ejemplo y la interfaz lo dice.
