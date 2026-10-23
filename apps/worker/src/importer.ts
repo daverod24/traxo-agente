@@ -3,7 +3,14 @@ import { newId, StoreSettingsSchema } from "@traxo/core";
 import { type Db, saveOrder } from "@traxo/db";
 import type { AgentDeps } from "./agent.ts";
 
-export type ImportResult = { products: number; customers: number; orders: number };
+export type ImportResult = {
+  products: number;
+  totalProducts?: number;
+  customers: number;
+  totalCustomers?: number;
+  orders: number;
+  totalOrders?: number;
+};
 
 /**
  * Trae el catálogo, los clientes y los pedidos de una tienda a la base de Traxo. Es idempotente:
@@ -107,6 +114,10 @@ export async function importStore(
       console.warn(`[importer] Error al guardar pedido:`, e);
     }
   }
+  const totalProducts = await db.prisma.product.count({ where: { storeId } });
+  const totalCustomers = await db.prisma.customer.count({ where: { storeId } });
+  const totalOrders = await db.prisma.order.count({ where: { storeId } });
+
   const currentStore = await db.prisma.store.findUnique({ where: { id: storeId } });
   const existingProfile = (currentStore?.profile as Record<string, unknown> | null) ?? {};
   await db.prisma.store.update({
@@ -119,12 +130,16 @@ export async function importStore(
       },
     },
   });
+  const msg =
+    products > 0
+      ? `Importé ${products} nuevos productos (Total: ${totalProducts} productos en catálogo de Davebeauty al día).`
+      : `Catálogo sincronizado: ${totalProducts} productos activos de Davebeauty al día (${totalCustomers} clientes y ${totalOrders} pedidos).`;
   deps.bus.emit(
     "store.imported",
-    `Importé tu tienda: ${products} productos, ${customers} clientes y ${orders} pedidos. Ya puedo trabajar con tus datos.`,
-    { data: { storeId } },
+    msg,
+    { data: { storeId, totalProducts, totalCustomers, totalOrders } },
   );
-  return { products, customers, orders };
+  return { products, totalProducts, customers, totalCustomers, orders, totalOrders };
 }
 
 export const isImported = async (db: Db, storeId: string): Promise<boolean> =>

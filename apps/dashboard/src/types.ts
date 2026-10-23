@@ -98,6 +98,10 @@ export type Product = {
   marginPct: number | null;
   unitsSold: number;
   revenue: number;
+  description?: string | null;
+  externalId?: string | null;
+  imageUrl?: string | null;
+  weightGrams?: number | null;
 };
 export type Campaign = {
   id: string;

@@ -17,6 +17,7 @@ import { Ajustes, Conexiones } from "./views-settings.tsx";
 import { Envios } from "./views-ship.tsx";
 import { TiendaSeo } from "./views-store.tsx";
 import { UsoAgentico } from "./views-usage.tsx";
+import { CatalogoProductos } from "./views-products.tsx";
 
 type Item = [id: string, label: string, icon: string];
 const SECTIONS: Array<[string, Item[]]> = [
@@ -26,6 +27,7 @@ const SECTIONS: Array<[string, Item[]]> = [
       ["inicio", "Inicio", "home"],
       ["agente", "Agente", "spark"],
       ["pedidos", "Pedidos", "box"],
+      ["productos", "Catálogo", "tag"],
       ["envios", "Envíos", "truck"],
       ["aprobaciones", "Aprobaciones", "alert"],
       ["conversaciones", "Mensajes", "chat"],
@@ -497,6 +499,7 @@ function Shell({
               {view === "pedidos" && (
                 <Pedidos ctx={ctx} orders={orders} sel={sel} setSel={setSel} />
               )}
+              {view === "productos" && <CatalogoProductos ctx={ctx} />}
               {view === "envios" && <Envios ctx={ctx} />}
               {view === "aprobaciones" && <Aprobaciones ctx={ctx} />}
               {view === "conversaciones" && <Mensajes ctx={ctx} />}

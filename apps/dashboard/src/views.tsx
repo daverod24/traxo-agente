@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { get, post, useResource } from "./api.ts";
 import { EmptyState, OrderJourney, Pipeline, QuoteBars, Sheet } from "./components.tsx";
-import { cop, copShort, dateEs, phoneEs, plural, timeEs } from "./format.ts";
+import { cop, copShort, dateEs, phoneEs, plural, timeEs, vesFromUsd } from "./format.ts";
 import type {
   Account,
   Approval,
@@ -273,6 +273,7 @@ export function Inicio({
   imported: boolean;
 }) {
   const k = state.kpis;
+  const products = useResource<Product[]>("/api/products", ctx.tick).data ?? [];
   const live = orders.filter(
     (o) => o.payment === "cod" && o.status !== "delivered" && o.shipments.length > 0,
   );
@@ -354,6 +355,127 @@ export function Inicio({
           hint={k.simulatedShipments ? "incluye guías simuladas" : undefined}
         />
       </div>
+
+      {products.length > 0 && (
+        <section
+          className="card"
+          style={{
+            background: "linear-gradient(135deg, rgba(37, 99, 235, 0.04), rgba(99, 102, 241, 0.07))",
+            border: "1px solid rgba(37, 99, 235, 0.18)",
+          }}
+        >
+          <div className="row between" style={{ alignItems: "center", marginBottom: 12 }}>
+            <div className="row" style={{ gap: 10, alignItems: "center" }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  background: "var(--brand, #2563eb)",
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Icon name="tag" size={20} />
+              </div>
+              <div>
+                <div className="row" style={{ gap: 8, alignItems: "center" }}>
+                  <h2 style={{ margin: 0, fontSize: "1.1rem" }}>
+                    Catálogo activo: {products.length} {plural(products.length, "producto sincronizado", "productos sincronizados")}
+                  </h2>
+                  <ToneBadge tone="success">WooCommerce HPOS</ToneBadge>
+                </div>
+                <span className="caption">
+                  {state.store.name} · Sincronizado en tiempo real con precios en USD y VES
+                </span>
+              </div>
+            </div>
+            <Button variant="agent" icon="tag" onClick={() => ctx.go("productos")}>
+              Ver catálogo completo
+            </Button>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+              gap: 12,
+            }}
+          >
+            {products.slice(0, 4).map((p) => (
+              <div
+                key={p.id}
+                onClick={() => ctx.go("productos")}
+                style={{
+                  background: "var(--card-bg, #fff)",
+                  padding: "10px 12px",
+                  borderRadius: "8px",
+                  border: "1px solid var(--border-subtle, rgba(0,0,0,0.08))",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  cursor: "pointer",
+                }}
+              >
+                {p.imageUrl ? (
+                  <img
+                    src={p.imageUrl}
+                    alt={p.title}
+                    style={{
+                      width: 48,
+                      height: 48,
+                      objectFit: "cover",
+                      borderRadius: 6,
+                      flexShrink: 0,
+                    }}
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 6,
+                      background: "rgba(37, 99, 235, 0.08)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "var(--brand, #2563eb)",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon name="tag" size={22} />
+                  </div>
+                )}
+                <div style={{ overflow: "hidden", flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      fontSize: "0.88rem",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                    title={p.title}
+                  >
+                    {p.title}
+                  </div>
+                  <div style={{ fontSize: "0.85rem", color: "var(--brand, #2563eb)", fontWeight: 700 }}>
+                    {cop(p.price)}
+                  </div>
+                  <div style={{ fontSize: "0.72rem", color: "var(--muted)" }}>
+                    {vesFromUsd(p.price)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="home">
         <div style={{ gridArea: "pipe" }} data-tour="pipeline">

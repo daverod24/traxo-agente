@@ -336,6 +336,9 @@ export function registerApi(app: Hono, rt: Runtime): void {
           unitsSold: sold.get(p.id)?.units ?? 0,
           revenue: sold.get(p.id)?.revenue ?? 0,
           description: p.description,
+          externalId: p.externalId,
+          imageUrl: p.imageUrl,
+          weightGrams: p.weightGrams,
         }))
         .sort((a, b) => b.revenue - a.revenue),
     );

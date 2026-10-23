@@ -9,6 +9,7 @@ const PATHS: Record<string, ReactNode> = {
   home: <path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1v-8z" />,
   activity: <path d="M3 12h4l3-8 4 16 3-8h4" />,
   box: <path d="M3 7.5L12 3l9 4.5v9L12 21l-9-4.5v-9zM3 7.5L12 12l9-4.5M12 12v9" />,
+  tag: <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82zM7 7h.01" />,
   truck: <path d="M2 6h11v10H2zM13 9h4l4 4v3h-8zM6 19a2 2 0 1 0 0-.01M17 19a2 2 0 1 0 0-.01" />,
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
   alert: <path d="M12 4l9 16H3L12 4zM12 10v4M12 17v.5" />,
