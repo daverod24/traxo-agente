@@ -64,11 +64,17 @@ const setCookie = (c: Context, token: string, maxAge = DAYS * 86400): void => {
 };
 
 /** Tienda de la sesión actual (o la tienda por defecto si no hay sesión: tests, MCP en proceso). */
-export const storeOf = (c: Context, fallback: string): string =>
-  c.req.header("x-store-id") ??
-  c.req.query("storeId") ??
-  (c.get as (k: string) => string | undefined)("storeId") ??
-  fallback;
+export const storeOf = (c: Context, fallback: string): string => {
+  const validated = (c.get as (k: string) => string | undefined)("storeId");
+  if (validated && validated.trim() && validated !== "undefined" && validated !== "null") {
+    return validated.trim();
+  }
+  const h = c.req.header("x-store-id")?.trim();
+  if (h && h !== "undefined" && h !== "null") return h;
+  const q = c.req.query("storeId")?.trim();
+  if (q && q !== "undefined" && q !== "null") return q;
+  return fallback;
+};
 export const accountOf = (c: Context): AccountView | undefined =>
   (c.get as (k: string) => AccountView | undefined)("account");
 
@@ -171,14 +177,55 @@ export function mountAuth(app: Hono, rt: Runtime, opts: AuthOptions = {}): void 
   app.use("/api/*", async (c, next) => {
     if (c.req.path.startsWith("/api/auth/")) return next();
     const s = readSession(cookieOf(c));
+    let account: AccountView | undefined;
     if (s) {
-      const account = await accountById(rt.db, s.a);
+      account = await accountById(rt.db, s.a);
       if (account) {
-        c.set("storeId" as never, account.storeId as never);
         c.set("account" as never, account as never);
-        return next();
       }
     }
+
+    // Validar storeId contra la base de datos para prevenir violaciones de integridad (FK)
+    const rawStoreId = c.req.header("x-store-id")?.trim() || c.req.query("storeId")?.trim();
+    let validatedStoreId: string | undefined;
+
+    if (rawStoreId && rawStoreId !== "undefined" && rawStoreId !== "null") {
+      const exists = await rt.db.prisma.store.findUnique({
+        where: { id: rawStoreId },
+        select: { id: true },
+      });
+      if (exists) {
+        validatedStoreId = exists.id;
+      }
+    }
+
+    if (!validatedStoreId && account?.storeId) {
+      const accExists = await rt.db.prisma.store.findUnique({
+        where: { id: account.storeId },
+        select: { id: true },
+      });
+      if (accExists) validatedStoreId = accExists.id;
+    }
+
+    if (!validatedStoreId && rt.storeId) {
+      const rtExists = await rt.db.prisma.store.findUnique({
+        where: { id: rt.storeId },
+        select: { id: true },
+      });
+      if (rtExists) validatedStoreId = rtExists.id;
+    }
+
+    if (!validatedStoreId) {
+      const first = await rt.db.prisma.store.findFirst({
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      });
+      validatedStoreId = first?.id ?? "store_main";
+    }
+
+    c.set("storeId" as never, validatedStoreId as never);
+
+    if (account) return next();
     if (c.req.header("x-traxo-internal") === INTERNAL) return next();
     const bearer =
       c.req.header("authorization")?.replace(/^Bearer /, "") ??

@@ -171,21 +171,39 @@ type StoreOption = {
   vertical: string;
 };
 
+const DEFAULT_STORES: StoreOption[] = [
+  { id: "store_main", name: "Davebeauty (WooCommerce en Vivo)", isLive: true, vertical: "Belleza & Bienestar", platform: "woocommerce" },
+  { id: "store_demo_beauty", name: "Davebeauty Sandbox VE", isLive: false, vertical: "K-Beauty & Magnesio", platform: "mock" },
+  { id: "store_demo_cafe", name: "Café de Especialidad VE", isLive: false, vertical: "Café de Origen", platform: "mock" },
+];
+
 function StoreSwitcher({
   currentStoreId,
   onSelectStore,
   tick,
+  storesList,
 }: {
   currentStoreId: string;
   onSelectStore: (id: string) => void;
   tick: number;
+  storesList?: StoreOption[];
 }) {
   const res = useResource<StoreOption[]>("/api/stores", tick);
-  const stores = res.data ?? [
-    { id: "store_main", name: "Davebeauty (WooCommerce en Vivo)", isLive: true, vertical: "Belleza & Bienestar", platform: "woocommerce" },
-    { id: "store_demo_beauty", name: "Davebeauty Sandbox VE", isLive: false, vertical: "K-Beauty & Magnesio", platform: "mock" },
-    { id: "store_demo_cafe", name: "Café de Especialidad VE", isLive: false, vertical: "Café de Origen", platform: "mock" },
-  ];
+  const stores = storesList ?? res.data ?? DEFAULT_STORES;
+
+  useEffect(() => {
+    if (res.data && res.data.length > 0) {
+      const exists = res.data.some((s) => s.id === currentStoreId);
+      if (!exists) {
+        const liveStore = res.data.find((s) => s.isLive) ?? res.data[0];
+        const targetId = liveStore ? liveStore.id : "store_main";
+        try {
+          localStorage.setItem("traxo-store-id", targetId);
+        } catch {}
+        onSelectStore(targetId);
+      }
+    }
+  }, [res.data, currentStoreId, onSelectStore]);
 
   return (
     <div style={{ padding: "8px 10px", margin: "4px 8px 12px", background: "var(--surface-muted, rgba(0,0,0,0.03))", borderRadius: 8, border: "1px solid var(--border)" }}>
@@ -235,7 +253,12 @@ function Shell({
   const [view, setView] = useState(hashView);
   const [storeId, setStoreId] = useState<string>(() => {
     try {
-      return localStorage.getItem("traxo-store-id") || "store_main";
+      const stored = localStorage.getItem("traxo-store-id")?.trim();
+      if (!stored || stored === "undefined" || stored === "null") {
+        localStorage.setItem("traxo-store-id", "store_main");
+        return "store_main";
+      }
+      return stored;
     } catch {
       return "store_main";
     }
@@ -248,6 +271,25 @@ function Shell({
   const [extrasOpen, setExtrasOpen] = useState(false);
   const [sel, setSel] = useState<string>();
   const [tourOpen, setTourOpen] = useState(false);
+
+  const storesRes = useResource<StoreOption[]>("/api/stores", tick);
+  const activeStores = storesRes.data;
+
+  // Sanitizar automáticamente storeId si no existe en la lista de tiendas activas retornada por /api/stores
+  useEffect(() => {
+    if (activeStores && activeStores.length > 0) {
+      const exists = activeStores.some((s) => s.id === storeId);
+      if (!exists) {
+        const liveStore = activeStores.find((s) => s.isLive) ?? activeStores[0];
+        const validId = liveStore?.id ?? "store_main";
+        try {
+          localStorage.setItem("traxo-store-id", validId);
+        } catch {}
+        setStoreId(validId);
+        setBump((b) => b + 1);
+      }
+    }
+  }, [activeStores, storeId]);
 
   const handleSelectStore = (newId: string) => {
     try {
@@ -361,7 +403,7 @@ function Shell({
             title={feed.live ? "En vivo" : "Reconectando"}
           />
         </div>
-        <StoreSwitcher currentStoreId={storeId} onSelectStore={handleSelectStore} tick={tick} />
+        <StoreSwitcher currentStoreId={storeId} onSelectStore={handleSelectStore} tick={tick} storesList={activeStores} />
         {SECTIONS.map(([sec, items]) => (
           <div key={sec} className="navsec" role="group" aria-label={sec}>
             <div className="navsec-t">{sec}</div>
@@ -412,9 +454,12 @@ function Shell({
               style={{ fontSize: 11, padding: "2px 6px", borderRadius: 6, background: "var(--surface)", border: "1px solid var(--border)", fontWeight: 600, maxWidth: 130 }}
               aria-label="Seleccionar entorno"
             >
-              <option value="store_main">🟢 En Vivo</option>
-              <option value="store_demo_beauty">🟣 Demo Belleza</option>
-              <option value="store_demo_cafe">🟤 Demo Café</option>
+              {(activeStores && activeStores.length > 0 ? activeStores : DEFAULT_STORES).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.isLive ? "🟢 " : s.id.includes("cafe") ? "🟤 " : "🟣 "}
+                  {s.name}
+                </option>
+              ))}
             </select>
             <ToneBadge tone={feed.live ? "success" : "neutral"}>
               {feed.live ? "En vivo" : "Sin conexión"}

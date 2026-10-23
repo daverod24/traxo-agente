@@ -40,9 +40,24 @@ export function registerApi(app: Hono, rt: Runtime): void {
   const sid = (c: Context): string => storeOf(c, rt.storeId);
 
   app.get("/api/stores", async (c) => {
-    const list = await db.prisma.store.findMany({
+    let list = await db.prisma.store.findMany({
       orderBy: { createdAt: "asc" },
     });
+    if (list.length === 0) {
+      const defaultStore = await db.prisma.store.upsert({
+        where: { id: "store_main" },
+        create: {
+          id: "store_main",
+          name: rt.storeName || "Davebeauty (WooCommerce en Vivo)",
+          platform: rt.commerce.platform === "mock" ? "mock" : "woocommerce",
+          url: "https://apiv2backecom.daverod.tech",
+          settings: StoreSettingsSchema.parse({ autonomy: 1, preferredProvider: "dropi" }),
+          profile: { vertical: "Belleza, K-Beauty y Bienestar Botánico", live: rt.commerce.platform === "woocommerce" },
+        },
+        update: {},
+      });
+      list = [defaultStore];
+    }
     return c.json(
       list.map((s) => ({
         id: s.id,

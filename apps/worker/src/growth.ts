@@ -6,6 +6,7 @@ import {
   COPY_LIMITS,
   formatCOP,
   newId,
+  StoreSettingsSchema,
   suggestCampaign,
   validateCopy,
 } from "@traxo/core";
@@ -53,6 +54,46 @@ async function loadCustomers(rt: Runtime, storeId: string) {
 
 const SEGMENTS = ["recompra", "nuevo", "inactivo"] as const;
 
+/**
+ * Valida que candidateStoreId exista en db.prisma.store.
+ * Si es inválido o no existe, usa rt.storeId o la primera tienda registrada (ej. store_main).
+ */
+export async function resolveValidStoreId(rt: Runtime, candidate?: string | null): Promise<string> {
+  if (candidate && candidate.trim() && candidate !== "undefined" && candidate !== "null") {
+    const found = await rt.db.prisma.store.findUnique({
+      where: { id: candidate.trim() },
+      select: { id: true },
+    });
+    if (found) return found.id;
+  }
+  if (rt.storeId) {
+    const rtStore = await rt.db.prisma.store.findUnique({
+      where: { id: rt.storeId },
+      select: { id: true },
+    });
+    if (rtStore) return rtStore.id;
+  }
+  const first = await rt.db.prisma.store.findFirst({
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  if (first) return first.id;
+
+  await rt.db.prisma.store.upsert({
+    where: { id: "store_main" },
+    create: {
+      id: "store_main",
+      name: "Davebeauty (WooCommerce en Vivo)",
+      platform: "woocommerce",
+      url: "https://apiv2backecom.daverod.tech",
+      settings: StoreSettingsSchema.parse({ autonomy: 1, preferredProvider: "dropi" }),
+      profile: { vertical: "Belleza, K-Beauty y Bienestar Botánico", live: true },
+    },
+    update: {},
+  });
+  return "store_main";
+}
+
 export function registerGrowthApi(app: Hono, rt: Runtime): void {
   const { db } = rt;
   const sid = (c: Context): string => storeOf(c, rt.storeId);
@@ -60,35 +101,63 @@ export function registerGrowthApi(app: Hono, rt: Runtime): void {
 
   // ---------------- Tienda ----------------
   app.get("/api/store/status", async (c) => {
-    const [products, customers, orders, store] = await Promise.all([
-      db.prisma.product.count({ where: { storeId: sid(c) } }),
-      db.prisma.customer.count({ where: { storeId: sid(c) } }),
-      db.prisma.order.count({ where: { storeId: sid(c) } }),
-      db.prisma.store.findUnique({ where: { id: sid(c) } }),
-    ]);
-    return c.json({
-      imported: products > 0,
-      demo: isDemo(),
-      connected: rt.commerce.platform !== "mock",
-      products,
-      customers,
-      orders,
-      platform: store?.platform ?? "mock",
-      profile: store?.profile ?? null,
-    });
+    try {
+      const storeId = await resolveValidStoreId(rt, sid(c));
+      const [products, customers, orders, store] = await Promise.all([
+        db.prisma.product.count({ where: { storeId } }),
+        db.prisma.customer.count({ where: { storeId } }),
+        db.prisma.order.count({ where: { storeId } }),
+        db.prisma.store.findUnique({ where: { id: storeId } }),
+      ]);
+      return c.json({
+        ok: true,
+        storeId,
+        imported: products > 0,
+        demo: isDemo(),
+        connected: rt.commerce.platform !== "mock",
+        products,
+        customers,
+        orders,
+        platform: store?.platform ?? "mock",
+        profile: store?.profile ?? null,
+      });
+    } catch (e: any) {
+      console.error("Error en /api/store/status:", e);
+      return c.json({
+        ok: false,
+        error: e?.message || "Error al obtener estado de la tienda",
+        imported: false,
+        demo: isDemo(),
+        connected: rt.commerce.platform !== "mock",
+        products: 0,
+        customers: 0,
+        orders: 0,
+        platform: "mock",
+        profile: null,
+      }, 500);
+    }
   });
 
   app.post("/api/store/import", async (c) => {
-    // Con tu tienda real se importa esa. La tienda de ejemplo solo existe en modo demo.
-    if (rt.commerce.platform === "mock" && !isDemo())
+    try {
+      // Con tu tienda real se importa esa. La tienda de ejemplo solo existe en modo demo.
+      if (rt.commerce.platform === "mock" && !isDemo())
+        return c.json({
+          ok: false,
+          message:
+            "Todavía no hay una tienda conectada. Define SHOPIFY_*, TIENDANUBE_* o WOOCOMMERCE_* en tu .env (o corre /traxo:instalar en Claude) y reinicia.",
+        }, 400);
+      const storeId = await resolveValidStoreId(rt, sid(c));
+      const adapter = rt.commerce.platform === "mock" ? new MockCommerce() : rt.commerce;
+      const result = await importStore(rt, storeId, adapter);
+      return c.json({ ok: true, storeId, ...result, platform: adapter.platform });
+    } catch (e: any) {
+      console.error("Error en /api/store/import:", e);
       return c.json({
         ok: false,
-        message:
-          "Todavía no hay una tienda conectada. Define SHOPIFY_*, TIENDANUBE_* o WOOCOMMERCE_* en tu .env (o corre /traxo:instalar en Claude) y reinicia.",
-      });
-    const adapter = rt.commerce.platform === "mock" ? new MockCommerce() : rt.commerce;
-    const result = await importStore(rt, sid(c), adapter);
-    return c.json({ ok: true, ...result, platform: adapter.platform });
+        message: e?.message ? `Error al importar tienda: ${e.message}` : "Error interno al importar la tienda",
+      }, 500);
+    }
   });
 
   // ---------------- Auditoría de tienda (SEO y diseño) ----------------

@@ -14,8 +14,8 @@ function token(): string {
 const auth = (): Record<string, string> => {
   const h: Record<string, string> = token() ? { Authorization: `Bearer ${token()}` } : {};
   try {
-    const cur = localStorage.getItem("traxo-store-id");
-    if (cur) h["X-Store-Id"] = cur;
+    const cur = localStorage.getItem("traxo-store-id")?.trim();
+    if (cur && cur !== "undefined" && cur !== "null") h["X-Store-Id"] = cur;
   } catch {}
   return h;
 };
@@ -25,11 +25,40 @@ const unauth = (): void => {
   window.dispatchEvent(new Event("traxo:unauth"));
 };
 
+/** Procesa de forma segura respuestas HTTP manejando JSON o texto con mensajes comprensibles si !r.ok */
+async function handleResponse<T>(r: Response, path: string): Promise<T> {
+  const text = await r.text();
+  let json: any = null;
+  if (text) {
+    try {
+      json = JSON.parse(text);
+    } catch {
+      // not JSON
+    }
+  }
+
+  if (!r.ok) {
+    const errorMsg =
+      json?.message ||
+      json?.error ||
+      (typeof json?.details === "string" ? json.details : null) ||
+      (text && text.length < 200 && !text.includes("<!DOCTYPE")
+        ? text
+        : `Error ${r.status}: ${r.statusText || "Petición fallida"}`);
+    throw new Error(errorMsg);
+  }
+
+  if (json !== null) {
+    return json as T;
+  }
+
+  return text as unknown as T;
+}
+
 export async function get<T>(path: string): Promise<T> {
   const r = await fetch(path, { headers: auth(), credentials: "same-origin" });
   if (r.status === 401 && !path.startsWith("/api/auth/")) unauth();
-  if (!r.ok) throw new Error(`${path}: ${r.status}`);
-  return r.json() as Promise<T>;
+  return handleResponse<T>(r, path);
 }
 
 export async function getText(path: string): Promise<string> {
@@ -64,13 +93,13 @@ export async function post<T = unknown>(path: string, body: unknown = {}): Promi
     body: JSON.stringify(body),
   });
   if (r.status === 401 && !path.startsWith("/api/auth/")) unauth();
-  return r.json() as Promise<T>;
+  return handleResponse<T>(r, path);
 }
 
 export async function del<T = unknown>(path: string): Promise<T> {
   const r = await fetch(path, { method: "DELETE", headers: auth(), credentials: "same-origin" });
   if (r.status === 401) unauth();
-  return r.json() as Promise<T>;
+  return handleResponse<T>(r, path);
 }
 
 /** Eventos del agente en vivo: carga el historial y se suscribe por SSE. Cada evento nuevo avisa a las vistas para refrescarse. */

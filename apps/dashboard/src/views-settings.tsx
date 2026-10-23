@@ -54,17 +54,26 @@ export function Conexiones({ ctx, state }: { ctx: Ctx; state: State }) {
   const zernioLive = state.connections.some((c: Connection) => c.name.includes("Zernio") && c.live);
   const connect = async () => {
     setBusy(true);
-    const r = await post<{ ok: boolean; products: number; customers: number; orders: number }>(
-      "/api/store/import",
-    );
-    setBusy(false);
-    ctx.toast(
-      r.ok
-        ? `Importé ${r.products} productos, ${r.customers} clientes y ${r.orders} pedidos`
-        : "No pude importar la tienda",
-    );
-    st.reload();
-    ctx.refresh();
+    try {
+      const r = await post<{
+        ok: boolean;
+        products?: number;
+        customers?: number;
+        orders?: number;
+        message?: string;
+      }>("/api/store/import");
+      ctx.toast(
+        r.ok
+          ? `Importé ${r.products ?? 0} productos, ${r.customers ?? 0} clientes y ${r.orders ?? 0} pedidos`
+          : (r.message ?? "No pude importar la tienda"),
+      );
+      st.reload();
+      ctx.refresh();
+    } catch (e: any) {
+      ctx.toast(e?.message || "No pude importar la tienda");
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <div className="stack">
