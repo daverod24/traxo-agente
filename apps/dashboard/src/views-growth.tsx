@@ -941,11 +941,12 @@ function NuevaCampana({
             </select>
           </label>
           <label className="field">
-            <span>Presupuesto diario (USD)</span>
+            <span>Presupuesto diario (USD) · Recomendado: $5 – $20 USD/día</span>
             <input
               className="input"
               type="number"
-              min={1}
+              min={5}
+              max={200}
               step={1}
               value={f.dailyBudget}
               onChange={(e) => setF({ ...f, dailyBudget: Number(e.target.value) })}
