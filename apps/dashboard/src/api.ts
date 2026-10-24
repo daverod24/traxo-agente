@@ -96,6 +96,17 @@ export async function post<T = unknown>(path: string, body: unknown = {}): Promi
   return handleResponse<T>(r, path);
 }
 
+export async function patch<T = unknown>(path: string, body: unknown = {}): Promise<T> {
+  const r = await fetch(path, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...auth() },
+    credentials: "same-origin",
+    body: JSON.stringify(body),
+  });
+  if (r.status === 401 && !path.startsWith("/api/auth/")) unauth();
+  return handleResponse<T>(r, path);
+}
+
 export async function del<T = unknown>(path: string): Promise<T> {
   const r = await fetch(path, { method: "DELETE", headers: auth(), credentials: "same-origin" });
   if (r.status === 401) unauth();

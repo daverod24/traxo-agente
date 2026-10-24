@@ -25,6 +25,7 @@ import {
   ToneBadge,
 } from "./ui.tsx";
 import type { Ctx } from "./views.tsx";
+import { CreativosDola } from "./views-dola.tsx";
 import { Biblioteca, MediaPicker, MediaThumb } from "./views-media.tsx";
 
 const LIMITS = {
@@ -42,11 +43,11 @@ const SEG: Array<[string, string, string]> = [
 ];
 const COPY: Record<string, string> = {
   recompra:
-    "Hola, gracias por volver a pedir a Café de Origen. Esta semana tienes envío prioritario en tu próximo pedido. ¿Te lo preparo?",
+    "Hola, gracias por volver a pedir a Davebeauty. Esta semana tienes atención prioritaria en tu próximo pedido. ¿Te lo preparo?",
   nuevo:
-    "Hola, ¿cómo te fue con tu primer café de Café de Origen? Si quieres repetir, te guardo el mismo pedido.",
+    "Hola, ¿cómo te fue con tu primer pedido en Davebeauty? Si quieres repetir, te guardo el mismo pedido.",
   inactivo:
-    "Hola, hace rato no pasas por Café de Origen. Llegó cosecha nueva y te dejo el pedido listo con contraentrega. ¿Lo quieres?",
+    "Hola, hace rato no pasas por Davebeauty. Llegaron novedades al catálogo y te dejo el pedido listo con Pago Móvil o contraentrega. ¿Te gustaría conocerlas?",
 };
 
 export function Clientes({ ctx }: { ctx: Ctx }) {
@@ -426,8 +427,8 @@ export function Marketing({ ctx }: { ctx: Ctx }) {
         </div>
       </div>
       <Banner tone="neutral">
-        Nada se publica ni se gasta sin tu sí. Los creativos con Higgsfield cuestan créditos:
-        primero te digo cuántos. En la demo todo es simulado.
+        Nada se publica ni se gasta sin tu sí. Los creativos con Higgsfield cuestan créditos.
+        También puedes usar la pestaña <strong>Creativos Gratis (Dola AI)</strong> para generar imágenes de alta conversión y guiones UGC sin gastar créditos.
       </Banner>
       <Tabs
         label="Marketing"
@@ -435,14 +436,16 @@ export function Marketing({ ctx }: { ctx: Ctx }) {
         onChange={setTab}
         items={[
           ["campanas", "Campañas"],
-          ["creativos", "Creativos"],
+          ["creativos", "Creativos (Higgsfield)"],
+          ["dola", "Creativos Gratis (Dola AI)"],
           ["biblioteca", "Biblioteca"],
           ["nueva", "Nueva campaña"],
           ["productos", "Qué empujar"],
         ]}
       />
       {tab === "campanas" && <Campanas ctx={ctx} />}
-      {tab === "creativos" && <Creativos ctx={ctx} />}
+      {tab === "creativos" && <Creativos ctx={ctx} onGoDola={() => setTab("dola")} />}
+      {tab === "dola" && <CreativosDola ctx={ctx} />}
       {tab === "biblioteca" && (
         <Biblioteca
           ctx={ctx}
@@ -660,7 +663,7 @@ function Campanas({ ctx }: { ctx: Ctx }) {
   );
 }
 
-function Creativos({ ctx }: { ctx: Ctx }) {
+function Creativos({ ctx, onGoDola }: { ctx: Ctx; onGoDola?: () => void }) {
   const camps = useResource<CampaignFull[]>("/api/campaigns", ctx.tick).data ?? [];
   const lib = new Map(
     (useResource<MediaAsset[]>("/api/media", ctx.tick).data ?? []).map((a) => [a.id, a]),
@@ -684,13 +687,32 @@ function Creativos({ ctx }: { ctx: Ctx }) {
       <section className="card">
         <EmptyState
           icon="megaphone"
-          title="Aún no hay creativos"
-          text="Se crean al armar una campaña: te propongo los prompts y el costo antes de generar nada."
+          title="Aún no hay creativos con Higgsfield"
+          text="Los creativos con Higgsfield consumen créditos al generarse. Si quieres generar imágenes y guiones UGC de forma 100% gratuita, puedes usar Dola AI (dola.com)."
+          action={
+            onGoDola && (
+              <Button variant="agent" icon="spark" onClick={onGoDola}>
+                Generar Creativos Gratis con Dola AI
+              </Button>
+            )
+          }
         />
       </section>
     );
   return (
     <section className="stack">
+      <Banner tone="neutral">
+        <div className="row between" style={{ alignItems: "center", width: "100%", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            💡 <strong>¿Quieres ahorrar créditos?</strong> Puedes generar imágenes de producto y guiones UGC de alta conversión completamente GRATIS usando <strong>Dola AI</strong> (dola.com).
+          </div>
+          {onGoDola && (
+            <Button sm variant="agent" icon="spark" onClick={onGoDola}>
+              Creativos Gratis con Dola AI ↗
+            </Button>
+          )}
+        </div>
+      </Banner>
       <p className="muted" style={{ margin: 0 }}>
         Los creativos de la demo son <strong>ilustraciones de ejemplo</strong>: no se generaron con
         Higgsfield ni costaron créditos.
@@ -768,7 +790,7 @@ function NuevaCampana({
     productId: "",
     platform: "meta",
     objective: "ventas",
-    dailyBudget: 30000,
+    dailyBudget: 10,
   });
   const [s, setS] = useState<Suggestion>();
   const [busy, setBusy] = useState(false);
@@ -919,15 +941,18 @@ function NuevaCampana({
             </select>
           </label>
           <label className="field">
-            <span>Presupuesto diario (COP)</span>
+            <span>Presupuesto diario (USD)</span>
             <input
               className="input"
               type="number"
-              min={5000}
-              step={5000}
+              min={1}
+              step={1}
               value={f.dailyBudget}
               onChange={(e) => setF({ ...f, dailyBudget: Number(e.target.value) })}
             />
+            <span className="caption" style={{ color: "var(--muted)", marginTop: 4 }}>
+              ~ Bs. {(Number(f.dailyBudget || 0) * 880).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} VES (Tasa oficial BCV)
+            </span>
           </label>
           <Button
             variant="agent"

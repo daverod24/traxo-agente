@@ -30,7 +30,7 @@ const STEPS: Record<"seo" | "diseno", string[]> = {
     "Leyendo la estructura de la página…",
     "Buscando el botón de compra y las señales de confianza…",
     "Revisando imágenes y peso…",
-    "Comprobando WhatsApp y precios en COP…",
+    "Comprobando WhatsApp y precios en USD / VES…",
     "Calculando el puntaje…",
   ],
 };

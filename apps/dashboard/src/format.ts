@@ -12,13 +12,17 @@ export const money = (n: number, currency: string = "USD"): string => {
   return `${sign}$ ${abs.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
-/** Formateador principal compatible: por defecto muestra USD con decimales */
-export const cop = (n: number): string => money(n, "USD");
+/** Formateador principal en USD con decimales */
+export const usd = (n: number): string => money(n, "USD");
 
-export const copShort = (n: number): string => {
+export const usdShort = (n: number): string => {
   if (Math.abs(n) >= 1_000_000) return `$ ${(n / 1_000_000).toFixed(1).replace(".", ",")} M`;
-  return cop(n);
+  return usd(n);
 };
+
+/** Alias compatible para código existente */
+export const cop = usd;
+export const copShort = usdShort;
 
 export const DEFAULT_BCV_RATE = 880.00;
 

@@ -344,6 +344,75 @@ export function registerApi(app: Hono, rt: Runtime): void {
     );
   });
 
+  app.patch("/api/products/:id", async (c) => {
+    const id = c.req.param("id");
+    const storeId = sid(c);
+
+    const existing = await db.prisma.product.findFirst({
+      where: { id, storeId },
+    });
+    if (!existing) {
+      return c.json({ ok: false, message: "Producto no encontrado en esta tienda." }, 404);
+    }
+
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    const data: {
+      title?: string;
+      description?: string | null;
+      imageUrl?: string | null;
+      price?: number;
+      cost?: number | null;
+      weightGrams?: number;
+    } = {};
+
+    if (typeof body.title === "string" && body.title.trim()) {
+      data.title = body.title.trim();
+    }
+    if (body.description !== undefined) {
+      data.description =
+        body.description === null || body.description === "" ? null : String(body.description).trim();
+    }
+    if (body.imageUrl !== undefined) {
+      data.imageUrl =
+        body.imageUrl === null || body.imageUrl === "" ? null : String(body.imageUrl).trim();
+    }
+    if (body.price !== undefined && typeof body.price === "number" && !isNaN(body.price)) {
+      data.price = Math.round(body.price);
+    }
+    if (body.cost !== undefined) {
+      data.cost =
+        body.cost === null || body.cost === "" || isNaN(Number(body.cost))
+          ? null
+          : Math.round(Number(body.cost));
+    }
+    if (body.weightGrams !== undefined && typeof body.weightGrams === "number" && !isNaN(body.weightGrams)) {
+      data.weightGrams = Math.max(1, Math.round(body.weightGrams));
+    }
+
+    const updated = await db.prisma.product.update({
+      where: { id: existing.id },
+      data,
+    });
+
+    return c.json({
+      ok: true,
+      product: {
+        id: updated.id,
+        title: updated.title,
+        price: updated.price,
+        cost: updated.cost,
+        description: updated.description,
+        imageUrl: updated.imageUrl,
+        weightGrams: updated.weightGrams,
+        externalId: updated.externalId,
+        marginPct:
+          updated.cost == null || updated.price === 0
+            ? null
+            : Math.round(((updated.price - updated.cost) / updated.price) * 100),
+      },
+    });
+  });
+
   app.get("/api/customers", async (c) => {
     const rows = await db.prisma.customer.findMany({
       where: { storeId: sid(c) },

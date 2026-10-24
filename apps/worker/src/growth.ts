@@ -355,7 +355,7 @@ export function registerGrowthApi(app: Hono, rt: Runtime): void {
       unitsSold: units,
       topCities,
       storeName: store?.name ?? "tu tienda",
-      dailyBudget: Math.max(5000, Math.round(b.dailyBudget ?? 30000)),
+      dailyBudget: Math.max(1, Math.round(b.dailyBudget ?? 10)),
     });
     return c.json({
       ok: true,
@@ -363,7 +363,7 @@ export function registerGrowthApi(app: Hono, rt: Runtime): void {
       productId: product.id,
       platform: platform.data,
       objective,
-      dailyBudget: Math.max(5000, Math.round(b.dailyBudget ?? 30000)),
+      dailyBudget: Math.max(1, Math.round(b.dailyBudget ?? 10)),
       ...suggestion,
     });
   });
