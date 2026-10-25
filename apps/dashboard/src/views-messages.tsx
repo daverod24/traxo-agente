@@ -33,21 +33,21 @@ const short = (iso: string): string => {
   const d = new Date(iso);
   const now = new Date();
   if (d.toDateString() === now.toDateString())
-    return d.toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit" });
+    return d.toLocaleTimeString("es-VE", { hour: "numeric", minute: "2-digit" });
   const y = new Date(now.getTime() - 86_400_000);
   if (d.toDateString() === y.toDateString()) return "Ayer";
-  return d.toLocaleDateString("es-CO", { day: "numeric", month: "short" });
+  return d.toLocaleDateString("es-VE", { day: "numeric", month: "short" });
 };
 const dayLabel = (iso: string): string => {
   const d = new Date(iso);
   const now = new Date();
   if (d.toDateString() === now.toDateString()) return "Hoy";
   if (d.toDateString() === new Date(now.getTime() - 86_400_000).toDateString()) return "Ayer";
-  const t = d.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
+  const t = d.toLocaleDateString("es-VE", { weekday: "long", day: "numeric", month: "long" });
   return t.charAt(0).toUpperCase() + t.slice(1);
 };
 const clock = (iso: string): string =>
-  new Date(iso).toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit" });
+  new Date(iso).toLocaleTimeString("es-VE", { hour: "numeric", minute: "2-digit" });
 
 function Avatar({ c, size = 40 }: { c: Conversation; size?: number }) {
   return (

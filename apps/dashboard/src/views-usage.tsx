@@ -7,7 +7,7 @@ import type { StoreStatus, UsageReport } from "./types.ts";
 import { Banner, CHANNELS, ChannelMark, SampleTag, Tabs } from "./ui.tsx";
 import type { Ctx } from "./views.tsx";
 
-const n = (v: number): string => v.toLocaleString("es-CO");
+const n = (v: number): string => v.toLocaleString("es-VE");
 const pct = (v: number | null): string => (v === null ? "N/A" : `${v} %`);
 const hours = (h: number): string =>
   h >= 10 ? `${Math.round(h)} h` : `${String(h).replace(".", ",")} h`;

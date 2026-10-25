@@ -162,7 +162,7 @@ export function Envios({ ctx }: { ctx: Ctx }) {
                     <span className="caption">Días promedio</span>
                     <br />
                     <strong className="num">
-                      {c.avgDays === null ? "N/A" : c.avgDays.toLocaleString("es-CO")}
+                      {c.avgDays === null ? "N/A" : c.avgDays.toLocaleString("es-VE")}
                     </strong>
                   </span>
                 </div>

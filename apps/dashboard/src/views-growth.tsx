@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { del, get, post, useResource } from "./api.ts";
 import { HBars } from "./charts.tsx";
 import { EmptyState, Sheet } from "./components.tsx";
-import { cop, copShort, dateEs, phoneEs, plural, vesFromUsd } from "./format.ts";
+import { dateEs, phoneEs, plural, usd, usdShort, vesFromUsd } from "./format.ts";
 import type {
   Attribution,
   AudienceRow,
@@ -196,7 +196,7 @@ export function Clientes({ ctx }: { ctx: Ctx }) {
                   <td>{c.city ?? "—"}</td>
                   <td className="right num">{c.orders}</td>
                   <td className="right num nowrap">
-                    <div>{cop(c.spent)}</div>
+                    <div>{usd(c.spent)}</div>
                     <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block" }}>
                       {vesFromUsd(c.spent)}
                     </small>
@@ -248,7 +248,7 @@ export function Clientes({ ctx }: { ctx: Ctx }) {
               </span>
               <span className="caption">
                 {c.city ?? "—"} · {c.orders} {plural(c.orders, "pedido", "pedidos")} ·{" "}
-                {cop(c.spent)}
+                {usd(c.spent)}
               </span>
               <span className="row">
                 <Button sm onClick={() => exportOne(c.id, c.name)}>
@@ -510,7 +510,7 @@ function Campanas({ ctx }: { ctx: Ctx }) {
         <div className="grid-stats">
           <div className="kpi">
             <span className="label">Gasto en anuncios</span>
-            <span className="value num">{known.length ? copShort(spend) : "N/A"}</span>
+            <span className="value num">{known.length ? usdShort(spend) : "N/A"}</span>
             <span className="caption">
               {spend > 0 ? `${vesFromUsd(spend)} (BCV)` : sample ? "datos de ejemplo" : "lo que reporta la plataforma"}
             </span>
@@ -522,7 +522,7 @@ function Campanas({ ctx }: { ctx: Ctx }) {
           </div>
           <div className="kpi">
             <span className="label">Ventas atribuidas</span>
-            <span className="value num">{copShort(revenue)}</span>
+            <span className="value num">{usdShort(revenue)}</span>
             <span className="caption">{revenue > 0 ? `${vesFromUsd(revenue)} (BCV)` : "pedidos con ese utm"}</span>
           </div>
           <div className="kpi">
@@ -565,7 +565,7 @@ function Campanas({ ctx }: { ctx: Ctx }) {
                     </div>
                     <h3 className="break">{c.product}</h3>
                     <span className="caption">
-                      {cop(c.payload.dailyBudget)} al día · {dateEs(c.createdAt)}
+                      {usd(c.payload.dailyBudget)} al día · {dateEs(c.createdAt)}
                     </span>
                   </div>
                   <StatusBadge status={c.status} />
@@ -574,11 +574,11 @@ function Campanas({ ctx }: { ctx: Ctx }) {
                   <dl className="metrics">
                     <div>
                       <dt>Impresiones</dt>
-                      <dd className="num">{c.metrics.impressions.toLocaleString("es-CO")}</dd>
+                      <dd className="num">{c.metrics.impressions.toLocaleString("es-VE")}</dd>
                     </div>
                     <div>
                       <dt>Clics</dt>
-                      <dd className="num">{c.metrics.clicks.toLocaleString("es-CO")}</dd>
+                      <dd className="num">{c.metrics.clicks.toLocaleString("es-VE")}</dd>
                     </div>
                     <div>
                       <dt>CTR</dt>
@@ -586,7 +586,7 @@ function Campanas({ ctx }: { ctx: Ctx }) {
                     </div>
                     <div>
                       <dt>Gasto</dt>
-                      <dd className="num">{cop(c.metrics.spend)}</dd>
+                      <dd className="num">{usd(c.metrics.spend)}</dd>
                     </div>
                     <div>
                       <dt>Pedidos</dt>
@@ -1117,7 +1117,7 @@ function Productos({ ctx }: { ctx: Ctx }) {
         </p>
       </div>
       <HBars
-        format={cop}
+        format={usd}
         rows={top.map((p, i) => ({
           label: p.title,
           value: p.revenue,
@@ -1150,14 +1150,14 @@ function Productos({ ctx }: { ctx: Ctx }) {
               <tr key={p.id}>
                 <td style={{ fontWeight: 600 }}>{p.title}</td>
                 <td className="right num">
-                  <div>{cop(p.price)}</div>
+                  <div>{usd(p.price)}</div>
                   <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block" }}>
                     {vesFromUsd(p.price)}
                   </small>
                 </td>
                 <td className="right num">{p.unitsSold}</td>
                 <td className="right num">
-                  <div>{cop(p.revenue)}</div>
+                  <div>{usd(p.revenue)}</div>
                   <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block" }}>
                     {vesFromUsd(p.revenue)}
                   </small>

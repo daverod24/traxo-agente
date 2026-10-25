@@ -608,11 +608,11 @@ export function PricingCockpit({
         </div>
       </div>
 
-      {/* KPI Dashboard Principal (Diseño en Grid 2x2 Limpio y sin Superposiciones) */}
+      {/* KPI Dashboard Principal (Diseño Limpio, Anti-Desbordamiento y Alta Legibilidad) */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
           gap: 12,
         }}
       >
@@ -624,27 +624,26 @@ export function PricingCockpit({
             borderRadius: "var(--r-md)",
             background: "var(--surface)",
             border: "1px solid var(--line)",
-            borderLeft: `4px solid ${marginTone === "success" ? "var(--success)" : marginTone === "attention" ? "var(--attention)" : "var(--critical)"}`,
             display: "flex",
             flexDirection: "column",
             gap: 4,
           }}
         >
-          <div className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.76rem", fontWeight: 600, textTransform: "uppercase" }}>
+          <div className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.74rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
             Margen Bruto Real
           </div>
-          <div className="row" style={{ alignItems: "baseline", gap: 8, margin: "4px 0" }}>
-            <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--ink)", lineHeight: 1 }}>
+          <div className="row" style={{ alignItems: "baseline", gap: 6, margin: "4px 0" }}>
+            <span style={{ fontSize: "1.55rem", fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.02em", lineHeight: 1.1 }}>
               {economics.realGrossMarginPct}%
-            </div>
-            <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--brand)" }}>
-              (${economics.realGrossMarginUsd} USD)
-            </div>
+            </span>
+            <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--brand)" }}>
+              (${economics.realGrossMarginUsd})
+            </span>
           </div>
           <span className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}>
             ~ {vesFromUsd(economics.realGrossMarginUsd)} (BCV)
           </span>
-          <div style={{ marginTop: 4 }}>
+          <div style={{ marginTop: 6 }}>
             <ToneBadge tone={marginTone}>
               {marginTone === "success" ? "🟢 Zona Verde (≥50%)" : marginTone === "attention" ? "🟡 Margen Ajustado" : "🔴 Crítico (<35%)"}
             </ToneBadge>
@@ -664,14 +663,14 @@ export function PricingCockpit({
             gap: 4,
           }}
         >
-          <div className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.76rem", fontWeight: 600, textTransform: "uppercase" }}>
-            Break-Even CPA (Meta/TikTok)
+          <div className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.74rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            Break-Even CPA (Meta / TikTok)
           </div>
-          <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--brand)", lineHeight: 1, margin: "4px 0" }}>
+          <div style={{ fontSize: "1.55rem", fontWeight: 800, color: "var(--brand)", letterSpacing: "-0.02em", lineHeight: 1.1, margin: "4px 0" }}>
             {usd(economics.breakEvenCpa)}
           </div>
           <span className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}>
-            CPA Máximo permisible por venta antes de perder dinero
+            Tope de costo por venta antes de margen negativo
           </span>
         </div>
 
@@ -688,14 +687,14 @@ export function PricingCockpit({
             gap: 4,
           }}
         >
-          <div className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.76rem", fontWeight: 600, textTransform: "uppercase" }}>
+          <div className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.74rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
             Break-Even ROAS Mínimo
           </div>
-          <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--ink)", lineHeight: 1, margin: "4px 0" }}>
+          <div style={{ fontSize: "1.55rem", fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.02em", lineHeight: 1.1, margin: "4px 0" }}>
             {economics.breakEvenRoas}×
           </div>
           <span className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}>
-            Retorno mínimo necesario sobre el gasto en pauta
+            Retorno mínimo sobre presupuesto en anuncios
           </span>
         </div>
 
@@ -712,11 +711,16 @@ export function PricingCockpit({
             gap: 4,
           }}
         >
-          <div className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.76rem", fontWeight: 600, textTransform: "uppercase" }}>
+          <div className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.74rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
             Presupuesto Diario Sugerido
           </div>
-          <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--success)", lineHeight: 1, margin: "4px 0" }}>
-            ${economics.suggestedDailyAdSpend} USD/día
+          <div className="row" style={{ alignItems: "baseline", gap: 6, margin: "4px 0" }}>
+            <span style={{ fontSize: "1.55rem", fontWeight: 800, color: "var(--success)", letterSpacing: "-0.02em", lineHeight: 1.1 }}>
+              ${economics.suggestedDailyAdSpend}
+            </span>
+            <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--ink-muted)" }}>
+              USD / día
+            </span>
           </div>
           <span className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}>
             ~ {vesFromUsd(economics.suggestedDailyAdSpend)} diarios (35% margen)
