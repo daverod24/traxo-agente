@@ -9,6 +9,8 @@ RUN npm install -g pnpm@12.14.0
 # Copiar manifiestos y árbol de paquetes
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages ./packages
+
+ARG CACHEBUST=20261025_058410f
 COPY apps ./apps
 COPY tsconfig.base.json tsconfig.json biome.json ./
 
