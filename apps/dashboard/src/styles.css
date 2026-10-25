@@ -432,8 +432,10 @@ p {
   min-width: 0;
 }
 .kpi .value {
-  font: 700 34px / 40px var(--font-display);
+  font: 700 clamp(20px, 2.2vw, 32px) / 1.2 var(--font-display);
   letter-spacing: -0.02em;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .kpi .unit {
   font-size: 15px;

@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        CACHEBUST: "20261025-v11"
+        CACHEBUST: "20261025-v12"
     container_name: traxo_app
     restart: unless-stopped
     expose:
