@@ -1,4 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { cop, days, vesFromUsd, viaLabel } from "./format.ts";
 import type { OrderRow } from "./types.ts";
 import { AgentMark, Button, Icon } from "./ui.tsx";
@@ -90,7 +91,7 @@ export function Sheet({
     if (dismiss) close();
   };
 
-  return (
+  return createPortal(
     <>
       <div className={`scrim ${open ? "open" : ""}`} onClick={close} aria-hidden="true" />
       <aside
@@ -122,7 +123,8 @@ export function Sheet({
         </div>
         <div className="body">{children}</div>
       </aside>
-    </>
+    </>,
+    document.body,
   );
 }
 
