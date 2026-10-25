@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { get, post, useResource } from "./api.ts";
 import { EmptyState, OrderJourney, Pipeline, QuoteBars, Sheet } from "./components.tsx";
-import { cop, copShort, dateEs, phoneEs, plural, timeEs, vesFromUsd } from "./format.ts";
+import { cop, copShort, dateEs, phoneEs, plural, timeEs, usd, vesFromUsd } from "./format.ts";
 import type {
   Account,
   Approval,
@@ -409,10 +409,10 @@ export function Inicio({
                 key={p.id}
                 onClick={() => ctx.go("productos")}
                 style={{
-                  background: "var(--card-bg, #fff)",
+                  background: "var(--surface)",
                   padding: "10px 12px",
                   borderRadius: "8px",
-                  border: "1px solid var(--border-subtle, rgba(0,0,0,0.08))",
+                  border: "1px solid var(--line)",
                   display: "flex",
                   alignItems: "center",
                   gap: 12,
@@ -440,11 +440,11 @@ export function Inicio({
                       width: 48,
                       height: 48,
                       borderRadius: 6,
-                      background: "rgba(37, 99, 235, 0.08)",
+                      background: "rgba(255, 200, 5, 0.12)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      color: "var(--brand, #2563eb)",
+                      color: "var(--brand)",
                       flexShrink: 0,
                     }}
                   >
@@ -456,6 +456,7 @@ export function Inicio({
                     style={{
                       fontWeight: 600,
                       fontSize: "0.88rem",
+                      color: "var(--ink)",
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -464,10 +465,10 @@ export function Inicio({
                   >
                     {p.title}
                   </div>
-                  <div style={{ fontSize: "0.85rem", color: "var(--brand, #2563eb)", fontWeight: 700 }}>
-                    {cop(p.price)}
+                  <div style={{ fontSize: "0.85rem", color: "var(--brand)", fontWeight: 700 }}>
+                    {usd(p.price)}
                   </div>
-                  <div style={{ fontSize: "0.72rem", color: "var(--muted)" }}>
+                  <div style={{ fontSize: "0.72rem", color: "var(--ink-muted)" }}>
                     {vesFromUsd(p.price)}
                   </div>
                 </div>

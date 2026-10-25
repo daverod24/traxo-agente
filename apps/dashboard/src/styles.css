@@ -92,6 +92,7 @@
   :root:not([data-theme="light"]) {
     --bg: #141414;
     --surface: #1e1e1c;
+    --card-bg: #1e1e1c;
     --surface-sunken: #181817;
     --surface-hover: #262624;
     --surface-selected: #3a3013;

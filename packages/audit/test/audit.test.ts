@@ -200,4 +200,84 @@ describe("auditoría con estándares venezolanos y visibilidad en IA (AEO)", () 
     expect(copCheck?.title).toContain("dólares o bimoneda");
     expect(copCheck?.evidence).toContain("USD / Bs. BCV");
   });
+
+  it("evalúa AEO avanzado: BLUF, preguntas PAA, schema @graph con FAQPage y bloqueo de bots de IA", async () => {
+    const ADVANCED_AEO_HTML = `<!doctype html><html lang="es-VE"><head>
+<title>Davebeauty | K-Beauty y Cosmética en Venezuela</title>
+<meta name="description" content="Tienda multimarca de belleza y skincare botánico en Caracas con despacho nacional por MRW y Zoom. Pagos en Pago Móvil y Zelle.">
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="canonical" href="https://davebeauty.daverod.tech/">
+<meta property="og:title" content="Davebeauty"><meta property="og:image" content="https://davebeauty.daverod.tech/og.jpg"><link rel="icon" href="/favicon.ico">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://davebeauty.daverod.tech/#organization",
+      "name": "Davebeauty",
+      "url": "https://davebeauty.daverod.tech",
+      "sameAs": ["https://instagram.com/davebeauty"]
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://davebeauty.daverod.tech/#website",
+      "name": "Davebeauty",
+      "url": "https://davebeauty.daverod.tech"
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://davebeauty.daverod.tech/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "¿Cómo comprar por WhatsApp?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Escribe a nuestro WhatsApp para asesoría y confirmación de stock." }
+        }
+      ]
+    }
+  ]
+}
+</script></head>
+<body>
+<h1>Belleza y bienestar para tu rutina</h1>
+<a href="https://wa.me/584121234567">WhatsApp +58</a>
+<h2>¿Cómo funciona la compra asistida?</h2>
+<p><strong>Comprar en Davebeauty es directo:</strong> seleccionas tu producto, confirmas disponibilidad por WhatsApp y coordinamos tu despacho de inmediato.</p>
+<h2>¿Qué métodos de pago aceptan en Venezuela?</h2>
+<p>Aceptamos <strong>Pago Móvil</strong>, transferencias en <strong>bolívares a tasa oficial BCV</strong> y <strong>Zelle</strong> para pagos en divisas.</p>
+<h2>¿Tienen envíos a nivel nacional?</h2>
+<p>Despachamos a todo el país mediante <strong>MRW, Zoom y Tealca</strong>, con entregas en 24 a 48 horas hábiles.</p>
+</body></html>`;
+
+    const ROBOTS_BLOCKING = `User-agent: ClaudeBot\nDisallow: /\nUser-agent: GPTBot\nDisallow: /\nUser-agent: *\nAllow: /\nSitemap: https://davebeauty.daverod.tech/sitemap-index.xml`;
+
+    const fSite = (async (url: string) => {
+      const path = new URL(url).pathname;
+      if (path === "/") return new Response(ADVANCED_AEO_HTML, { status: 200 });
+      if (path === "/robots.txt") return new Response(ROBOTS_BLOCKING, { status: 200 });
+      if (path === "/sitemap.xml") return new Response("Not found", { status: 404 });
+      if (path === "/sitemap-index.xml") return new Response("<sitemapindex></sitemapindex>", { status: 200 });
+      if (path === "/llms.txt") return new Response("# Davebeauty LLMs\nResumen del catálogo", { status: 200 });
+      return new Response("Not found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const r = await auditUrl("seo", "https://davebeauty.daverod.tech", { fetch: fSite, resolve: pub });
+    const by = Object.fromEntries(r.checks.map((c) => [c.id, c.status]));
+
+    expect(by.bluf).toBe("pass");
+    expect(by.paa_questions).toBe("pass");
+    expect(by.schema_graph).toBe("pass");
+    expect(by.schema_org).toBe("pass");
+    expect(by.schema_faq).toBe("pass");
+    expect(by.trust_whatsapp).toBe("pass");
+    expect(by.trust_payments).toBe("pass");
+    expect(by.trust_shipping).toBe("pass");
+
+    // Detecta bots bloqueados
+    expect(by.ai_crawlers).toBe("warn");
+    const aiCrawlerCheck = r.checks.find((c) => c.id === "ai_crawlers");
+    expect(aiCrawlerCheck?.evidence).toContain("ClaudeBot");
+    expect(aiCrawlerCheck?.evidence).toContain("GPTBot");
+    expect(aiCrawlerCheck?.evidence).toContain("permite PerplexityBot");
+  });
 });

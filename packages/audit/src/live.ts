@@ -50,10 +50,18 @@ export function seoChecks(
   const html = page.body;
   const isVe = isVeContext(page.url, html);
   const out: Check[] = [];
+  const gTecnico = "SEO Técnico";
+  const gSchema = "Schema & Knowledge Graph";
+  const gAeo = "AEO & Visibilidad en IA";
+  const gConfianza = isVe ? "Confianza & Conversión Venezuela" : "Confianza & Conversión Local";
+
+  // ==========================================
+  // PILAR 1: SEO Técnico
+  // ==========================================
   out.push(
     mk(
       "https",
-      "Técnico",
+      gTecnico,
       "Conexión segura (HTTPS)",
       page.url.startsWith("https://") ? "pass" : "fail",
       "alto",
@@ -64,7 +72,7 @@ export function seoChecks(
   out.push(
     mk(
       "status",
-      "Técnico",
+      gTecnico,
       "La página responde bien",
       page.status === 200 ? "pass" : "fail",
       "alto",
@@ -77,7 +85,7 @@ export function seoChecks(
     !title
       ? mk(
           "title",
-          "Contenido",
+          gTecnico,
           "Título de la página",
           "fail",
           "alto",
@@ -86,7 +94,7 @@ export function seoChecks(
         )
       : mk(
           "title",
-          "Contenido",
+          gTecnico,
           "Título de la página",
           title.length >= 30 && title.length <= 65 ? "pass" : "warn",
           "alto",
@@ -99,7 +107,7 @@ export function seoChecks(
     !desc
       ? mk(
           "desc",
-          "Contenido",
+          gTecnico,
           "Meta descripción",
           "fail",
           "alto",
@@ -108,7 +116,7 @@ export function seoChecks(
         )
       : mk(
           "desc",
-          "Contenido",
+          gTecnico,
           "Meta descripción",
           desc.length >= 70 && desc.length <= 165 ? "pass" : "warn",
           "alto",
@@ -120,7 +128,7 @@ export function seoChecks(
   out.push(
     mk(
       "h1",
-      "Contenido",
+      gTecnico,
       "Un solo H1",
       h1.length === 1 ? "pass" : h1.length === 0 ? "fail" : "warn",
       "medio",
@@ -128,22 +136,24 @@ export function seoChecks(
       "Deja un único H1 que diga qué vende la página.",
     ),
   );
+  const canonicalTag = tags(html, "link").find((t) => /rel=["']canonical["']/i.test(t));
+  const canonicalHref = canonicalTag ? attr(canonicalTag, "href") : undefined;
   out.push(
     mk(
       "canonical",
-      "Técnico",
+      gTecnico,
       "URL canónica",
-      /<link\b[^>]*rel=["']canonical["']/i.test(html) ? "pass" : "warn",
+      canonicalHref ? (canonicalHref.startsWith("http") ? "pass" : "warn") : "warn",
       "medio",
-      /<link\b[^>]*rel=["']canonical["']/i.test(html) ? "Presente" : "No se encontró",
-      'Añade <link rel="canonical"> para evitar contenido duplicado.',
+      canonicalHref ? `Canónica: ${canonicalHref}` : "No se encontró <link rel=\"canonical\">",
+      'Añade <link rel="canonical" href="..."> absoluta para evitar contenido duplicado.',
     ),
   );
   const lang = /<html\b[^>]*\blang=["']([^"']+)["']/i.exec(html)?.[1];
   out.push(
     mk(
       "lang",
-      "Técnico",
+      gTecnico,
       "Idioma declarado",
       !lang ? "fail" : lang.toLowerCase().startsWith("es") ? "pass" : "warn",
       "bajo",
@@ -154,7 +164,7 @@ export function seoChecks(
   out.push(
     mk(
       "viewport",
-      "Técnico",
+      gTecnico,
       "Viewport para móvil",
       metaContent(html, "viewport") ? "pass" : "fail",
       "alto",
@@ -165,7 +175,7 @@ export function seoChecks(
   out.push(
     mk(
       "noindex",
-      "Técnico",
+      gTecnico,
       "Indexable (sin noindex)",
       /noindex/i.test(metaContent(html, "robots") ?? "") ? "fail" : "pass",
       "alto",
@@ -177,11 +187,11 @@ export function seoChecks(
   out.push(
     mk(
       "og",
-      "Redes",
+      gTecnico,
       "Vista previa al compartir (Open Graph)",
       og ? "pass" : "warn",
       "medio",
-      og ? "og:title y og:image" : "Falta og:title u og:image",
+      og ? "og:title y og:image presentes" : "Falta og:title u og:image",
       "Añade og:title y og:image para que el enlace se vea bien en WhatsApp e Instagram.",
     ),
   );
@@ -191,7 +201,7 @@ export function seoChecks(
     imgs.length === 0
       ? mk(
           "alt",
-          "Contenido",
+          gTecnico,
           "Imágenes con texto alternativo",
           "na",
           "medio",
@@ -199,7 +209,7 @@ export function seoChecks(
         )
       : mk(
           "alt",
-          "Contenido",
+          gTecnico,
           "Imágenes con texto alternativo",
           pct(withAlt, imgs.length) >= 90
             ? "pass"
@@ -211,53 +221,21 @@ export function seoChecks(
           "Describe cada imagen de producto en el alt.",
         ),
   );
-  const ld = [
-    ...html.matchAll(/<script\b[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi),
-  ].map((m) => m[1] ?? "");
-  const hasProduct = ld.some((j) => /"@type"\s*:\s*"?(Product|Offer)/i.test(j));
-  const hasOrg = ld.some((j) =>
-    /"@type"\s*:\s*"?(Organization|OnlineStore|Store|Brand|WebSite)/i.test(j),
-  );
-  out.push(
-    mk(
-      "schema",
-      "Datos estructurados",
-      "Schema de producto y entidad (JSON-LD)",
-      hasProduct || hasOrg ? "pass" : ld.length ? "warn" : "fail",
-      "alto",
-      hasProduct
-        ? "Product/Offer encontrado"
-        : hasOrg
-          ? "Entidad Organization/WebSite encontrada (Knowledge Graph & IA)"
-          : ld.length
-            ? `${ld.length} bloque(s) JSON-LD sin Product u Organization`
-            : "Sin JSON-LD",
-      hasProduct
-        ? undefined
-        : hasOrg
-          ? (isVe
-              ? "En páginas de detalle, añade schema Product con precios en USD o Bs."
-              : "En fichas de producto, añade schema Product con offers.")
-          : (isVe
-              ? "Añade Organization o Product con ofertas (precio USD o Bs. BCV, disponibilidad)."
-              : "Añade Product con offers (precio, moneda COP, disponibilidad)."),
-    ),
-  );
   out.push(
     mk(
       "robots",
-      "Rastreo",
+      gTecnico,
       "robots.txt",
       robots?.status === 200 ? "pass" : "warn",
       "medio",
       robots ? `HTTP ${robots.status}` : "No se pudo consultar",
-      "Publica /robots.txt.",
+      "Publica /robots.txt en la raíz del dominio.",
     ),
   );
   out.push(
     mk(
       "sitemap",
-      "Rastreo",
+      gTecnico,
       "sitemap.xml",
       sitemap?.status === 200 && /<urlset|<sitemapindex/i.test(sitemap.body) ? "pass" : "warn",
       "medio",
@@ -265,50 +243,10 @@ export function seoChecks(
       "Publica /sitemap.xml o /sitemap-index.xml y envíalo a Search Console.",
     ),
   );
-  const llmsInRobots = /LLMs-txt:\s*(https?:\/\/[^\s]+|\/[^\s]+)/i.test(robots?.body ?? "");
-  const hasLlms = llms?.status === 200 || llmsInRobots;
-  out.push(
-    mk(
-      "llms",
-      "Visibilidad en IA",
-      "llms.txt para asistentes de IA",
-      hasLlms ? "pass" : "warn",
-      "bajo",
-      llms?.status === 200
-        ? "HTTP 200"
-        : llmsInRobots
-          ? "Declarado en robots.txt"
-          : "No se pudo consultar",
-      "Opcional: publica /llms.txt resumiendo tu catálogo.",
-    ),
-  );
-  const hasRobots = robots?.status === 200;
-  const blocksAi =
-    hasRobots &&
-    /User-agent:\s*(GPTBot|ChatGPT-User|ClaudeBot|PerplexityBot|Google-Extended)\s*[\r\n]+Disallow:\s*\//i.test(
-      robots?.body ?? "",
-    );
-  out.push(
-    mk(
-      "ai_crawlers",
-      "Visibilidad en IA",
-      "Permite rastreadores de IA (AEO)",
-      !hasRobots ? "na" : blocksAi ? "warn" : "pass",
-      "medio",
-      !hasRobots
-        ? "Sin robots.txt para evaluar rastreadores de IA"
-        : blocksAi
-          ? "Bloquea bots de IA en robots.txt"
-          : "Permite indexación de asistentes de IA (ChatGPT, Claude, Perplexity)",
-      blocksAi
-        ? "Si deseas visibilidad en búsquedas generativas (AEO/GEO), permite el rastreo de bots de IA."
-        : undefined,
-    ),
-  );
   out.push(
     mk(
       "cwv",
-      "Rendimiento",
+      gTecnico,
       "Core Web Vitals (LCP, CLS, INP)",
       "na",
       "alto",
@@ -316,6 +254,445 @@ export function seoChecks(
       "Mídelo con PageSpeed Insights.",
     ),
   );
+
+  // ==========================================
+  // PILAR 2: Schema & Knowledge Graph
+  // ==========================================
+  const ldStrings = [
+    ...html.matchAll(/<script\b[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi),
+  ].map((m) => m[1] ?? "");
+  const ldParsed: any[] = [];
+  for (const s of ldStrings) {
+    try {
+      ldParsed.push(JSON.parse(s));
+    } catch {}
+  }
+  const allEntities: any[] = [];
+  let hasRootGraph = false;
+  for (const obj of ldParsed) {
+    if (obj && typeof obj === "object") {
+      if (Array.isArray(obj["@graph"])) {
+        hasRootGraph = true;
+        allEntities.push(...obj["@graph"]);
+      } else {
+        allEntities.push(obj);
+      }
+    }
+  }
+
+  const hasProduct = allEntities.some((e) =>
+    /(Product|Offer|IndividualProduct)/i.test(e?.["@type"] ?? ""),
+  );
+  const hasOrg = allEntities.some((e) =>
+    /(Organization|OnlineStore|Store|Brand)/i.test(e?.["@type"] ?? ""),
+  );
+  const hasWebSite = allEntities.some((e) => /WebSite/i.test(e?.["@type"] ?? ""));
+  const hasFaq = allEntities.some((e) => /FAQPage/i.test(e?.["@type"] ?? ""));
+
+  // Check: schema (compatibilidad con tests existentes)
+  out.push(
+    mk(
+      "schema",
+      gSchema,
+      "Schema de producto y entidad (JSON-LD)",
+      hasProduct || hasOrg || hasWebSite ? "pass" : ldParsed.length ? "warn" : "fail",
+      "alto",
+      hasProduct
+        ? "Product/Offer encontrado"
+        : hasOrg
+          ? "Entidad Organization/WebSite encontrada (Knowledge Graph & IA)"
+          : ldParsed.length
+            ? `${ldParsed.length} bloque(s) JSON-LD sin Product u Organization`
+            : "Sin JSON-LD",
+      hasProduct
+        ? undefined
+        : hasOrg
+          ? (isVe
+              ? "En fichas de producto, añade schema Product con precios en USD o Bs."
+              : "En fichas de producto, añade schema Product con offers.")
+          : (isVe
+              ? "Añade Organization o Product con ofertas (precio USD o Bs. BCV, disponibilidad)."
+              : "Añade Product con offers (precio, moneda COP, disponibilidad)."),
+    ),
+  );
+
+  // Check: schema_graph (Árbol @graph estructurado)
+  const entitiesWithId = allEntities.filter(
+    (e) => typeof e?.["@id"] === "string" && e["@id"].trim(),
+  );
+  const isGraphUnified = hasRootGraph && entitiesWithId.length >= 2;
+  const isSingleValidSchema = ldParsed.length === 1 && (hasOrg || hasProduct || hasWebSite);
+  out.push(
+    mk(
+      "schema_graph",
+      gSchema,
+      "Árbol @graph estructurado con @id",
+      isGraphUnified || isSingleValidSchema ? "pass" : ldParsed.length > 1 ? "warn" : "fail",
+      "alto",
+      isGraphUnified
+        ? `Árbol @graph unificado con ${entitiesWithId.length} entidades enlazadas por @id`
+        : isSingleValidSchema
+          ? "Esquema JSON-LD unificado válido en la página"
+          : ldParsed.length > 1
+            ? `${ldParsed.length} bloques JSON-LD independientes sin nodo raíz @graph ni @id cruzados`
+            : "Sin estructura JSON-LD en la página",
+      isGraphUnified || isSingleValidSchema
+        ? undefined
+        : 'Unifica los esquemas en un único script con "@graph": [...] y asigna URIs deterministas (@id: "...#organization", "...#website").',
+    ),
+  );
+
+  // Check: schema_org (Organization con sameAs / contactPoint)
+  const orgEntity = allEntities.find((e) =>
+    /(Organization|OnlineStore|Store|Brand)/i.test(e?.["@type"] ?? ""),
+  );
+  const hasSameAs = Array.isArray(orgEntity?.sameAs) && orgEntity.sameAs.length > 0;
+  const hasContactPoint = Boolean(orgEntity?.contactPoint);
+  out.push(
+    mk(
+      "schema_org",
+      gSchema,
+      "Entidad Organization y disambiguación (sameAs)",
+      orgEntity
+        ? "pass"
+        : hasProduct
+          ? "na"
+          : "fail",
+      "medio",
+      orgEntity
+        ? hasSameAs
+          ? `Organization «${orgEntity.name ?? "Marca"}» con ${orgEntity.sameAs.length} enlaces sameAs de disambiguación`
+          : `Organization «${orgEntity.name ?? "Marca"}» declarada`
+        : hasProduct
+          ? "Página enfocada en ficha de producto (schema Product)"
+          : "No se declaró entidad Organization en JSON-LD",
+      orgEntity && !hasSameAs
+        ? 'Recomendado: añade sameAs: ["https://instagram.com/..."] en Organization para enriquecer el Knowledge Graph.'
+        : !orgEntity && !hasProduct
+          ? "Declara la entidad Organization con nombre, logo, descripción y enlaces oficiales."
+          : undefined,
+    ),
+  );
+
+  // Check: schema_faq (FAQPage)
+  out.push(
+    mk(
+      "schema_faq",
+      gSchema,
+      "Schema FAQPage para Rich Snippets en IA",
+      hasFaq ? "pass" : "warn",
+      "bajo",
+      hasFaq
+        ? "FAQPage declarada en JSON-LD con preguntas y respuestas"
+        : "No se encontró FAQPage en JSON-LD",
+      hasFaq
+        ? undefined
+        : "Añade un nodo FAQPage en tu @graph con preguntas frecuentes de compra, formas de pago y envíos para alimentar citas de IA.",
+    ),
+  );
+
+  // Check: schema_product (bimoneda USD / Bs. BCV)
+  const productEntity = allEntities.find((e) => /(Product|Offer)/i.test(e?.["@type"] ?? ""));
+  const jsonLdRaw = ldStrings.join(" ");
+  const hasCurrencyInSchema = /(USD|VES|Bs\.?|COP)/i.test(jsonLdRaw);
+  const hasVeBimonedaSchema = /USD/i.test(jsonLdRaw) && /(VES|Bs\.?)/i.test(jsonLdRaw);
+  out.push(
+    mk(
+      "schema_product",
+      gSchema,
+      isVe
+        ? "Ofertas de Producto con bimoneda en Schema (USD / Bs. BCV)"
+        : "Ofertas de Producto en Schema (Product / Offer)",
+      productEntity
+        ? isVe
+          ? hasVeBimonedaSchema || hasCurrencyInSchema
+            ? "pass"
+            : "warn"
+          : "pass"
+        : hasOrg
+          ? "na"
+          : "warn",
+      "medio",
+      productEntity
+        ? isVe
+          ? hasVeBimonedaSchema
+            ? "Offers en Schema con precios bimoneda (USD y VES)"
+            : "Offers en Schema con precio y disponibilidad declarados"
+          : "Schema Product/Offer con ofertas declaradas"
+        : hasOrg
+          ? "Página de inicio/marca (schema Organization activo; Product en catálogo)"
+          : "Página sin nodo Product/Offer en JSON-LD (recomendado en fichas y catálogo)",
+      productEntity && isVe && !hasVeBimonedaSchema
+        ? "Declara ofertas complementarias en USD y VES (a tasa oficial BCV) en el array offers de cada producto."
+        : undefined,
+    ),
+  );
+
+  // ==========================================
+  // PILAR 3: AEO & Visibilidad en IA
+  // ==========================================
+  // Extractabilidad BLUF (Bottom Line Up Front)
+  const headingMatches = [
+    ...html.matchAll(/<(h[23])\b[^>]*>([\s\S]*?)<\/\1>([\s\S]*?)(?=<(?:h[123]|footer|nav)\b|$)/gi),
+  ];
+  let blufPassed = 0;
+  let blufEvaluated = 0;
+  const fluffyStarters =
+    /^(en\s+el\s+mundo\s+de\s+hoy|como\s+es\s+bien\s+sabido|es\s+importante\s+destacar|a\s+lo\s+largo\s+del\s+tiempo|cuando\s+se\s+trata\s+de|hoy\s+en\s+d[ií]a|en\s+la\s+actualidad)/i;
+
+  for (const hm of headingMatches) {
+    const sectionContent = hm[3] ?? "";
+    const paras = [...sectionContent.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)]
+      .map((m) =>
+        (m[1] ?? "")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim(),
+      )
+      .filter((p) => p.length > 15);
+    const plainContent = sectionContent
+      .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (plainContent.length < 25) continue;
+    blufEvaluated++;
+    const firstText = paras[0] || plainContent;
+    const wordCount = firstText.split(/\s+/).length;
+    const isFluffy = fluffyStarters.test(firstText);
+
+    if (!isFluffy && wordCount <= 120) {
+      blufPassed++;
+    }
+  }
+
+  const blufRatio = blufEvaluated === 0 ? 0 : blufPassed / blufEvaluated;
+  out.push(
+    mk(
+      "bluf",
+      gAeo,
+      "Extractabilidad BLUF (Bottom Line Up Front)",
+      blufEvaluated === 0
+        ? "na"
+        : blufRatio >= 0.65
+          ? "pass"
+          : blufRatio >= 0.35
+            ? "warn"
+            : "fail",
+      "alto",
+      blufEvaluated === 0
+        ? "Sin secciones H2/H3 con párrafos de contenido para evaluar BLUF"
+        : `${blufPassed} de ${blufEvaluated} secciones (${pct(blufPassed, blufEvaluated)} %) inician con respuestas directas y concisas (<120 palabras)`,
+      blufRatio >= 0.65 || blufEvaluated === 0
+        ? undefined
+        : "Aplica la regla BLUF: coloca la respuesta directa, cifras y términos clave en las primeras 1–3 frases bajo cada encabezado.",
+    ),
+  );
+
+  // Preguntas Conversacionales (People Also Ask)
+  const h2h3 = [...text(html, "h2"), ...text(html, "h3")];
+  const questionRegex =
+    /^[¿?]|(\?|\b(c[oó]mo|cu[aá]l|cu[aá]les|d[oó]nde|qu[eé]|por\s*qu[eé]|cu[aá]nto|cu[aá]ntos|cu[aá]ndo|how|what|where|why|can\b))/i;
+  const paaQuestions = h2h3.filter((h) => questionRegex.test(h));
+  out.push(
+    mk(
+      "paa_questions",
+      gAeo,
+      "Preguntas Conversacionales (People Also Ask)",
+      h2h3.length === 0
+        ? "na"
+        : paaQuestions.length >= 2
+          ? "pass"
+          : "warn",
+      "medio",
+      h2h3.length === 0
+        ? "Sin encabezados H2/H3 para evaluar formato de preguntas"
+        : paaQuestions.length > 0
+          ? `${paaQuestions.length} de ${h2h3.length} encabezados H2/H3 usan formato de pregunta conversacional («${paaQuestions[0].slice(0, 45)}»...)`
+          : `${h2h3.length} encabezados H2/H3 evaluados; ninguno usa formato interrogativo conversacional`,
+      h2h3.length === 0 || paaQuestions.length >= 2
+        ? undefined
+        : 'Reformula al menos 2–3 encabezados H2/H3 como preguntas naturales que los usuarios hacen en Google o ChatGPT (ej. «¿Cómo funciona la compra asistida?», «¿Qué métodos de pago aceptan?»).',
+    ),
+  );
+
+  // Rastreadores de IA en robots.txt
+  const hasRobots = robots?.status === 200;
+  const targetAiBots = ["GPTBot", "PerplexityBot", "ClaudeBot", "Google-Extended"];
+  const blockedBots: string[] = [];
+  const allowedBots: string[] = [];
+
+  if (hasRobots && robots?.body) {
+    const rBody = robots.body;
+    for (const bot of targetAiBots) {
+      const botPattern = new RegExp(
+        `User-agent:\\s*${bot}[\\s\\S]*?Disallow:\\s*\\/(?=[\\r\\n]|$)`,
+        "i",
+      );
+      if (botPattern.test(rBody)) {
+        blockedBots.push(bot);
+      } else {
+        allowedBots.push(bot);
+      }
+    }
+  }
+
+  out.push(
+    mk(
+      "ai_crawlers",
+      gAeo,
+      "Rastreadores de IA en robots.txt (AEO/GEO)",
+      !hasRobots
+        ? "na"
+        : blockedBots.length === 0
+          ? "pass"
+          : "warn",
+      "alto",
+      !hasRobots
+        ? "Sin robots.txt para evaluar rastreadores de IA"
+        : blockedBots.length === 0
+          ? "Permite indexación de asistentes de IA: GPTBot, PerplexityBot, ClaudeBot, Google-Extended"
+          : `Bloquea ${blockedBots.join(", ")} en robots.txt; permite ${allowedBots.join(", ") || "ninguno"}`,
+      blockedBots.length > 0
+        ? `Configura robots.txt (o reglas de Cloudflare AI Scrapers) para permitir ${blockedBots.join(", ")} si deseas aparecer en respuestas de ChatGPT, Claude o Perplexity.`
+        : undefined,
+    ),
+  );
+
+  // Archivo llms.txt para asistentes LLM
+  const llmsInRobots = /LLMs-txt:\s*(https?:\/\/[^\s]+|\/[^\s]+)/i.test(robots?.body ?? "");
+  const hasLlms200 = llms?.status === 200;
+  const isLlmsMarkdown = /^#\s+[^\r\n]+/m.test(llms?.body ?? "");
+  out.push(
+    mk(
+      "llms",
+      gAeo,
+      "Archivo llms.txt para asistentes de IA",
+      hasLlms200 && isLlmsMarkdown ? "pass" : hasLlms200 || llmsInRobots ? "warn" : "warn",
+      "bajo",
+      hasLlms200
+        ? `HTTP 200: /llms.txt presente con formato Markdown (${Math.round((llms?.body?.length ?? 0) / 1024) || 1} KB)${llmsInRobots ? " y declarado en robots.txt" : ""}`
+        : llmsInRobots
+          ? "Declarado en robots.txt pero no respondió 200 OK"
+          : "No se encontró archivo /llms.txt en la raíz",
+      hasLlms200 && isLlmsMarkdown
+        ? undefined
+        : "Publica un archivo /llms.txt en la raíz resumiendo tu catálogo, marcas, cobertura y políticas de compra para agentes de IA.",
+    ),
+  );
+
+  // ==========================================
+  // PILAR 4: Confianza & Conversión Venezuela
+  // ==========================================
+  const plain = html
+    .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ");
+
+  // WhatsApp flotante
+  const hasWaLink = /(wa\.me|api\.whatsapp\.com|whatsapp:\/\/)/i.test(html);
+  const hasWa58 = /(wa\.me\/(?:0058|58|\+58)|\+58\s*4\d{2}|584\d{9})/i.test(html);
+  const hasWa57 = /(wa\.me\/(?:0057|57|\+57)|\+57\s*3\d{2})/i.test(html);
+  const waPass = isVe ? hasWa58 : hasWa57 || hasWaLink;
+  out.push(
+    mk(
+      "trust_whatsapp",
+      gConfianza,
+      isVe ? "Canal de contacto WhatsApp (+58)" : "Canal de contacto WhatsApp",
+      waPass ? "pass" : hasWaLink ? "warn" : "fail",
+      "alto",
+      waPass
+        ? isVe
+          ? "Enlace WhatsApp detectado con formato internacional de Venezuela (+58)"
+          : "Enlace WhatsApp de contacto presente"
+        : hasWaLink
+          ? isVe
+            ? "Enlace WhatsApp detectado pero sin código internacional +58 explícito"
+            : "Enlace WhatsApp detectado"
+          : "Sin enlace ni botón de WhatsApp visible",
+      waPass
+        ? undefined
+        : isVe
+          ? "Añade un botón flotante de WhatsApp con formato internacional (+58) para atender dudas y cerrar ventas."
+          : "Añade un botón de WhatsApp para atención y soporte directo.",
+    ),
+  );
+
+  // Métodos de pago locales
+  const hasPagoMovil = /pago\s*m[oó]vil|pagomovil/i.test(plain);
+  const hasZelle = /zelle/i.test(plain);
+  const hasBcv = /bcv|tasa\s*oficial|bol[ií]vares|bs\b/i.test(plain);
+  const hasCoPayments =
+    /(contraentrega|contra\s*entrega|pago\s*seguro|tarjeta|pse|transferencia|bancolombia)/i.test(
+      plain,
+    );
+  const localPayments: string[] = [];
+  if (hasPagoMovil) localPayments.push("Pago Móvil");
+  if (hasZelle) localPayments.push("Zelle");
+  if (hasBcv) localPayments.push("Tasa BCV / Bs.");
+
+  const passPayments = isVe ? localPayments.length >= 2 : hasCoPayments;
+  out.push(
+    mk(
+      "trust_payments",
+      gConfianza,
+      isVe
+        ? "Métodos de pago locales (Pago Móvil, Zelle, BCV)"
+        : "Métodos de pago transparentes",
+      passPayments ? "pass" : localPayments.length > 0 || hasCoPayments ? "warn" : "fail",
+      "alto",
+      isVe
+        ? localPayments.length > 0
+          ? `Métodos detectados en texto: ${localPayments.join(", ")}`
+          : "No se encontraron menciones a Pago Móvil, Zelle o bolívares a tasa oficial BCV"
+        : hasCoPayments
+          ? "Métodos de pago a la vista (contraentrega / pagos seguros)"
+          : "No se encontraron métodos de pago claros",
+      passPayments
+        ? undefined
+        : isVe
+          ? "Muestra claramente en la página los métodos de pago aceptados: Pago Móvil, Zelle y bolívares calculados a la tasa oficial BCV."
+          : "Muestra claramente los métodos de pago (contraentrega, PSE o tarjetas).",
+    ),
+  );
+
+  // Logística y despacho
+  const localCouriers: string[] = [];
+  if (/mrw/i.test(plain)) localCouriers.push("MRW");
+  if (/zoom/i.test(plain)) localCouriers.push("Zoom");
+  if (/tealca/i.test(plain)) localCouriers.push("Tealca");
+  if (/flash\s*courier/i.test(plain)) localCouriers.push("Flash Courier");
+  if (/domesa/i.test(plain)) localCouriers.push("Domesa");
+  if (/dropi/i.test(plain)) localCouriers.push("Dropi");
+
+  const hasCoShipping =
+    /(env[ií]o|despacho|entrega|coordinadora|envia|interrapidisimo|servientrega)/i.test(plain);
+  const passShipping = isVe ? localCouriers.length >= 1 : hasCoShipping;
+
+  out.push(
+    mk(
+      "trust_shipping",
+      gConfianza,
+      isVe
+        ? "Logística y despacho nacional (MRW, Zoom, Tealca)"
+        : "Envíos y transportadoras a la vista",
+      passShipping ? "pass" : "warn",
+      "alto",
+      isVe
+        ? localCouriers.length > 0
+          ? `Transportadoras reconocidas detectadas: ${localCouriers.join(", ")}`
+          : "No se mencionan empresas de despacho nacional (MRW, Zoom, Tealca o Flash Courier)"
+        : hasCoShipping
+          ? "Información de envíos visible en el contenido"
+          : "Sin menciones a envíos o transportadoras",
+      passShipping
+        ? undefined
+        : isVe
+          ? "Indica las empresas de encomienda con despacho nacional (MRW, Zoom, Tealca) y delivery en Caracas para dar máxima certidumbre de entrega."
+          : "Indica tiempos de entrega y transportadoras reconocidas.",
+    ),
+  );
+
   return out;
 }
 

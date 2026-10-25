@@ -183,38 +183,49 @@ export function registerGrowthApi(app: Hono, rt: Runtime): void {
     const b = (await c.req.json().catch(() => ({}))) as { kind?: string; url?: string };
     if (b.kind !== "seo" && b.kind !== "diseno")
       return c.json({ ok: false, message: "Elige SEO o diseño." }, 400);
+
+    const store = await db.prisma.store.findUnique({ where: { id: sid(c) } });
+    let targetUrl = b.url?.trim();
+    if (!targetUrl) {
+      const storeUrl = store?.url?.trim();
+      if (
+        storeUrl &&
+        !storeUrl.includes("apiv2backecom") &&
+        !storeUrl.includes("example") &&
+        !storeUrl.includes("localhost")
+      ) {
+        targetUrl = storeUrl.startsWith("http") ? storeUrl : `https://${storeUrl}`;
+      } else {
+        targetUrl = "https://davebeauty.daverod.tech";
+      }
+    }
+
     let report: Awaited<ReturnType<typeof auditUrl>>;
-    if (b.url) {
-      if (process.env.TRAXO_AUDIT_LIVE !== "1") {
-        return c.json(
-          {
-            ok: false,
-            message:
-              "Auditar URLs reales está desactivado en esta instalación. Actívalo con TRAXO_AUDIT_LIVE=1; mientras tanto puedes ver el informe de ejemplo.",
-          },
-          403,
-        );
-      }
-      try {
-        report = await auditUrl(b.kind, b.url);
-      } catch (e) {
-        return c.json(
-          {
-            ok: false,
-            message:
-              e instanceof UnsafeUrlError
-                ? e.message
-                : `No pude leer esa página: ${(e as Error).message}`,
-          },
-          400,
-        );
-      }
+    // Permitir auditoría en vivo por defecto para URLs públicas y seguras (desactivar solo si explícitamente TRAXO_AUDIT_LIVE === "0")
+    if (process.env.TRAXO_AUDIT_LIVE === "0") {
+      report = sampleAudit(b.kind, targetUrl);
     } else {
-      const store = await db.prisma.store.findUnique({ where: { id: sid(c) } });
-      report = sampleAudit(
-        b.kind,
-        store?.url?.startsWith("http") ? store.url : `https://${store?.url ?? "tienda.example"}`,
-      );
+      try {
+        report = await auditUrl(b.kind, targetUrl);
+      } catch (e) {
+        if (e instanceof UnsafeUrlError) {
+          return c.json({ ok: false, message: e.message }, 400);
+        }
+        if (!b.url) {
+          console.warn(
+            `[Audit] No se pudo auditar en vivo ${targetUrl}: ${(e as Error).message}. Se usa informe de muestra.`,
+          );
+          report = sampleAudit(b.kind, targetUrl);
+        } else {
+          return c.json(
+            {
+              ok: false,
+              message: `No pude leer esa página: ${(e as Error).message}`,
+            },
+            400,
+          );
+        }
+      }
     }
     const id = newId("aud");
     await db.prisma.storeAudit.create({

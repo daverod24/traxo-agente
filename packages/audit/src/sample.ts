@@ -24,16 +24,21 @@ export function sampleAudit(
     "Conecta una tienda y lanza la auditoría sobre su URL para ver sus datos.",
   ];
   if (kind === "seo") {
+    const gTecnico = "SEO Técnico";
+    const gSchema = "Schema & Knowledge Graph";
+    const gAeo = "AEO & Visibilidad en IA";
+    const gConfianza = isVe ? "Confianza & Conversión Venezuela" : "Confianza & Conversión Local";
+
     return buildReport(
       "seo",
       "sample",
       url,
       [
-        c("https", "Técnico", "Conexión segura (HTTPS)", "pass", "alto", url),
-        c("status", "Técnico", "La página responde bien", "pass", "alto", "HTTP 200"),
+        c("https", gTecnico, "Conexión segura (HTTPS)", "pass", "alto", url),
+        c("status", gTecnico, "La página responde bien", "pass", "alto", "HTTP 200"),
         c(
           "title",
-          "Contenido",
+          gTecnico,
           "Título de la página",
           "warn",
           "alto",
@@ -44,7 +49,7 @@ export function sampleAudit(
         ),
         c(
           "desc",
-          "Contenido",
+          gTecnico,
           "Meta descripción",
           "fail",
           "alto",
@@ -53,7 +58,7 @@ export function sampleAudit(
         ),
         c(
           "h1",
-          "Contenido",
+          gTecnico,
           "Un solo H1",
           "pass",
           "medio",
@@ -61,26 +66,26 @@ export function sampleAudit(
         ),
         c(
           "canonical",
-          "Técnico",
+          gTecnico,
           "URL canónica",
           "warn",
           "medio",
           "No se encontró",
           'Añade <link rel="canonical"> para evitar contenido duplicado.',
         ),
-        c("lang", "Técnico", "Idioma declarado", "pass", "bajo", isVe ? 'lang="es-VE"' : 'lang="es-CO"'),
+        c("lang", gTecnico, "Idioma declarado", "pass", "bajo", isVe ? 'lang="es-VE"' : 'lang="es-CO"'),
         c(
           "viewport",
-          "Técnico",
+          gTecnico,
           "Viewport para móvil",
           "pass",
           "alto",
           "width=device-width, initial-scale=1",
         ),
-        c("noindex", "Técnico", "Indexable (sin noindex)", "pass", "alto", "Sin etiqueta robots"),
+        c("noindex", gTecnico, "Indexable (sin noindex)", "pass", "alto", "Sin etiqueta robots"),
         c(
           "og",
-          "Redes",
+          gTecnico,
           "Vista previa al compartir (Open Graph)",
           "warn",
           "medio",
@@ -89,16 +94,27 @@ export function sampleAudit(
         ),
         c(
           "alt",
-          "Contenido",
+          gTecnico,
           "Imágenes con texto alternativo",
           "fail",
           "medio",
           "9 de 24 (38 %)",
           "Describe cada imagen de producto en el alt.",
         ),
+        c("robots", gTecnico, "robots.txt", "pass", "medio", "HTTP 200"),
+        c("sitemap", gTecnico, "sitemap.xml", "pass", "medio", "HTTP 200"),
+        c(
+          "cwv",
+          gTecnico,
+          "Core Web Vitals (LCP, CLS, INP)",
+          "na",
+          "alto",
+          "Requiere medir en un navegador real.",
+          "Mídelo con PageSpeed Insights.",
+        ),
         c(
           "schema",
-          "Datos estructurados",
+          gSchema,
           "Schema de producto y entidad (JSON-LD)",
           "fail",
           "alto",
@@ -107,25 +123,116 @@ export function sampleAudit(
             ? "Añade Organization o Product con offers (precio en USD o VES a tasa BCV, disponibilidad)."
             : "Añade Product con offers (precio, moneda COP, disponibilidad).",
         ),
-        c("robots", "Rastreo", "robots.txt", "pass", "medio", "HTTP 200"),
-        c("sitemap", "Rastreo", "sitemap.xml", "pass", "medio", "HTTP 200"),
         c(
-          "llms",
-          "Visibilidad en IA",
-          "llms.txt para asistentes de IA",
+          "schema_graph",
+          gSchema,
+          "Árbol @graph estructurado con @id",
           "warn",
-          "bajo",
-          "HTTP 404",
-          "Opcional: publica /llms.txt resumiendo tu catálogo.",
+          "alto",
+          "No se detectó un árbol @graph unificado con @id deterministas.",
+          'Unifica los esquemas bajo un único array "@graph" con @id explícitos.',
         ),
         c(
-          "cwv",
-          "Rendimiento",
-          "Core Web Vitals (LCP, CLS, INP)",
-          "na",
+          "schema_org",
+          gSchema,
+          "Entidad Organization y disambiguación (sameAs)",
+          "warn",
+          "medio",
+          "Sin entidad Organization declarada en el código fuente.",
+          "Agrega Organization con logo, descripción, founder y sameAs a redes sociales.",
+        ),
+        c(
+          "schema_faq",
+          gSchema,
+          "Schema FAQPage para Rich Snippets en IA",
+          "warn",
+          "medio",
+          "No se encontró schema FAQPage.",
+          "Añade FAQPage con preguntas frecuentes para respuestas directas en Google y asistentes IA.",
+        ),
+        c(
+          "schema_product",
+          gSchema,
+          isVe
+            ? "Ofertas de Producto con bimoneda en Schema (USD / Bs. BCV)"
+            : "Ofertas de Producto en Schema (Product / Offer)",
+          "warn",
+          "medio",
+          isVe
+            ? "Precios no estructurados en JSON-LD en ofertas USD / VES"
+            : "Precios no estructurados en JSON-LD",
+          isVe
+            ? "Publica ofertas con priceCurrency USD y VES en los productos."
+            : "Publica ofertas con priceCurrency COP en los productos.",
+        ),
+        c(
+          "bluf",
+          gAeo,
+          "Extractabilidad BLUF (Bottom Line Up Front)",
+          "warn",
           "alto",
-          "Requiere medir en un navegador real.",
-          "Mídelo con PageSpeed Insights.",
+          "3 de 5 secciones usan introducciones largas antes de dar la respuesta.",
+          "Aplica BLUF: responde en la primera o segunda oración bajo cada encabezado.",
+        ),
+        c(
+          "paa_questions",
+          gAeo,
+          "Preguntas Conversacionales (People Also Ask)",
+          "warn",
+          "medio",
+          "0 de 6 encabezados H2/H3 usan formato de pregunta conversacional.",
+          "Reformula encabezados como preguntas de búsqueda (ej. «¿Cómo funciona...?»).",
+        ),
+        c(
+          "ai_crawlers",
+          gAeo,
+          "Rastreadores de IA en robots.txt (AEO/GEO)",
+          "pass",
+          "alto",
+          "Permite indexación de asistentes de IA: GPTBot, PerplexityBot, ClaudeBot, Google-Extended",
+        ),
+        c(
+          "llms",
+          gAeo,
+          "Archivo llms.txt para asistentes de IA",
+          "warn",
+          "medio",
+          "HTTP 404: no se encontró /llms.txt",
+          "Publica un archivo /llms.txt en la raíz resumiendo el catálogo para LLMs.",
+        ),
+        c(
+          "trust_whatsapp",
+          gConfianza,
+          "Canal de contacto WhatsApp (+58)",
+          "pass",
+          "alto",
+          isVe
+            ? "Botón de WhatsApp activo con número internacional (+58)"
+            : "Botón de WhatsApp activo (+57)",
+        ),
+        c(
+          "trust_payments",
+          gConfianza,
+          isVe
+            ? "Métodos de pago locales (Pago Móvil, Zelle, BCV)"
+            : "Métodos de pago transparentes",
+          "pass",
+          "alto",
+          isVe
+            ? "Menciona Pago Móvil, Zelle y tasa oficial BCV"
+            : "Menciona contraentrega y pagos digitales",
+        ),
+        c(
+          "trust_shipping",
+          gConfianza,
+          isVe
+            ? "Logística y despacho nacional (MRW, Zoom, Tealca)"
+            : "Envíos y transportadoras a la vista",
+          "pass",
+          "alto",
+          isVe
+            ? "Menciona despacho con Flash Courier y envíos nacionales por MRW"
+            : "Menciona transportadoras nacionales reconocidas",
         ),
       ],
       notes,

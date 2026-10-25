@@ -7,6 +7,7 @@
     ".": "./src/app.ts"
   },
   "scripts": {
+    "build": "echo '@traxo/worker ready'",
     "dev": "tsx watch src/main.ts",
     "start": "tsx src/main.ts",
     "mcp": "tsx src/mcp-stdio.ts"
