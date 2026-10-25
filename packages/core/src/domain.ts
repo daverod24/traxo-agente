@@ -188,11 +188,14 @@ export const ProductSchema = z.object({
   id: z.string(),
   externalId: z.string(),
   title: z.string(),
-  price: z.number().int().nonnegative(),
-  cost: z.number().int().nonnegative().optional(),
+  price: z.number().nonnegative(),
+  cost: z.number().nonnegative().optional(),
   weightGrams: z.number().int().positive().default(500),
   imageUrl: z.string().optional(),
   description: z.string().optional(),
+  sku: z.string().optional(),
+  variations: z.array(z.record(z.string(), z.unknown())).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type Product = z.infer<typeof ProductSchema>;
 

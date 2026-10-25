@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { cop, timeEs, vesFromUsd } from "./format.ts";
 
 /* ---------- Iconos: trazo 1,75, 24×24, puntas redondeadas, currentColor. `spark` es solo del agente. ---------- */
@@ -278,6 +278,7 @@ export function Button(props: {
   type?: "button" | "submit";
   "data-tour"?: string;
   "aria-label"?: string;
+  style?: CSSProperties;
 }) {
   return (
     <button
@@ -288,6 +289,7 @@ export function Button(props: {
       title={props.title}
       data-tour={props["data-tour"]}
       aria-label={props["aria-label"]}
+      style={props.style}
     >
       {props.icon && <Icon name={props.icon} size={16} />}
       {props.children}

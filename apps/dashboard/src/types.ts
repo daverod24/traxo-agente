@@ -324,6 +324,8 @@ export type StoreStatus = {
   customers: number;
   orders: number;
   platform: string;
+  name?: string;
+  url?: string;
   demo?: boolean;
   connected?: boolean;
   profile: { sample?: boolean; rich?: boolean } | null;

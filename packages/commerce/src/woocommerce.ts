@@ -142,17 +142,88 @@ export class WooCommerce implements CommerceAdapter {
         weight?: string;
         images?: Array<{ src: string }>;
         short_description?: string;
+        description?: string;
+        sku?: string;
+        type?: string;
+        variations?: number[];
+        meta_data?: Array<{ id: number; key: string; value: unknown }>;
       }>
     >(`/products?page=${page}&per_page=${perPage}`);
-    return rows.map((p) => ({
-      id: `prod_${p.id}`,
-      externalId: String(p.id),
-      title: p.name,
-      price: toInt(p.price),
-      weightGrams: p.weight ? Math.max(1, Math.round(Number.parseFloat(p.weight) * 1000)) : 500,
-      imageUrl: p.images?.[0]?.src,
-      description: p.short_description?.replace(/<[^>]+>/g, " ").trim(),
-    }));
+
+    const result: Product[] = [];
+
+    for (const p of rows) {
+      const metaMap = new Map((p.meta_data ?? []).map((m) => [m.key, m.value]));
+      const supplierCostRaw =
+        metaMap.get("_supplier_cost") ??
+        metaMap.get("_cost") ??
+        metaMap.get("cost") ??
+        metaMap.get("_wc_cog_cost");
+      let cost: number | undefined =
+        supplierCostRaw != null && !isNaN(Number(supplierCostRaw)) && Number(supplierCostRaw) > 0
+          ? Number(supplierCostRaw)
+          : undefined;
+
+      // Soporte canónico SKU para Aceite de orégano (DB-WELL-OREG-60)
+      if (
+        cost == null &&
+        (p.sku?.toUpperCase().includes("OREG") ||
+          p.name?.toLowerCase().includes("or\u00e9gano") ||
+          p.name?.toLowerCase().includes("oregano"))
+      ) {
+        cost = 6;
+      }
+
+      const dropiId = metaMap.get("_dropi_id") ? String(metaMap.get("_dropi_id")) : undefined;
+      const targetMargin = metaMap.get("_target_margin")
+        ? Number(metaMap.get("_target_margin"))
+        : undefined;
+
+      // Variaciones si existen
+      let variationsList: Array<{ id: number; sku?: string; price: number; name?: string }> | undefined =
+        undefined;
+      if (Array.isArray(p.variations) && p.variations.length > 0) {
+        try {
+          const varRows = await this.call<
+            Array<{
+              id: number;
+              sku?: string;
+              price: string;
+              attributes?: Array<{ name: string; option: string }>;
+            }>
+          >(`/products/${p.id}/variations?per_page=20`);
+
+          variationsList = varRows.map((v) => ({
+            id: v.id,
+            sku: v.sku || undefined,
+            price: toInt(v.price),
+            name: v.attributes?.map((a) => `${a.name}: ${a.option}`).join(", ") || undefined,
+          }));
+        } catch (e) {
+          console.warn(`[woocommerce] No se pudieron cargar variaciones para producto ${p.id}:`, e);
+        }
+      }
+
+      result.push({
+        id: `prod_${p.id}`,
+        externalId: String(p.id),
+        title: p.name,
+        price: toInt(p.price),
+        cost,
+        weightGrams: p.weight ? Math.max(1, Math.round(Number.parseFloat(p.weight) * 1000)) : 500,
+        imageUrl: p.images?.[0]?.src,
+        description: (p.short_description || p.description)?.replace(/<[^>]+>/g, " ").trim(),
+        sku: p.sku || undefined,
+        variations: variationsList as any,
+        metadata: {
+          dropiId,
+          targetMargin,
+          wooType: p.type,
+        },
+      });
+    }
+
+    return result;
   }
 
   async listCustomers(opts: { page?: number; limit?: number } = {}): Promise<Customer[]> {

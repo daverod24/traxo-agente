@@ -60,7 +60,15 @@ export async function importStore(
       const found = await db.prisma.product.findFirst({
         where: { storeId, externalId: p.externalId },
       });
-      if (found) continue;
+      if (found) {
+        if (p.cost != null && found.cost !== p.cost) {
+          await db.prisma.product.update({
+            where: { id: found.id },
+            data: { cost: p.cost },
+          });
+        }
+        continue;
+      }
       await db.prisma.product.create({
         data: {
           id: newId("prod"),

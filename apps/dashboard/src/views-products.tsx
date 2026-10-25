@@ -5,11 +5,16 @@ import { plural, usd, vesFromUsd } from "./format.ts";
 import type { Product, StoreStatus } from "./types.ts";
 import { Button, Icon, KpiCard, ToneBadge } from "./ui.tsx";
 import type { Ctx } from "./views.tsx";
+import { PricingCockpit } from "./views-pricing-cockpit.tsx";
 
 export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
   const { data: productsData, reload, loading } = useResource<Product[]>("/api/products", ctx.tick);
   const store = useResource<StoreStatus>("/api/store/status", ctx.tick).data;
   const [filter, setFilter] = useState("");
+
+  // Estado para el Cockpit Financiero
+  const [showCockpit, setShowCockpit] = useState(false);
+  const [cockpitProductId, setCockpitProductId] = useState<string | undefined>(undefined);
 
   // Estado para la administración / edición del producto
   const [editing, setEditing] = useState<Product | null>(null);
@@ -106,10 +111,20 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
           </p>
         </div>
         <div className="row" style={{ gap: 8 }}>
+          <Button
+            variant="agent"
+            icon="chart"
+            onClick={() => {
+              setCockpitProductId(undefined);
+              setShowCockpit(true);
+            }}
+          >
+            Simulador Financiero & Cockpit
+          </Button>
           <Button icon="refresh" onClick={reload} disabled={loading}>
             {loading ? "Actualizando..." : "Actualizar"}
           </Button>
-          <Button variant="agent" icon="plug" onClick={() => ctx.go("conexiones")}>
+          <Button icon="plug" onClick={() => ctx.go("conexiones")}>
             Sincronizar tienda
           </Button>
         </div>
@@ -321,13 +336,24 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
                 )}
               </div>
 
-              <div style={{ marginTop: 4 }}>
+              <div className="row" style={{ marginTop: 6, gap: 8 }}>
                 <Button
-                  style={{ width: "100%", justifyContent: "center" }}
+                  variant="agent"
+                  style={{ flex: 1, justifyContent: "center", fontSize: "0.82rem", padding: "6px 8px" }}
+                  icon="chart"
+                  onClick={() => {
+                    setCockpitProductId(p.id);
+                    setShowCockpit(true);
+                  }}
+                >
+                  Cockpit Financiero
+                </Button>
+                <Button
+                  style={{ flex: 1, justifyContent: "center", fontSize: "0.82rem", padding: "6px 8px" }}
                   icon="edit"
                   onClick={() => openEdit(p)}
                 >
-                  Administrar / Editar
+                  Administrar
                 </Button>
               </div>
             </div>
@@ -525,6 +551,21 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
               </Button>
             </div>
           </div>
+        </Sheet>
+      )}
+
+      {/* Sheet para el Cockpit Financiero & Simulador de Unit Economics */}
+      {showCockpit && (
+        <Sheet
+          title="Cockpit Financiero & Simulador de Rentabilidad"
+          onClose={() => setShowCockpit(false)}
+        >
+          <PricingCockpit
+            ctx={ctx}
+            products={products}
+            initialProductId={cockpitProductId}
+            onClose={() => setShowCockpit(false)}
+          />
         </Sheet>
       )}
     </div>
