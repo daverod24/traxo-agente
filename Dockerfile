@@ -21,6 +21,8 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm db:generate
 
 # Compilar la Single Page Application (React 19 + Vite)
+ARG CACHEBUST
+RUN echo "Building Vite Dashboard cachebust=${CACHEBUST}"
 RUN pnpm --filter @traxo/dashboard build
 
 ENV PORT=8787

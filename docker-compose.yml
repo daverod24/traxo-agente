@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        CACHEBUST: "20261025-v10"
     container_name: traxo_app
     restart: unless-stopped
     expose:
