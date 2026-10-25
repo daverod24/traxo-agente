@@ -161,8 +161,8 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
               width: "100%",
               padding: "10px 14px",
               borderRadius: "8px",
-              border: "1px solid var(--border)",
-              background: "var(--card-bg, #fff)",
+              border: "1px solid var(--line)",
+              background: "var(--surface)",
               color: "inherit",
               fontSize: "0.9rem",
             }}
@@ -391,12 +391,12 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
                   height: 90,
                   borderRadius: 8,
                   overflow: "hidden",
-                  backgroundColor: "var(--card-bg, #fff)",
+                  backgroundColor: "var(--surface-sunken)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   flexShrink: 0,
-                  border: "1px solid var(--border)",
+                  border: "1px solid var(--line)",
                 }}
               >
                 {form.imageUrl.trim() ? (
@@ -557,6 +557,7 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
       {/* Sheet para el Cockpit Financiero & Simulador de Unit Economics */}
       {showCockpit && (
         <Sheet
+          wide
           title="Cockpit Financiero & Simulador de Rentabilidad"
           onClose={() => setShowCockpit(false)}
         >

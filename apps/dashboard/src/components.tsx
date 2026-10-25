@@ -11,10 +11,12 @@ const isNarrow = (): boolean =>
 /* ---------- Hoja: lateral en escritorio, inferior arrastrable en móvil ---------- */
 export function Sheet({
   title,
+  wide = false,
   onClose,
   children,
 }: {
   title: string;
+  wide?: boolean;
   onClose: () => void;
   children: ReactNode;
 }) {
@@ -93,7 +95,7 @@ export function Sheet({
       <div className={`scrim ${open ? "open" : ""}`} onClick={close} aria-hidden="true" />
       <aside
         ref={el}
-        className={`sheet ${open ? "open" : ""}`}
+        className={`sheet ${wide ? "wide" : ""} ${open ? "open" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}

@@ -8,6 +8,7 @@
   --mustard-600: #d99a1e;
   --bg: #f4f3ef;
   --surface: #ffffff;
+  --card-bg: #ffffff;
   --surface-sunken: #ecebe6;
   --surface-hover: #f4f3ef;
   --surface-selected: #ffedb0;
@@ -55,6 +56,7 @@
 :root[data-theme="dark"] {
   --bg: #141414;
   --surface: #1e1e1c;
+  --card-bg: #1e1e1c;
   --surface-sunken: #181817;
   --surface-hover: #262624;
   --surface-selected: #3a3013;
@@ -1106,6 +1108,9 @@ p {
 .sheet.open {
   transform: none;
   opacity: 1;
+}
+.sheet.wide {
+  width: min(880px, 100vw);
 }
 .sheet .grab {
   display: none;
