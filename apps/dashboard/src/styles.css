@@ -1093,10 +1093,10 @@ p {
 }
 .sheet {
   position: fixed;
-  z-index: 41;
-  background: var(--bg);
+  z-index: 100;
+  background-color: var(--bg);
   border-left: 1px solid var(--line);
-  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.35);
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.4);
   display: flex;
   flex-direction: column;
   outline: none;
@@ -1122,16 +1122,19 @@ p {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 20px 24px 12px;
+  padding: 16px 24px;
+  background-color: var(--bg);
+  border-bottom: 1px solid var(--line);
 }
 .sheet .body {
-  padding: 4px 24px 32px;
+  padding: 16px 24px 32px;
   overflow: auto;
   overscroll-behavior: contain;
   display: grid;
   gap: 20px;
   align-content: start;
   flex: 1;
+  background-color: var(--bg);
 }
 
 /* ---------- Avisos, toast, vacío, esqueleto ---------- */
