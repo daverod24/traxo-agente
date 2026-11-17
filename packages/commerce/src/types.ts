@@ -7,6 +7,12 @@ export type FulfillmentInput = {
   notifyCustomer?: boolean;
 };
 
+export type ProductWebhookEvent = {
+  action: "created" | "updated" | "deleted";
+  productId: string;
+  product?: Product;
+};
+
 /** Todo lo que Traxo necesita de una tienda. Un adapter por plataforma; el agente no sabe cuál es. */
 export interface CommerceAdapter {
   readonly platform: Platform;
@@ -27,4 +33,9 @@ export interface CommerceAdapter {
     headers: Record<string, string | undefined>,
     payload: unknown,
   ): Order | undefined;
+  /** Convierte el payload de la plataforma en un evento de producto (o undefined si no es evento de producto). */
+  normalizeProductWebhook?(
+    headers: Record<string, string | undefined>,
+    payload: unknown,
+  ): ProductWebhookEvent | undefined;
 }

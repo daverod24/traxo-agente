@@ -61,6 +61,79 @@ export function createApp(deps: AppDeps): Hono {
       return c.json({ ok: true, duplicate: true });
     }
 
+    // Detección y procesamiento de webhooks de catálogo de producto en tiempo real
+    const topic = headers["x-wc-webhook-topic"] ?? "";
+    if (
+      topic.startsWith("product.") ||
+      (payload as { resource?: string }).resource === "product" ||
+      ((payload as { action?: string }).action && (payload as { type?: string }).type === "product")
+    ) {
+      const prodEvent = adapter.normalizeProductWebhook?.(headers, payload);
+      if (prodEvent) {
+        const { action, productId, product } = prodEvent;
+        const storeId = adapter.storeId;
+
+        if (action === "deleted") {
+          await deps.db.prisma.product.deleteMany({
+            where: { storeId, externalId: productId },
+          });
+          deps.bus.emit(
+            "product.synced",
+            `Producto #${productId} eliminado en vivo vía webhook de WooCommerce.`,
+            { data: { storeId, productId, action } },
+          );
+          return c.json({ ok: true, action: "deleted", productId });
+        }
+
+        if (product) {
+          const found = await deps.db.prisma.product.findFirst({
+            where: { storeId, externalId: productId },
+          });
+
+          if (found) {
+            await deps.db.prisma.product.update({
+              where: { id: found.id },
+              data: {
+                title: product.title,
+                price: product.price,
+                cost: product.cost ?? found.cost,
+                weightGrams: product.weightGrams,
+                imageUrl: product.imageUrl ?? found.imageUrl,
+                description: product.description ?? found.description,
+              },
+            });
+            deps.bus.emit(
+              "product.synced",
+              `Producto "${product.title}" actualizado en vivo vía webhook de WooCommerce.`,
+              { data: { storeId, productId, action: "updated" } },
+            );
+            return c.json({ ok: true, action: "updated", productId });
+          }
+
+          const { newId } = await import("@traxo/core");
+          await deps.db.prisma.product.create({
+            data: {
+              id: newId("prod"),
+              storeId,
+              externalId: productId,
+              title: product.title,
+              price: product.price,
+              cost: product.cost ?? null,
+              weightGrams: product.weightGrams,
+              imageUrl: product.imageUrl ?? null,
+              description: product.description ?? null,
+            },
+          });
+          deps.bus.emit(
+            "product.synced",
+            `Nuevo producto "${product.title}" sincronizado vía webhook de WooCommerce.`,
+            { data: { storeId, productId, action: "created" } },
+          );
+          return c.json({ ok: true, action: "created", productId });
+        }
+      }
+    }
+
     const order = adapter.normalizeOrderWebhook(headers, payload);
     if (!order) return c.json({ ok: true, ignored: true });
 

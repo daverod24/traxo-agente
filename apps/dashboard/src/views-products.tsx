@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
-import { patch, useResource } from "./api.ts";
+import gsap from "gsap";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { patch, post, useResource } from "./api.ts";
 import { EmptyState, Sheet } from "./components.tsx";
 import { plural, usd, vesFromUsd } from "./format.ts";
 import type { Product, StoreStatus } from "./types.ts";
@@ -11,6 +12,58 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
   const { data: productsData, reload, loading } = useResource<Product[]>("/api/products", ctx.tick);
   const store = useResource<StoreStatus>("/api/store/status", ctx.tick).data;
   const [filter, setFilter] = useState("");
+  const [syncing, setSyncing] = useState(false);
+
+  const gridRef = useRef<HTMLDivElement>(null);
+  const syncBadgeRef = useRef<HTMLSpanElement>(null);
+
+  // Animación de pulso vivo en el indicador de sincronización (respetando prefers-reduced-motion)
+  useEffect(() => {
+    if (!syncBadgeRef.current) return;
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduced) return;
+
+    const ctxMm = gsap.context(() => {
+      if (syncing) {
+        gsap.to(syncBadgeRef.current, {
+          scale: 1.05,
+          opacity: 0.7,
+          repeat: -1,
+          yoyo: true,
+          duration: 0.6,
+          ease: "power1.inOut",
+        });
+      } else {
+        gsap.killTweensOf(syncBadgeRef.current);
+        gsap.to(syncBadgeRef.current, { scale: 1, opacity: 1, duration: 0.3 });
+      }
+    });
+
+    return () => ctxMm.revert();
+  }, [syncing]);
+
+  // Entrada animada fluida de las tarjetas de productos
+  useEffect(() => {
+    if (!gridRef.current || (productsData ?? []).length === 0) return;
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduced) return;
+
+    const cards = gridRef.current.querySelectorAll(".product-card-item");
+    if (!cards.length) return;
+
+    const ctxMm = gsap.context(() => {
+      gsap.from(cards, {
+        opacity: 0,
+        y: 20,
+        duration: 0.5,
+        stagger: 0.05,
+        ease: "power2.out",
+        clearProps: "transform,opacity",
+      });
+    }, gridRef);
+
+    return () => ctxMm.revert();
+  }, [(productsData ?? []).length]);
 
   // Estado para el Cockpit Financiero
   const [showCockpit, setShowCockpit] = useState(false);
@@ -43,10 +96,38 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
     return products.filter(
       (p) =>
         p.title.toLowerCase().includes(q) ||
+        (p.sku && p.sku.toLowerCase().includes(q)) ||
         (p.externalId && String(p.externalId).toLowerCase().includes(q)) ||
+        (p.dropiId && String(p.dropiId).toLowerCase().includes(q)) ||
         (p.description && p.description.toLowerCase().includes(q)),
     );
   }, [products, filter]);
+
+  const handleSyncStore = async () => {
+    setSyncing(true);
+    try {
+      const res = await post<{
+        ok: boolean;
+        total: number;
+        added: number;
+        updated: number;
+        message?: string;
+      }>("/api/products/sync", {});
+      if (res.ok) {
+        ctx.toast(
+          res.message ??
+            `Catálogo sincronizado: ${res.added} nuevos, ${res.updated} actualizados (Total: ${res.total}).`,
+        );
+        reload();
+      } else {
+        ctx.toast(res.message ?? "Error al sincronizar con WooCommerce.");
+      }
+    } catch (e: any) {
+      ctx.toast(e.message ?? "Error de red al sincronizar con WooCommerce.");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const openEdit = (p: Product) => {
     setEditing(p);
@@ -98,11 +179,18 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
           <div className="row" style={{ gap: 8, alignItems: "center" }}>
             <h1>Catálogo de Productos</h1>
             <span
-              className="badge tone-success"
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8rem" }}
+              ref={syncBadgeRef}
+              className={`badge ${syncing ? "tone-agent" : "tone-success"}`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: "0.8rem",
+                transition: "background 0.3s ease",
+              }}
             >
-              <Icon name="check" size={14} />
-              WooCommerce HPOS Sincronizado
+              <Icon name={syncing ? "refresh" : "check"} size={14} />
+              {syncing ? "Sincronizando con WooCommerce HPOS..." : "WooCommerce HPOS Sincronizado"}
             </span>
           </div>
           <p className="lead">
@@ -121,11 +209,16 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
           >
             Simulador Financiero & Cockpit
           </Button>
-          <Button icon="refresh" onClick={reload} disabled={loading}>
+          <Button icon="refresh" onClick={reload} disabled={loading || syncing}>
             {loading ? "Actualizando..." : "Actualizar"}
           </Button>
-          <Button icon="plug" onClick={() => ctx.go("conexiones")}>
-            Sincronizar tienda
+          <Button
+            icon="plug"
+            variant="primary"
+            onClick={handleSyncStore}
+            disabled={syncing || loading}
+          >
+            {syncing ? "Sincronizando..." : "Sincronizar tienda"}
           </Button>
         </div>
       </div>
@@ -187,6 +280,7 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
         </section>
       ) : (
         <div
+          ref={gridRef}
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))",
@@ -196,7 +290,7 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
           {filtered.map((p) => (
             <div
               key={p.id}
-              className="card"
+              className="card product-card-item"
               style={{
                 display: "flex",
                 flexDirection: "column",
@@ -222,6 +316,8 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
                   <img
                     src={p.imageUrl}
                     alt={p.title}
+                    width={280}
+                    height={180}
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     onError={(e) => {
                       (e.target as HTMLElement).style.display = "none";
@@ -249,19 +345,51 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
               )}
 
               <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
-                <div className="row between" style={{ alignItems: "center" }}>
-                  <span
-                    className="badge"
-                    style={{
-                      fontSize: "0.75rem",
-                      background: "rgba(100, 116, 139, 0.12)",
-                      color: "inherit",
-                      padding: "2px 8px",
-                      borderRadius: 6,
-                    }}
-                  >
-                    WooCommerce #{p.externalId ?? p.id}
-                  </span>
+                <div className="row between" style={{ alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                    <span
+                      className="badge"
+                      style={{
+                        fontSize: "0.75rem",
+                        background: "rgba(100, 116, 139, 0.12)",
+                        color: "inherit",
+                        padding: "2px 8px",
+                        borderRadius: 6,
+                      }}
+                    >
+                      WC #{p.externalId ?? p.id}
+                    </span>
+                    {p.dropiId && (
+                      <span
+                        className="badge"
+                        style={{
+                          fontSize: "0.75rem",
+                          background: "rgba(37, 99, 235, 0.12)",
+                          color: "var(--brand, #2563eb)",
+                          fontWeight: 600,
+                          padding: "2px 8px",
+                          borderRadius: 6,
+                        }}
+                      >
+                        Dropi #{p.dropiId}
+                      </span>
+                    )}
+                    {p.sku && (
+                      <span
+                        className="badge"
+                        style={{
+                          fontSize: "0.72rem",
+                          background: "rgba(100, 116, 139, 0.08)",
+                          color: "inherit",
+                          fontFamily: "monospace",
+                          padding: "2px 6px",
+                          borderRadius: 6,
+                        }}
+                      >
+                        {p.sku}
+                      </span>
+                    )}
+                  </div>
                   <ToneBadge tone="success">Activo</ToneBadge>
                 </div>
 
@@ -291,6 +419,52 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
                     {p.description.replace(/<[^>]*>?/gm, "").trim()}
                   </p>
                 )}
+
+                {/* Escalera de packs (1x, 2x, 3x) */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+                  <span
+                    className="badge"
+                    style={{
+                      fontSize: "0.72rem",
+                      background: "var(--bg-subtle, rgba(0,0,0,0.04))",
+                      border: "1px solid var(--line, rgba(100,116,139,0.2))",
+                      padding: "2px 6px",
+                      borderRadius: 4,
+                    }}
+                  >
+                    <strong>1x:</strong> {usd(p.price)}
+                  </span>
+                  {p.packs?.duo && (
+                    <span
+                      className="badge"
+                      style={{
+                        fontSize: "0.72rem",
+                        background: "rgba(16, 185, 129, 0.08)",
+                        color: "var(--success, #16a34a)",
+                        border: "1px solid rgba(16, 185, 129, 0.25)",
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                      }}
+                    >
+                      <strong>2x Dúo:</strong> {usd(p.packs.duo)}
+                    </span>
+                  )}
+                  {p.packs?.trio && (
+                    <span
+                      className="badge"
+                      style={{
+                        fontSize: "0.72rem",
+                        background: "rgba(99, 102, 241, 0.08)",
+                        color: "var(--brand, #4f46e5)",
+                        border: "1px solid rgba(99, 102, 241, 0.25)",
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                      }}
+                    >
+                      <strong>3x Trío:</strong> {usd(p.packs.trio)}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div
@@ -307,8 +481,8 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
                   <div style={{ fontSize: "1.3rem", fontWeight: 700, color: "var(--brand, #2563eb)" }}>
                     {usd(p.price)}
                   </div>
-                  <div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
-                    {vesFromUsd(p.price)}
+                  <div style={{ fontSize: "0.8rem", color: "var(--muted)", fontWeight: 500 }}>
+                    {vesFromUsd(p.price)} BCV
                   </div>
                 </div>
 

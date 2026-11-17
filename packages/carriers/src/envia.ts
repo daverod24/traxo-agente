@@ -163,7 +163,7 @@ export class EnviaComProvider implements CarrierProvider {
     };
     return {
       origin: this.address({ ...this.cfg.origin, dane: draft.origin.dane }),
-      destination: this.address(draft.destination),
+      destination: this.address({ ...draft.destination, dane: draft.destination.dane ?? "00000" }),
       packages: [pkg],
       shipment: { type: 1, carrier, ...(service ? { service } : {}) },
       settings: { currency: "COP" },

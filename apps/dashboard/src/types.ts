@@ -102,6 +102,9 @@ export type Product = {
   externalId?: string | null;
   imageUrl?: string | null;
   weightGrams?: number | null;
+  sku?: string | null;
+  dropiId?: string | null;
+  packs?: { duo?: number; trio?: number } | null;
 };
 export type Campaign = {
   id: string;

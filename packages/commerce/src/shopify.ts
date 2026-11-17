@@ -113,6 +113,7 @@ export function orderFromShopify(p: ShopifyOrderPayload, storeId: string): Order
     externalId: String(p.id),
     number: p.name ?? `#${p.order_number ?? p.id}`,
     storeId,
+    currency: ((p as any).currency as any) ?? (isVE ? "USD" : "COP"),
     email: p.email ?? undefined,
     address: {
       name: a.name ?? [a.first_name, a.last_name].filter(Boolean).join(" "),

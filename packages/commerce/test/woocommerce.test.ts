@@ -160,4 +160,105 @@ describe("L2-A2: WooCommerce Adapter & VE Support", () => {
     await woo.listOrders({ page: 2, limit: 25 });
     expect(requestedUrl).toContain("/orders?page=2&per_page=25");
   });
+
+  it("normaliza productos de WooCommerce con lectura robusta de Dropi ID y precio variable", async () => {
+    const mockProducts = [
+      {
+        id: 45,
+        name: "Nicotinamide Riboside + Resveratrol 900 mg",
+        price: "",
+        regular_price: "",
+        type: "variable",
+        sku: "DB-WELL-NAD-60",
+        images: [{ src: "https://apiv2backecom.daverod.tech/uploads/nad.webp" }],
+        short_description: "<p>NAD+ Booster longevidad celular</p>",
+        variations: [46, 47, 48],
+        meta_data: [
+          { key: "_dropi_product_id", value: "93" },
+          { key: "_rate_type", value: "bcv" },
+          { key: "_supplier_cost", value: "10.73" },
+        ],
+      },
+    ];
+
+    const mockVariations = [
+      { id: 46, sku: "DB-WELL-NAD-60-1", price: "29.99", attributes: [{ name: "Paquete", option: "Individual" }] },
+      { id: 47, sku: "DB-WELL-NAD-60-2", price: "51.99", attributes: [{ name: "Paquete", option: "Dúo (2x)" }] },
+      { id: 48, sku: "DB-WELL-NAD-60-3", price: "69.99", attributes: [{ name: "Paquete", option: "Trío (3x)" }] },
+    ];
+
+    const mockFetch = vi.fn(async (url: string | URL | Request) => {
+      const urlStr = String(url);
+      if (urlStr.includes("/products/45/variations")) {
+        return { ok: true, json: async () => mockVariations } as Response;
+      }
+      return { ok: true, json: async () => mockProducts } as Response;
+    });
+
+    const woo = new WooCommerce({
+      storeId: "store_davebeauty_01",
+      url: "https://apiv2backecom.daverod.tech",
+      consumerKey: "ck_test",
+      consumerSecret: "cs_test",
+      webhookSecret: "whsec_test",
+      fetch: mockFetch as any,
+    });
+
+    const products = await woo.listProducts();
+    expect(products).toHaveLength(1);
+    const prod = products[0]!;
+    expect(prod.externalId).toBe("45");
+    expect(prod.title).toBe("Nicotinamide Riboside + Resveratrol 900 mg");
+    expect(prod.price).toBe(30); // 29.99 redondeado de la primera variación
+    expect(prod.cost).toBe(10.73);
+    expect(prod.imageUrl).toBe("https://apiv2backecom.daverod.tech/uploads/nad.webp");
+    expect(prod.metadata?.dropiId).toBe("93");
+    expect(prod.metadata?.rateType).toBe("bcv");
+    expect((prod.metadata?.packs as any)?.duo).toBe(52);
+    expect((prod.metadata?.packs as any)?.trio).toBe(70);
+  });
+
+  it("procesa webhooks de productos (created, updated, deleted)", () => {
+    const woo = new WooCommerce({
+      storeId: "store_davebeauty_01",
+      url: "https://apiv2backecom.daverod.tech",
+      consumerKey: "ck_test",
+      consumerSecret: "cs_test",
+      webhookSecret: "whsec_test",
+    });
+
+    // 1. Webhook de producto creado
+    const createdPayload = {
+      id: 55,
+      name: "Crema Reafirmante Lifting para Cuello y Escote",
+      price: "22.99",
+      sku: "DB-SKIN-NECK-LIFT",
+      meta_data: [{ key: "_dropi_product_id", value: "196" }],
+    };
+    const createdEvent = woo.normalizeProductWebhook(
+      { "x-wc-webhook-topic": "product.created" },
+      createdPayload,
+    );
+    expect(createdEvent).toBeDefined();
+    expect(createdEvent?.action).toBe("created");
+    expect(createdEvent?.productId).toBe("55");
+    expect(createdEvent?.product?.title).toBe("Crema Reafirmante Lifting para Cuello y Escote");
+    expect(createdEvent?.product?.metadata?.dropiId).toBe("196");
+
+    // 2. Webhook de producto eliminado
+    const deletedEvent = woo.normalizeProductWebhook(
+      { "x-wc-webhook-topic": "product.deleted" },
+      { id: 55 },
+    );
+    expect(deletedEvent).toBeDefined();
+    expect(deletedEvent?.action).toBe("deleted");
+    expect(deletedEvent?.productId).toBe("55");
+
+    // 3. Webhook ignorado si es de pedido
+    const orderEvent = woo.normalizeProductWebhook(
+      { "x-wc-webhook-topic": "order.created" },
+      { id: 1042 },
+    );
+    expect(orderEvent).toBeUndefined();
+  });
 });

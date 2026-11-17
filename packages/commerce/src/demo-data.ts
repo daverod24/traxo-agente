@@ -413,6 +413,7 @@ export function buildDemoOrder(opts: DemoOrderOptions = {}): Order {
       externalId: `ext_${seed}`,
       number: `#${number}`,
       storeId,
+      currency: "USD",
       email: `${name.split(" ")[0]?.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")}@davebeauty.ve`,
       address: {
         country: "VE",
@@ -447,8 +448,10 @@ export function buildDemoOrder(opts: DemoOrderOptions = {}): Order {
     externalId: `ext_${seed}`,
     number: `#${number}`,
     storeId,
+    currency: "COP",
     email: `${name.split(" ")[0]?.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")}@correo.co`,
     address: {
+      country: "CO",
       name,
       phone: `+573${String(100000000 + Math.floor(r() * 899999999)).slice(0, 9)}`,
       street: pick(r, STREETS),

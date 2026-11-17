@@ -26,7 +26,6 @@ describe("conciliación de pagos en Venezuela (Pago Móvil, Zelle, USDT) y actua
       storeId: rt.storeId,
       dane: "VE-A",
       payment: "cod",
-      total: 55,
     });
     const mockCommerce = rt.commerce as MockCommerce;
     mockCommerce.receive(o);
@@ -65,7 +64,7 @@ describe("conciliación de pagos en Venezuela (Pago Móvil, Zelle, USDT) y actua
 
     // 5. Verificar que el estado del pedido en la tienda (WooCommerce / Mock) se actualizó a 'processing'
     const inStore = await mockCommerce.getOrder(order.externalId ?? order.id);
-    expect(inStore?.status).toBe("processing");
+    expect((inStore as any)?.status).toBe("processing");
 
     // 6. Verificar que la aprobación quedó como 'approved'
     const aprUpdated = await db.prisma.approval.findUniqueOrThrow({ where: { id: approval.id } });
@@ -89,7 +88,6 @@ describe("conciliación de pagos en Venezuela (Pago Móvil, Zelle, USDT) y actua
       storeId: rt.storeId,
       dane: "VE-A",
       payment: "cod",
-      total: 34,
     });
     const { order } = await saveOrder(db, o);
 

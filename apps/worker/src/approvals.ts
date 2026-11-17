@@ -178,7 +178,7 @@ export async function approve(rt: Runtime, id: string): Promise<ApprovalResult> 
     // 4. Retomar flujo logístico del pedido ahora que está pagado y confirmado
     const out = await handleNewOrder(
       rt,
-      { ...order, payment: "prepaid", status: "confirmed" },
+      { ...order, payment: "prepaid" },
       { skipConfirmation: true },
     );
     return {

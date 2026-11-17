@@ -1,5 +1,5 @@
 import { sampleAudit } from "@traxo/audit";
-import { BASE_DAYS, BASE_FREIGHT, CARRIER_PROFILES, weightFactor, zoneFor } from "@traxo/carriers";
+import { BASE_DAYS, BASE_FREIGHT, CARRIER_PROFILES, type Zone, weightFactor, zoneFor } from "@traxo/carriers";
 import {
   DEMO_BEAUTY_PRODUCTS,
   DEMO_BEAUTY_STORE,
@@ -637,6 +637,7 @@ export async function seedRich(
         total,
         age: d,
         address: {
+          country: isVe ? "VE" : "CO",
           name: cu.name,
           phone: cu.phone,
           street: cu.street,
@@ -709,7 +710,7 @@ export async function seedRich(
   orders.forEach((o, i) => {
     const cu = customers[o.customerIdx] as (typeof customers)[number];
     const special = specials.get(i);
-    const zone = isVe ? 1 : zoneFor("11001", o.address.dane);
+    const zone: Zone = isVe ? "urbano" : zoneFor("11001", o.address.dane ?? "11001");
     const weight = o.lines.reduce((s, l) => s + l.weightGrams * l.quantity, 0);
     const routeList = isVe ? ROUTES_VE : ROUTES;
     const route = pickW(

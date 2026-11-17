@@ -183,6 +183,7 @@ export function orderFromRow(r: OrderRow): import("@traxo/core").Order {
     externalId: r.externalId,
     number: r.number,
     storeId: r.storeId,
+    currency: ((r as any).currency as any) ?? "USD",
     customerId: r.customerId ?? undefined,
     address: r.address as import("@traxo/core").Order["address"],
     lines: r.lines as import("@traxo/core").Order["lines"],

@@ -159,16 +159,17 @@ export async function createRuntime(
     },
   ];
 
-  // Si la tienda principal está conectada a WooCommerce y aún no tiene productos, auto-importar catálogo
+  // Si la tienda principal está conectada a WooCommerce, auto-sincronizar catálogo para asegurar productos al día
   if (commerce.platform === "woocommerce") {
-    const prodCount = await db.prisma.product.count({ where: { storeId: "store_main" } });
-    if (prodCount === 0) {
-      try {
-        const { importStore } = await import("./importer.ts");
-        await importStore({ db, bus, commerce, carriers: providers, messaging } as never, "store_main", commerce);
-      } catch (e) {
-        console.warn("No se pudo auto-importar catálogo de WooCommerce al iniciar:", e);
-      }
+    try {
+      const { importStore } = await import("./importer.ts");
+      await importStore(
+        { db, bus, commerce, carriers: providers, messaging } as never,
+        "store_main",
+        commerce,
+      );
+    } catch (e) {
+      console.warn("No se pudo auto-importar catálogo de WooCommerce al iniciar:", e);
     }
   }
 

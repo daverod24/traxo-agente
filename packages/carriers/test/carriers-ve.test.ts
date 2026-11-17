@@ -21,12 +21,14 @@ describe("transportadoras y logística para Venezuela (Dropi, Flash Courier, MRW
         name: "Valeria Mendoza",
         street: "Calle París, Las Mercedes",
         city: "Caracas",
+        country: "VE",
         dane: "VE-A",
         phone: "+584121234567",
       },
       weightGrams: 500,
       declaredValue: 55,
       codAmount: 55,
+      contents: "Productos de belleza",
     };
 
     const quotes = await dropi.quote(draft);
@@ -50,12 +52,14 @@ describe("transportadoras y logística para Venezuela (Dropi, Flash Courier, MRW
         name: "Carlos Villalobos",
         street: "Bella Vista",
         city: "Maracaibo",
+        country: "VE",
         dane: "VE-V",
         phone: "+584149876543",
       },
       weightGrams: 300,
       declaredValue: 34,
       codAmount: 0,
+      contents: "Productos de cuidado personal",
     };
 
     const quotes = (await Promise.all(providers.map((p) => p.quote(draft)))).flat();

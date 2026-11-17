@@ -484,11 +484,11 @@ function Detalle({
                 </Button>
                 {isWoo && (
                   <Button
-                    variant="secondary"
+                    variant=""
                     icon="arrow-right"
                     sm
                     onClick={publishToWp}
-                    busy={publishing}
+                    disabled={publishing}
                   >
                     Publicar en WordPress
                   </Button>

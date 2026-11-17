@@ -47,6 +47,7 @@ describe("riesgo de contraentrega", () => {
     payment: "cod" as const,
     total: 80000,
     address: {
+      country: "CO",
       name: "A",
       phone: "+573001234567",
       street: "Calle 10 # 4-45",

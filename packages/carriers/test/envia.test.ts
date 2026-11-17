@@ -16,6 +16,7 @@ const draft: ShipmentDraft = {
     phone: "+573001234567",
     street: "Carrera 7 # 80-21",
     city: "Pereira",
+    country: "CO",
     dane: "66001",
     department: "Risaralda",
   },

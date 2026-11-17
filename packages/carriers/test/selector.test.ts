@@ -10,6 +10,7 @@ const draft = (dane: string, cod = 0, grams = 800): ShipmentDraft => ({
     phone: "+573001234567",
     street: "Calle 1 # 2-3",
     city: "X",
+    country: "CO",
     dane,
     department: "Y",
   },

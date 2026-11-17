@@ -42,7 +42,7 @@ export class MockCommerce implements CommerceAdapter {
   }
   async updateOrderStatus(orderId: string, status: string, note?: string): Promise<void> {
     const o = this.find(orderId);
-    if (o) o.status = status as any;
+    if (o) (o as any).status = status;
     if (note) this.notes.push({ orderId, note });
   }
   verifyWebhook(): boolean {

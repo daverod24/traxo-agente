@@ -2,7 +2,117 @@ import { type Customer, newId, type Order, type Product } from "@traxo/core";
 import { findCity, normalizePhone, normalizeStreet } from "@traxo/geo-co";
 import { normalizePhoneVE } from "@traxo/market-ve";
 import { header, hmac, safeEqual } from "./hmac.ts";
-import type { CommerceAdapter, FulfillmentInput } from "./types.ts";
+import type { CommerceAdapter, FulfillmentInput, ProductWebhookEvent } from "./types.ts";
+
+export type RawWooProduct = {
+  id: number;
+  name: string;
+  price?: string;
+  regular_price?: string;
+  weight?: string;
+  images?: Array<{ src: string }>;
+  short_description?: string;
+  description?: string;
+  sku?: string;
+  type?: string;
+  variations?: number[];
+  meta_data?: Array<{ id?: number; key: string; value: unknown }>;
+};
+
+export function normalizeProductFromWoo(
+  p: RawWooProduct,
+  variationsList?: Array<{ id: number; sku?: string; price: number; name?: string }>,
+): Product {
+  const metaMap = new Map((p.meta_data ?? []).map((m) => [m.key, m.value]));
+  const supplierCostRaw =
+    metaMap.get("_supplier_cost") ??
+    metaMap.get("_cost") ??
+    metaMap.get("cost") ??
+    metaMap.get("_wc_cog_cost");
+  let cost: number | undefined =
+    supplierCostRaw != null && !isNaN(Number(supplierCostRaw)) && Number(supplierCostRaw) > 0
+      ? Number(supplierCostRaw)
+      : undefined;
+
+  // Soporte canónico SKU para Aceite de orégano (DB-WELL-OREG-60)
+  if (
+    cost == null &&
+    (p.sku?.toUpperCase().includes("OREG") ||
+      p.name?.toLowerCase().includes("or\u00e9gano") ||
+      p.name?.toLowerCase().includes("oregano"))
+  ) {
+    cost = 6;
+  }
+
+  // Lectura robusta de Dropi ID (_dropi_id, _dropi_product_id, _dropi_product)
+  const dropiIdRaw =
+    metaMap.get("_dropi_id") ??
+    metaMap.get("_dropi_product_id") ??
+    metaMap.get("dropi_id");
+  let dropiId =
+    dropiIdRaw != null && String(dropiIdRaw).trim() !== "" ? String(dropiIdRaw).trim() : undefined;
+  if (!dropiId && metaMap.has("_dropi_product")) {
+    const dropiProdRaw = String(metaMap.get("_dropi_product") || "");
+    const match = dropiProdRaw.match(/i:(\d+);/);
+    if (match?.[1]) dropiId = match[1];
+  }
+
+  const rateType = metaMap.get("_rate_type") ? String(metaMap.get("_rate_type")) : undefined;
+  const targetMargin = metaMap.get("_target_margin")
+    ? Number(metaMap.get("_target_margin"))
+    : undefined;
+
+  // Precios seguros para productos simples y variables
+  let finalPrice = toInt(p.price);
+  if ((finalPrice === 0 || !p.price) && p.regular_price) {
+    finalPrice = toInt(p.regular_price);
+  }
+  if ((finalPrice === 0 || !p.price) && variationsList && variationsList.length > 0) {
+    const firstVarPrice = variationsList[0]?.price;
+    if (firstVarPrice != null && firstVarPrice > 0) {
+      finalPrice = firstVarPrice;
+    }
+  }
+
+  // Escalera de packs (1x, 2x, 3x) deducida de variaciones
+  const packs: { duo?: number; trio?: number } = {};
+  if (variationsList && variationsList.length > 0) {
+    for (const v of variationsList) {
+      const vName = (v.name || "").toLowerCase();
+      const vSku = (v.sku || "").toLowerCase();
+      if (vName.includes("dúo") || vName.includes("duo") || vSku.endsWith("-2")) {
+        packs.duo = v.price;
+      } else if (
+        vName.includes("trío") ||
+        vName.includes("trio") ||
+        vName.includes("kit") ||
+        vSku.endsWith("-3")
+      ) {
+        packs.trio = v.price;
+      }
+    }
+  }
+
+  return {
+    id: `prod_${p.id}`,
+    externalId: String(p.id),
+    title: p.name,
+    price: finalPrice,
+    cost,
+    weightGrams: p.weight ? Math.max(1, Math.round(Number.parseFloat(p.weight) * 1000)) : 500,
+    imageUrl: p.images?.[0]?.src,
+    description: (p.short_description || p.description)?.replace(/<[^>]+>/g, " ").trim(),
+    sku: p.sku || undefined,
+    variations: variationsList as any,
+    metadata: {
+      dropiId,
+      rateType,
+      targetMargin,
+      packs,
+      wooType: p.type,
+    },
+  };
+}
 
 export type WooConfig = {
   storeId: string;
@@ -134,51 +244,11 @@ export class WooCommerce implements CommerceAdapter {
   async listProducts(opts: { page?: number; limit?: number } = {}): Promise<Product[]> {
     const page = opts.page ?? 1;
     const perPage = opts.limit ?? 100;
-    const rows = await this.call<
-      Array<{
-        id: number;
-        name: string;
-        price: string;
-        weight?: string;
-        images?: Array<{ src: string }>;
-        short_description?: string;
-        description?: string;
-        sku?: string;
-        type?: string;
-        variations?: number[];
-        meta_data?: Array<{ id: number; key: string; value: unknown }>;
-      }>
-    >(`/products?page=${page}&per_page=${perPage}`);
+    const rows = await this.call<RawWooProduct[]>(`/products?page=${page}&per_page=${perPage}`);
 
     const result: Product[] = [];
 
     for (const p of rows) {
-      const metaMap = new Map((p.meta_data ?? []).map((m) => [m.key, m.value]));
-      const supplierCostRaw =
-        metaMap.get("_supplier_cost") ??
-        metaMap.get("_cost") ??
-        metaMap.get("cost") ??
-        metaMap.get("_wc_cog_cost");
-      let cost: number | undefined =
-        supplierCostRaw != null && !isNaN(Number(supplierCostRaw)) && Number(supplierCostRaw) > 0
-          ? Number(supplierCostRaw)
-          : undefined;
-
-      // Soporte canónico SKU para Aceite de orégano (DB-WELL-OREG-60)
-      if (
-        cost == null &&
-        (p.sku?.toUpperCase().includes("OREG") ||
-          p.name?.toLowerCase().includes("or\u00e9gano") ||
-          p.name?.toLowerCase().includes("oregano"))
-      ) {
-        cost = 6;
-      }
-
-      const dropiId = metaMap.get("_dropi_id") ? String(metaMap.get("_dropi_id")) : undefined;
-      const targetMargin = metaMap.get("_target_margin")
-        ? Number(metaMap.get("_target_margin"))
-        : undefined;
-
       // Variaciones si existen
       let variationsList: Array<{ id: number; sku?: string; price: number; name?: string }> | undefined =
         undefined;
@@ -204,23 +274,7 @@ export class WooCommerce implements CommerceAdapter {
         }
       }
 
-      result.push({
-        id: `prod_${p.id}`,
-        externalId: String(p.id),
-        title: p.name,
-        price: toInt(p.price),
-        cost,
-        weightGrams: p.weight ? Math.max(1, Math.round(Number.parseFloat(p.weight) * 1000)) : 500,
-        imageUrl: p.images?.[0]?.src,
-        description: (p.short_description || p.description)?.replace(/<[^>]+>/g, " ").trim(),
-        sku: p.sku || undefined,
-        variations: variationsList as any,
-        metadata: {
-          dropiId,
-          targetMargin,
-          wooType: p.type,
-        },
-      });
+      result.push(normalizeProductFromWoo(p, variationsList));
     }
 
     return result;
@@ -318,5 +372,43 @@ export class WooCommerce implements CommerceAdapter {
     const topic = header(headers, "x-wc-webhook-topic");
     if (topic && topic !== "order.created") return undefined;
     return orderFromWoo(payload as WooOrder, this.storeId);
+  }
+
+  normalizeProductWebhook(
+    headers: Record<string, string | undefined>,
+    payload: unknown,
+  ): ProductWebhookEvent | undefined {
+    const topic = header(headers, "x-wc-webhook-topic");
+    const p = payload as RawWooProduct & { action?: string };
+    if (!p || (!topic && !p.action)) return undefined;
+
+    let action: "created" | "updated" | "deleted" = "updated";
+    if (
+      topic === "product.deleted" ||
+      p.action === "deleted" ||
+      (payload as any).status === "trash"
+    ) {
+      action = "deleted";
+    } else if (topic === "product.created" || p.action === "created") {
+      action = "created";
+    } else if (
+      topic === "product.updated" ||
+      topic === "product.restored" ||
+      p.action === "updated"
+    ) {
+      action = "updated";
+    } else if (!topic?.startsWith("product.")) {
+      return undefined;
+    }
+
+    const productId = String(p.id);
+    if (!productId || productId === "undefined") return undefined;
+
+    if (action === "deleted") {
+      return { action, productId };
+    }
+
+    const product = normalizeProductFromWoo(p);
+    return { action, productId, product };
   }
 }

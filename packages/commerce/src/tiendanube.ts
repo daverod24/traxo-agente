@@ -65,6 +65,7 @@ export function orderFromTiendanube(o: TnOrder, storeId: string): Order | undefi
     externalId: String(o.id),
     number: `#${o.number ?? o.id}`,
     storeId,
+    currency: ((o as any).currency as any) ?? "COP",
     email: o.contact_email,
     address: {
       name: a.name ?? o.contact_name ?? "",
@@ -73,6 +74,7 @@ export function orderFromTiendanube(o: TnOrder, storeId: string): Order | undefi
       city: city?.name ?? a.city,
       dane: city?.dane ?? "00000",
       department: city?.department ?? a.province ?? "",
+      country: "CO",
     },
     lines,
     subtotal,

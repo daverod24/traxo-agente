@@ -304,10 +304,32 @@ export function registerApi(app: Hono, rt: Runtime): void {
 
   // --- Catálogo y clientes (alimentan marketing y seguimiento comercial) ---
   app.get("/api/products", async (c) => {
-    const [products, orders] = await Promise.all([
-      db.prisma.product.findMany({ where: { storeId: sid(c) } }),
-      db.prisma.order.findMany({ where: { storeId: sid(c) }, select: { lines: true } }),
+    const storeId = sid(c);
+    const [products, orders, currentStore] = await Promise.all([
+      db.prisma.product.findMany({ where: { storeId } }),
+      db.prisma.order.findMany({ where: { storeId }, select: { lines: true } }),
+      db.prisma.store.findUnique({ where: { id: storeId }, select: { profile: true } }),
     ]);
+
+    const catalogMeta =
+      ((currentStore?.profile as Record<string, unknown> | null)?.catalogMeta as Record<
+        string,
+        any
+      >) ?? {};
+
+    const CANONICAL_DAVEBEAUTY: Record<
+      string,
+      { sku: string; dropiId?: string; packs: { duo: number; trio: number } }
+    > = {
+      "55": { sku: "DB-SKIN-NECK-LIFT", dropiId: "196", packs: { duo: 40, trio: 55 } },
+      "50": { sku: "DB-SKIN-MEDICUBE-PDRN", dropiId: "167", packs: { duo: 48, trio: 65 } },
+      "45": { sku: "DB-WELL-NAD-60", dropiId: "93", packs: { duo: 52, trio: 70 } },
+      "21": { sku: "DB-BEAUTY-MELAXIN-9G", packs: { duo: 39, trio: 54 } },
+      "17": { sku: "DB-WELL-OREG-60", dropiId: "190", packs: { duo: 40, trio: 55 } },
+      "13": { sku: "DB-KBEAUTY-BOTA-SHAMP", packs: { duo: 105, trio: 145 } },
+      "9": { sku: "DB-KBEAUTY-ICD-SUN", packs: { duo: 105, trio: 145 } },
+    };
+
     const sold = new Map<string, { units: number; revenue: number }>();
     for (const o of orders) {
       for (const l of o.lines as Array<{
@@ -321,27 +343,72 @@ export function registerApi(app: Hono, rt: Runtime): void {
         sold.set(l.productId, e);
       }
     }
+
     return c.json(
       products
-        .map((p) => ({
-          id: p.id,
-          title: p.title,
-          price: p.price,
-          cost: p.cost,
-          // Sin costo cargado no se inventa margen.
-          marginPct:
-            p.cost == null || p.price === 0
-              ? null
-              : Math.round(((p.price - p.cost) / p.price) * 100),
-          unitsSold: sold.get(p.id)?.units ?? 0,
-          revenue: sold.get(p.id)?.revenue ?? 0,
-          description: p.description,
-          externalId: p.externalId,
-          imageUrl: p.imageUrl,
-          weightGrams: p.weightGrams,
-        }))
+        .map((p) => {
+          const meta = catalogMeta[p.externalId] ?? CANONICAL_DAVEBEAUTY[p.externalId] ?? {};
+          const canonical = CANONICAL_DAVEBEAUTY[p.externalId];
+          const sku = meta.sku || canonical?.sku || null;
+          const dropiId = meta.dropiId || canonical?.dropiId || null;
+          const packs =
+            meta.packs && (meta.packs.duo || meta.packs.trio)
+              ? meta.packs
+              : canonical?.packs || null;
+
+          return {
+            id: p.id,
+            title: p.title,
+            price: p.price,
+            cost: p.cost,
+            // Sin costo cargado no se inventa margen.
+            marginPct:
+              p.cost == null || p.price === 0
+                ? null
+                : Math.round(((p.price - p.cost) / p.price) * 100),
+            unitsSold: sold.get(p.id)?.units ?? 0,
+            revenue: sold.get(p.id)?.revenue ?? 0,
+            description: p.description,
+            externalId: p.externalId,
+            imageUrl: p.imageUrl,
+            weightGrams: p.weightGrams,
+            sku,
+            dropiId,
+            packs,
+          };
+        })
         .sort((a, b) => b.revenue - a.revenue),
     );
+  });
+
+  app.post("/api/products/sync", async (c) => {
+    const storeId = sid(c);
+    const adapter = rt.commerceMap[storeId] ?? rt.commerce;
+    if (!adapter) {
+      return c.json({ ok: false, message: "No hay adaptador de tienda conectado." }, 400);
+    }
+    const { importStore } = await import("./importer.ts");
+    const result = await importStore(
+      {
+        db: rt.db,
+        bus: rt.bus,
+        commerce: adapter,
+        carriers: rt.carriers,
+        messaging: rt.messaging,
+      } as any,
+      storeId,
+      adapter,
+    );
+    const allProducts = await db.prisma.product.findMany({ where: { storeId } });
+    return c.json({
+      ok: true,
+      total: result.totalProducts ?? allProducts.length,
+      added: result.products,
+      updated: result.updatedProducts ?? 0,
+      customers: result.customers,
+      orders: result.orders,
+      message: `Catálogo sincronizado: ${result.products} nuevos, ${result.updatedProducts ?? 0} actualizados (Total: ${allProducts.length}).`,
+    });
   });
 
   app.patch("/api/products/:id", async (c) => {

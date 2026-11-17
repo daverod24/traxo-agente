@@ -39,7 +39,9 @@ export async function riskFor(
   }
   return riskScore(order, {
     history,
-    farCity: zoneFor(settings.originDane, order.address.dane) === "lejano",
+    farCity: Boolean(
+      order.address.dane && zoneFor(settings.originDane, order.address.dane) === "lejano",
+    ),
   });
 }
 

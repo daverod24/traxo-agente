@@ -18,7 +18,9 @@ export type AgentEventKind =
   | "order.cancelled"
   | "payment.link"
   | "payment.received"
+  | "payment.reconciled"
   | "store.imported"
+  | "product.synced"
   | "audit.done"
   | "error";
 
@@ -27,6 +29,7 @@ export type AgentEvent = {
   at: string;
   kind: AgentEventKind;
   orderId?: string;
+  approvalId?: string;
   /** Tienda a la que pertenece el evento (para que cada cuenta vea solo lo suyo). */
   storeId?: string;
   /** Frase en primera persona, en español, lista para mostrar. */

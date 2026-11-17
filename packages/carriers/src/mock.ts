@@ -5,7 +5,7 @@ import type {
   TrackingEvent,
   TrackingStatus,
 } from "@traxo/core";
-import { BASE_DAYS, BASE_FREIGHT, weightFactor, zoneFor } from "./tariffs.ts";
+import { BASE_DAYS, BASE_FREIGHT, type Zone, weightFactor, zoneFor } from "./tariffs.ts";
 import type { CarrierProvider } from "./types.ts";
 
 export type CarrierProfile = {
@@ -180,11 +180,13 @@ export class MockCarrierProvider implements CarrierProvider {
       draft.origin.dane?.startsWith("VE") ||
       process.env.MARKET === "VE" ||
       process.env.TRAXO_CURRENCY === "USD";
-    const zone = isVe ? 1 : zoneFor(draft.origin.dane, draft.destination.dane);
+    const zone: Zone = isVe
+      ? "urbano"
+      : zoneFor(draft.origin.dane ?? "11001", draft.destination.dane ?? "11001");
     const out: Quote[] = [];
     for (const key of this.carriers) {
       const p = CARRIER_PROFILES[key];
-      if (!p || p.uncovered?.includes(draft.destination.dane)) continue;
+      if (!p || (draft.destination.dane && p.uncovered?.includes(draft.destination.dane))) continue;
       if (draft.destination.dane === "00000") continue;
       const baseFreightUSD = 4.5;
       const freight = isVe
@@ -211,7 +213,7 @@ export class MockCarrierProvider implements CarrierProvider {
         codCommission: p.supportsCod ? cod : 0,
         supportsCod: p.supportsCod,
         businessDays: (isVe ? 2 : BASE_DAYS[zone]) + p.extraDays,
-        currency: isVe ? "USD" : "COP",
+        currency: (isVe ? "USD" : "COP") as any,
         simulated: true,
       });
     }

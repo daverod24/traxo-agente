@@ -5,6 +5,7 @@ import type { AgentDeps } from "./agent.ts";
 
 export type ImportResult = {
   products: number;
+  updatedProducts: number;
   totalProducts?: number;
   customers: number;
   totalCustomers?: number;
@@ -55,17 +56,60 @@ export async function importStore(
   storeId = validStoreId;
 
   let products = 0;
+  let updatedProducts = 0;
+  const catalogMeta: Record<
+    string,
+    {
+      sku?: string;
+      dropiId?: string;
+      rateType?: string;
+      packs?: { duo?: number; trio?: number };
+      variations?: unknown;
+    }
+  > = {};
+
   for (const p of await adapter.listProducts()) {
     try {
+      if (p.externalId) {
+        catalogMeta[p.externalId] = {
+          sku: p.sku,
+          dropiId: p.metadata?.dropiId as string | undefined,
+          rateType: p.metadata?.rateType as string | undefined,
+          packs: p.metadata?.packs as { duo?: number; trio?: number } | undefined,
+          variations: p.variations,
+        };
+      }
+
       const found = await db.prisma.product.findFirst({
         where: { storeId, externalId: p.externalId },
       });
       if (found) {
-        if (p.cost != null && found.cost !== p.cost) {
+        const updateData: {
+          title?: string;
+          price?: number;
+          cost?: number | null;
+          weightGrams?: number;
+          imageUrl?: string | null;
+          description?: string | null;
+        } = {};
+
+        if (p.title && found.title !== p.title) updateData.title = p.title;
+        if (p.price != null && found.price !== p.price) updateData.price = p.price;
+        if (p.cost !== undefined && found.cost !== (p.cost ?? null))
+          updateData.cost = p.cost ?? null;
+        if (p.weightGrams != null && found.weightGrams !== p.weightGrams)
+          updateData.weightGrams = p.weightGrams;
+        if (p.imageUrl !== undefined && found.imageUrl !== (p.imageUrl ?? null))
+          updateData.imageUrl = p.imageUrl ?? null;
+        if (p.description !== undefined && found.description !== (p.description ?? null))
+          updateData.description = p.description ?? null;
+
+        if (Object.keys(updateData).length > 0) {
           await db.prisma.product.update({
             where: { id: found.id },
-            data: { cost: p.cost },
+            data: updateData,
           });
+          updatedProducts++;
         }
         continue;
       }
@@ -135,19 +179,23 @@ export async function importStore(
         ...existingProfile,
         importedAt: new Date().toISOString(),
         platform: adapter.platform,
-      },
+        catalogMeta: {
+          ...((existingProfile.catalogMeta as Record<string, unknown>) ?? {}),
+          ...catalogMeta,
+        },
+      } as any,
     },
   });
   const msg =
-    products > 0
-      ? `Importé ${products} nuevos productos (Total: ${totalProducts} productos en catálogo de Davebeauty al día).`
+    products > 0 || updatedProducts > 0
+      ? `Sincronización completada: ${products} nuevos, ${updatedProducts} actualizados (Total: ${totalProducts} productos en catálogo de Davebeauty).`
       : `Catálogo sincronizado: ${totalProducts} productos activos de Davebeauty al día (${totalCustomers} clientes y ${totalOrders} pedidos).`;
   deps.bus.emit(
     "store.imported",
     msg,
-    { data: { storeId, totalProducts, totalCustomers, totalOrders } },
+    { data: { storeId, totalProducts, totalCustomers, totalOrders, products, updatedProducts } },
   );
-  return { products, totalProducts, customers, totalCustomers, orders, totalOrders };
+  return { products, updatedProducts, totalProducts, customers, totalCustomers, orders, totalOrders };
 }
 
 export const isImported = async (db: Db, storeId: string): Promise<boolean> =>
