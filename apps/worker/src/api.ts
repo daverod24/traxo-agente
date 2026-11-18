@@ -321,6 +321,7 @@ export function registerApi(app: Hono, rt: Runtime): void {
       string,
       { sku: string; dropiId?: string; packs: { duo: number; trio: number } }
     > = {
+      "59": { sku: "DB-BODY-MAGIC-OIL", dropiId: "239", packs: { duo: 42.99, trio: 59.99 } },
       "55": { sku: "DB-SKIN-NECK-LIFT", dropiId: "196", packs: { duo: 40, trio: 55 } },
       "50": { sku: "DB-SKIN-MEDICUBE-PDRN", dropiId: "167", packs: { duo: 48, trio: 65 } },
       "45": { sku: "DB-WELL-NAD-60", dropiId: "93", packs: { duo: 52, trio: 70 } },
