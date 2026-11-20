@@ -11,7 +11,6 @@ import type { Db } from "@traxo/db";
  * 5. #74 QA Dropi Test (Caracas Chacao, $27.00, Cancelado / Rollback)
  */
 export async function cleanDummyOrders(db: Db, storeId: string) {
-  const allowedNumbers = ["#82", "#81", "#80", "#79", "#74", "82", "81", "80", "79", "74"];
   const allowedExternals = [
     "ext_demo_82",
     "ext_demo_81",
@@ -20,16 +19,11 @@ export async function cleanDummyOrders(db: Db, storeId: string) {
     "ext_demo_74",
   ];
 
-  // 1. Encontrar órdenes que NO son parte de las 5 canónicas
+  // 1. Eliminar cualquier orden cuyo externalId no sea uno de los 5 canónicos exactos
   const extraneous = await db.prisma.order.findMany({
     where: {
       storeId,
-      NOT: {
-        OR: [
-          { number: { in: allowedNumbers } },
-          { externalId: { in: allowedExternals } },
-        ],
-      },
+      externalId: { notIn: allowedExternals },
     },
     select: { id: true },
   });
