@@ -369,12 +369,8 @@ export function Inicio({
         </section>
       )}
 
-      <div
-        className="grid-kpi"
-        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}
-      >
+      <div className="grid-kpi-v2">
         <KpiCard
-          hero
           label="Facturación Activa (GMV)"
           value={usd(totalGmv)}
           hint={`${activeOrders.length} ${plural(activeOrders.length, "orden activa", "órdenes activas")}`}

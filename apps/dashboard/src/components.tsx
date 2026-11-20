@@ -185,41 +185,271 @@ export function Pipeline({
     nOrd(["confirmed", "processing", "packed"]) + nShip(["created", "pickup_scheduled"]);
   const enCamino =
     nOrd(["shipped", "in_transit"]) + nShip(["picked_up", "in_transit", "out_for_delivery"]);
-  const novedad = nShip(["incident", "returning"]);
   const entregados = Math.max(nOrd(["delivered"]), nShip(["delivered"]));
-  const cancelados = nOrd(["cancelled", "rejected", "refunded"]);
+
+  // Excepciones operativas
+  const novedad = nShip(["incident", "returning"]);
+  const canceladosOrders = orders.filter((o) =>
+    ["cancelled", "rejected", "refunded"].includes(o.status),
+  );
+  const cancelados = canceladosOrders.length;
+  const canceladosTotal = canceladosOrders.reduce((sum, o) => sum + (o.total || 0), 0);
 
   const stages = [
-    { key: "rev", t: "Por confirmar", n: porRevisar, warn: porRevisar > 0, icon: "alert" },
-    { key: "gui", t: "Con guía Dropi", n: conGuia, icon: "box" },
-    { key: "cam", t: "En camino", n: enCamino, icon: "truck" },
-    { key: "nov", t: "Novedad", n: novedad, warn: novedad > 0, icon: "alert" },
-    { key: "ent", t: "Entregado", n: entregados, icon: "check" },
-    { key: "can", t: "Cancelado", n: cancelados, isMuted: true, icon: "x" },
+    {
+      key: "rev",
+      t: "Por confirmar",
+      sub: "Validación COD / WhatsApp",
+      n: porRevisar,
+      color: "#f59e0b",
+      bgColor: "rgba(245, 158, 11, 0.12)",
+      borderColor: "rgba(245, 158, 11, 0.35)",
+      icon: "alert",
+      badgeText: porRevisar > 0 ? "Requiere acción" : "Al día",
+    },
+    {
+      key: "gui",
+      t: "Con guía Dropi",
+      sub: "Empacado y rotulado",
+      n: conGuia,
+      color: "#3b82f6",
+      bgColor: conGuia > 0 ? "rgba(59, 130, 246, 0.12)" : "rgba(255, 255, 255, 0.03)",
+      borderColor: conGuia > 0 ? "rgba(59, 130, 246, 0.35)" : "var(--line)",
+      icon: "box",
+      badgeText: conGuia > 0 ? "En preparación" : "Sin pedidos",
+    },
+    {
+      key: "cam",
+      t: "En camino",
+      sub: "Flaash / Zoom / MRW",
+      n: enCamino,
+      color: "#8b5cf6",
+      bgColor: enCamino > 0 ? "rgba(139, 92, 246, 0.12)" : "rgba(255, 255, 255, 0.03)",
+      borderColor: enCamino > 0 ? "rgba(139, 92, 246, 0.35)" : "var(--line)",
+      icon: "truck",
+      badgeText: enCamino > 0 ? "En reparto" : "0 en ruta",
+    },
+    {
+      key: "ent",
+      t: "Entregado",
+      sub: "Cobro COD recaudado",
+      n: entregados,
+      color: "#10b981",
+      bgColor: entregados > 0 ? "rgba(16, 185, 129, 0.12)" : "rgba(255, 255, 255, 0.03)",
+      borderColor: entregados > 0 ? "rgba(16, 185, 129, 0.35)" : "var(--line)",
+      icon: "check",
+      badgeText: entregados > 0 ? "Completado" : "0 entregas",
+    },
   ];
+
   return (
-    <section className="card" aria-labelledby="pipe-h">
-      <div className="row between" style={{ marginBottom: 16 }}>
-        <h2 id="pipe-h">Dónde está cada pedido</h2>
-        <span className="row" style={{ gap: 6 }}>
+    <section className="card" aria-labelledby="pipe-h" style={{ padding: "20px 24px" }}>
+      <div className="row between" style={{ alignItems: "center", marginBottom: 20 }}>
+        <div>
+          <h2 id="pipe-h" style={{ margin: 0, fontSize: "1.1rem" }}>
+            Dónde está cada pedido
+          </h2>
+          <span className="caption" style={{ color: "var(--ink-muted)" }}>
+            Flujo de despacho activo en tiempo real (Caracas y Envíos Nacionales)
+          </span>
+        </div>
+        <span className="row" style={{ gap: 6, alignItems: "center" }}>
           <AgentMark working={working} />
-          <span className="caption">{working ? "Sincronizado" : "Al día"}</span>
+          <span className="caption" style={{ fontWeight: 600 }}>
+            {working ? "Sincronizando..." : "Al día"}
+          </span>
         </span>
       </div>
-      <ol className="pipe" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+
+      {/* Flujo de 4 etapas lineales */}
+      <div className="pipe-flow-grid">
         {stages.map((s) => (
-          <li
+          <div
             key={s.key}
-            className={`st ${s.warn ? "warn" : s.n > 0 ? "on" : ""} ${s.isMuted ? "muted-stage" : ""}`}
+            className="pipe-step-card"
+            style={{ border: `1px solid ${s.borderColor}`, background: s.bgColor }}
           >
-            <span className="dot">
-              <Icon name={s.icon as any} size={16} />
-            </span>
-            <span className="n num">{s.n}</span>
-            <span className="t">{s.t}</span>
-          </li>
+            <div
+              className="row between"
+              style={{ alignItems: "center", width: "100%", marginBottom: 8 }}
+            >
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  background: s.n > 0 ? s.color : "rgba(255, 255, 255, 0.05)",
+                  color: s.n > 0 ? "#ffffff" : "var(--ink-muted)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Icon name={s.icon as any} size={16} />
+              </div>
+              <span
+                style={{
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  color: s.n > 0 ? s.color : "var(--ink-muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.3px",
+                }}
+              >
+                {s.badgeText}
+              </span>
+            </div>
+
+            <div
+              style={{
+                fontSize: "1.75rem",
+                fontWeight: 800,
+                color: "var(--ink)",
+                lineHeight: 1,
+              }}
+            >
+              {s.n}
+            </div>
+            <div
+              style={{
+                fontWeight: 700,
+                fontSize: "0.92rem",
+                color: "var(--ink)",
+                marginTop: 6,
+              }}
+            >
+              {s.t}
+            </div>
+            <div
+              className="caption"
+              style={{ color: "var(--ink-muted)", fontSize: "0.76rem", marginTop: 2 }}
+            >
+              {s.sub}
+            </div>
+          </div>
         ))}
-      </ol>
+      </div>
+
+      {/* Bandeja de Excepciones y Resolución Operativa */}
+      <div
+        style={{
+          marginTop: 18,
+          paddingTop: 16,
+          borderTop: "1px solid var(--line)",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: 12,
+        }}
+      >
+        {/* Novedades en Ruta */}
+        <div
+          style={{
+            padding: "12px 14px",
+            borderRadius: 8,
+            background:
+              novedad > 0 ? "rgba(245, 158, 11, 0.08)" : "rgba(255, 255, 255, 0.02)",
+            border: `1px solid ${novedad > 0 ? "rgba(245, 158, 11, 0.3)" : "var(--line)"}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <div className="row" style={{ gap: 10, alignItems: "center" }}>
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                background: novedad > 0 ? "#f59e0b" : "rgba(255, 255, 255, 0.05)",
+                color: novedad > 0 ? "#ffffff" : "var(--ink-muted)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon name="alert" size={14} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--ink)" }}>
+                Novedades en Ruta
+              </div>
+              <div
+                className="caption"
+                style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}
+              >
+                {novedad > 0
+                  ? `${novedad} retenciones que requieren reprogramación con el cliente`
+                  : "Sin incidencias de entrega reportadas por transportadora"}
+              </div>
+            </div>
+          </div>
+          <span
+            style={{
+              fontWeight: 800,
+              fontSize: "1.1rem",
+              color: novedad > 0 ? "#f59e0b" : "var(--ink-muted)",
+            }}
+          >
+            {novedad}
+          </span>
+        </div>
+
+        {/* Cancelados / Rollback */}
+        <div
+          style={{
+            padding: "12px 14px",
+            borderRadius: 8,
+            background:
+              cancelados > 0 ? "rgba(244, 63, 94, 0.06)" : "rgba(255, 255, 255, 0.02)",
+            border: `1px solid ${cancelados > 0 ? "rgba(244, 63, 94, 0.25)" : "var(--line)"}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <div className="row" style={{ gap: 10, alignItems: "center" }}>
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                background:
+                  cancelados > 0 ? "rgba(244, 63, 94, 0.2)" : "rgba(255, 255, 255, 0.05)",
+                color: cancelados > 0 ? "#f43f5e" : "var(--ink-muted)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon name="x" size={14} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--ink)" }}>
+                Cancelados / Rollback
+              </div>
+              <div
+                className="caption"
+                style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}
+              >
+                {cancelados > 0
+                  ? `$${canceladosTotal.toFixed(2)} USD anulados · Sin despacho ni cobro flete`
+                  : "0 cancelaciones registradas"}
+              </div>
+            </div>
+          </div>
+          <span
+            style={{
+              fontWeight: 800,
+              fontSize: "1.1rem",
+              color: cancelados > 0 ? "#f43f5e" : "var(--ink-muted)",
+            }}
+          >
+            {cancelados}
+          </span>
+        </div>
+      </div>
     </section>
   );
 }

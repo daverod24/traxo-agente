@@ -724,6 +724,54 @@ p {
 }
 
 /* ---------- Pipeline y recorrido del pedido ---------- */
+.pipe-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.pipe-step-card {
+  padding: 16px 18px;
+  border-radius: var(--r-md, 10px);
+  display: flex;
+  flex-direction: column;
+  transition: transform 180ms ease, border-color 180ms ease;
+}
+.pipe-step-card:hover {
+  transform: translateY(-1px);
+}
+@media (max-width: 900px) {
+  .pipe-flow-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .pipe-flow-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Grid KPI V2 ---------- */
+.grid-kpi-v2 {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 1400px) {
+  .grid-kpi-v2 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 768px) {
+  .grid-kpi-v2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .grid-kpi-v2 {
+    grid-template-columns: 1fr;
+  }
+}
+
 .pipe {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
