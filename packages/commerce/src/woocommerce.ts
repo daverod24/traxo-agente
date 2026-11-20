@@ -132,6 +132,7 @@ type WooOrder = {
   total?: string;
   shipping_total?: string;
   payment_method?: string;
+  meta_data?: Array<{ key: string; value: unknown }>;
   billing?: { email?: string; phone?: string };
   shipping?: {
     first_name?: string;
@@ -153,6 +154,26 @@ type WooOrder = {
 
 const toInt = (s: string | number | undefined): number =>
   Math.round(Number.parseFloat(String(s ?? "0")) || 0);
+
+export function mapWooStatus(s?: string): string {
+  switch (s) {
+    case "on-hold":
+    case "pending":
+      return "pending";
+    case "processing":
+      return "confirmed";
+    case "completed":
+      return "delivered";
+    case "cancelled":
+      return "cancelled";
+    case "refunded":
+      return "refunded";
+    case "failed":
+      return "rejected";
+    default:
+      return s || "pending";
+  }
+}
 
 export function orderFromWoo(o: WooOrder, storeId: string): Order | undefined {
   const a = o.shipping;
@@ -189,6 +210,19 @@ export function orderFromWoo(o: WooOrder, storeId: string): Order | undefined {
   }));
   const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
 
+  const metaMap = new Map((o.meta_data || []).map((m) => [m.key, m.value]));
+  const trackingNumber = (metaMap.get("_traxo_tracking_number") ||
+    metaMap.get("_tracking_number") ||
+    metaMap.get("_shipping_tracking_number") ||
+    metaMap.get("_dropi_tracking_number") ||
+    metaMap.get("_dropi_guide") ||
+    metaMap.get("tracking_number")) as string | undefined;
+  const carrier = (metaMap.get("_traxo_carrier") ||
+    metaMap.get("_carrier") ||
+    metaMap.get("_dropi_carrier") ||
+    metaMap.get("carrier") ||
+    undefined) as string | undefined;
+
   return {
     id: newId("ord"),
     externalId: String(o.id),
@@ -212,6 +246,9 @@ export function orderFromWoo(o: WooOrder, storeId: string): Order | undefined {
     total: toInt(o.total) || subtotal,
     totalDecimal: o.total ? String(o.total) : undefined,
     payment: o.payment_method === "cod" ? "cod" : "prepaid",
+    status: mapWooStatus(o.status),
+    trackingNumber: trackingNumber ? String(trackingNumber).trim() : undefined,
+    carrier: carrier ? String(carrier).trim() : undefined,
     createdAt: o.date_created_gmt ? `${o.date_created_gmt}Z` : new Date().toISOString(),
   };
 }

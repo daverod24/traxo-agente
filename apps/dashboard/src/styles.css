@@ -446,20 +446,53 @@ p {
   letter-spacing: 0;
 }
 .kpi.hero {
-  background: var(--brand);
-  color: var(--on-brand);
-  border-color: transparent;
+  background: radial-gradient(circle at 15% 20%, rgba(16, 185, 129, 0.12), transparent 70%),
+              linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%),
+              var(--surface);
+  color: var(--ink);
+  border: 1px solid rgba(16, 185, 129, 0.28);
 }
-.kpi.hero .label,
+.kpi.hero .label {
+  color: #10b981;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
 .kpi.hero .caption {
-  color: var(--on-brand);
-  opacity: 0.8;
+  color: var(--ink-muted);
 }
 .kpi.hero .value {
-  font-size: clamp(40px, 6vw, 56px);
-  line-height: 1;
+  font-size: clamp(34px, 4vw, 44px);
+  line-height: 1.1;
   font-weight: 800;
   letter-spacing: -0.03em;
+  color: #ffffff;
+}
+.kpi.amber-card {
+  border-color: rgba(245, 158, 11, 0.25);
+  background: radial-gradient(circle at top right, rgba(245, 158, 11, 0.08), transparent 70%), var(--surface);
+}
+.kpi.amber-card .label {
+  color: #f59e0b;
+}
+.kpi.blue-card {
+  border-color: rgba(59, 130, 246, 0.25);
+  background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 70%), var(--surface);
+}
+.kpi.blue-card .label {
+  color: #60a5fa;
+}
+.kpi.rose-card {
+  border-color: rgba(244, 63, 94, 0.25);
+  background: radial-gradient(circle at top right, rgba(244, 63, 94, 0.08), transparent 70%), var(--surface);
+}
+.kpi.rose-card .label {
+  color: #fb7185;
+}
+.st.muted-stage .dot {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink-muted);
 }
 .proposal {
   background: var(--agent-soft);

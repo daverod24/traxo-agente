@@ -287,7 +287,19 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
             gap: 16,
           }}
         >
-          {filtered.map((p) => (
+          {filtered.map((p) => {
+            const displayImg = p.imageUrl || {
+              "17": "https://davebeauty.daverod.tech/images/products/aceite-de-oregano-semilla-negra/premium-v1.webp",
+              "21": "https://davebeauty.daverod.tech/images/products/dr-melaxin-calcium-volume-multi-balm/premium-v1.webp",
+              "13": "https://cdn.rimanbuild.com/Botalab/EX/DeserticolaShampoo/TL_DeserticolaShampoo_DFLT.png",
+              "9": "https://cdn.rimanbuild.com/Incellderm/EX/DailyAquaBB/TL_DailyAquaBB_DFLT.png",
+              "50": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/167/17783019261000614740.webp",
+              "45": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/93/17698802731000454694.webp",
+              "55": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/196/17827922041000704956.jpg",
+              "59": "https://davebeauty.daverod.tech/images/products/aceite-magico-reafirmante/luxury-v1-1200.webp",
+            }[p.externalId || ""] || null;
+
+            return (
             <div
               key={p.id}
               className="card product-card-item"
@@ -300,7 +312,7 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
                 position: "relative",
               }}
             >
-              {p.imageUrl ? (
+              {displayImg ? (
                 <div
                   style={{
                     width: "100%",
@@ -314,7 +326,7 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
                   }}
                 >
                   <img
-                    src={p.imageUrl}
+                    src={displayImg}
                     alt={p.title}
                     width={280}
                     height={180}
@@ -531,7 +543,8 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
                 </Button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

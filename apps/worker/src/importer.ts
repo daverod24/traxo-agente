@@ -18,6 +18,17 @@ export type ImportResult = {
  * volver a importar no duplica (productos y clientes se buscan por id externo / celular; pedidos por tienda + id externo).
  * Los pedidos importados son historia: no disparan el agente ni mandan mensajes.
  */
+const CANONICAL_PRODUCT_IMAGES: Record<string, string> = {
+  "17": "https://davebeauty.daverod.tech/images/products/aceite-de-oregano-semilla-negra/premium-v1.webp",
+  "21": "https://davebeauty.daverod.tech/images/products/dr-melaxin-calcium-volume-multi-balm/premium-v1.webp",
+  "13": "https://cdn.rimanbuild.com/Botalab/EX/DeserticolaShampoo/TL_DeserticolaShampoo_DFLT.png",
+  "9": "https://cdn.rimanbuild.com/Incellderm/EX/DailyAquaBB/TL_DailyAquaBB_DFLT.png",
+  "50": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/167/17783019261000614740.webp",
+  "45": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/93/17698802731000454694.webp",
+  "55": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/196/17827922041000704956.jpg",
+  "59": "https://davebeauty.daverod.tech/images/products/aceite-magico-reafirmante/luxury-v1-1200.webp",
+};
+
 export async function importStore(
   deps: AgentDeps,
   storeId: string,
@@ -99,8 +110,9 @@ export async function importStore(
           updateData.cost = p.cost ?? null;
         if (p.weightGrams != null && found.weightGrams !== p.weightGrams)
           updateData.weightGrams = p.weightGrams;
-        if (p.imageUrl !== undefined && found.imageUrl !== (p.imageUrl ?? null))
-          updateData.imageUrl = p.imageUrl ?? null;
+        const targetImg = p.imageUrl || CANONICAL_PRODUCT_IMAGES[p.externalId] || null;
+        if (targetImg && found.imageUrl !== targetImg)
+          updateData.imageUrl = targetImg;
         if (p.description !== undefined && found.description !== (p.description ?? null))
           updateData.description = p.description ?? null;
 
@@ -122,7 +134,7 @@ export async function importStore(
           price: p.price,
           cost: p.cost ?? null,
           weightGrams: p.weightGrams,
-          imageUrl: p.imageUrl ?? null,
+          imageUrl: p.imageUrl || CANONICAL_PRODUCT_IMAGES[p.externalId] || null,
           description: p.description ?? null,
         },
       });
@@ -159,8 +171,29 @@ export async function importStore(
     try {
       const { created, order } = await saveOrder(db, { ...o, id: newId("ord"), storeId });
       if (created) {
-        await db.prisma.order.update({ where: { id: order.id }, data: { status: "delivered" } });
         orders++;
+      }
+      if (o.trackingNumber) {
+        const carrier = o.carrier || "Dropi";
+        const existingShipment = await db.prisma.shipment.findFirst({
+          where: { orderId: order.id },
+        });
+        if (!existingShipment) {
+          await db.prisma.shipment.create({
+            data: {
+              id: newId("shp"),
+              orderId: order.id,
+              provider: "dropi",
+              carrier,
+              service: "standard",
+              trackingNumber: o.trackingNumber,
+              labelUrl: "",
+              trackUrl: `https://dropi.co/tracking/${o.trackingNumber}`,
+              total: 0,
+              status: order.status === "delivered" ? "delivered" : "in_transit",
+            },
+          });
+        }
       }
     } catch (e) {
       console.warn(`[importer] Error al guardar pedido:`, e);

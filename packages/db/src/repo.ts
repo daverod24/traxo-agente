@@ -9,7 +9,16 @@ export async function saveOrder(db: Db, order: Order): Promise<{ order: Order; c
   });
   if (existing) {
     orderStoreIndex.set(existing.id, order.storeId);
-    return { order: { ...order, id: existing.id }, created: false };
+    if (order.status && existing.status !== order.status) {
+      await prisma.order.update({
+        where: { id: existing.id },
+        data: { status: order.status },
+      });
+    }
+    return {
+      order: { ...order, id: existing.id, status: order.status ?? existing.status },
+      created: false,
+    };
   }
 
   let customerId: string | null = null;
@@ -47,7 +56,7 @@ export async function saveOrder(db: Db, order: Order): Promise<{ order: Order; c
       total: order.total,
       payment: order.payment,
       utm: order.utm ?? undefined,
-      status: "received",
+      status: order.status || "pending",
       createdAt: new Date(order.createdAt),
     },
   });

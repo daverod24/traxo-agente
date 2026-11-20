@@ -51,6 +51,12 @@ export type State = {
   connections: Connection[];
   kpis: {
     orders: number;
+    activeOrders?: number;
+    cancelledOrders?: number;
+    cancelledAmount?: number;
+    gmvTotal?: number;
+    codPorCobrar?: number;
+    pendingReview?: number;
     shipments: number;
     delivered: number;
     inTransit: number;

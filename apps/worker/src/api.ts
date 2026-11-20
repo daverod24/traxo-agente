@@ -71,9 +71,12 @@ export function registerApi(app: Hono, rt: Runtime): void {
   });
 
   app.get("/api/state", async (c) => {
-    const [settings, orders, shipments, pending, incidents] = await Promise.all([
+    const [settings, orderRows, shipments, pending, incidents] = await Promise.all([
       getSettings(db, sid(c)),
-      db.prisma.order.count({ where: { storeId: sid(c) } }),
+      db.prisma.order.findMany({
+        where: { storeId: sid(c) },
+        select: { status: true, total: true, payment: true },
+      }),
       db.prisma.shipment.findMany({
         where: { order: { storeId: sid(c) } },
         select: { status: true, total: true, simulated: true },
@@ -81,6 +84,17 @@ export function registerApi(app: Hono, rt: Runtime): void {
       db.prisma.approval.count({ where: { storeId: sid(c), status: "pending" } }),
       db.prisma.shipment.count({ where: { status: "incident", order: { storeId: sid(c) } } }),
     ]);
+
+    const totalOrders = orderRows.length;
+    const cancelledOrders = orderRows.filter((o) => o.status === "cancelled");
+    const activeOrders = orderRows.filter((o) => o.status !== "cancelled");
+    const pendingCodOrders = orderRows.filter(
+      (o) => ["pending", "received", "on_hold", "on-hold"].includes(o.status) && o.payment === "cod",
+    );
+    const gmvTotal = activeOrders.reduce((s, o) => s + o.total, 0);
+    const codPorCobrar = pendingCodOrders.reduce((s, o) => s + o.total, 0);
+    const cancelledAmount = cancelledOrders.reduce((s, o) => s + o.total, 0);
+
     return c.json({
       store: { id: sid(c), name: await storeNameOf(db, sid(c), rt.storeName) },
       settings,
@@ -88,7 +102,13 @@ export function registerApi(app: Hono, rt: Runtime): void {
       demo: isDemo(),
       connections: rt.connections,
       kpis: {
-        orders,
+        orders: totalOrders,
+        activeOrders: activeOrders.length,
+        cancelledOrders: cancelledOrders.length,
+        cancelledAmount,
+        gmvTotal,
+        codPorCobrar,
+        pendingReview: pendingCodOrders.length,
         shipments: shipments.length,
         delivered: shipments.filter((s) => s.status === "delivered").length,
         inTransit: shipments.filter((s) =>
@@ -319,16 +339,53 @@ export function registerApi(app: Hono, rt: Runtime): void {
 
     const CANONICAL_DAVEBEAUTY: Record<
       string,
-      { sku: string; dropiId?: string; packs: { duo: number; trio: number } }
+      { sku: string; dropiId?: string; packs: { duo: number; trio: number }; imageUrl?: string }
     > = {
-      "59": { sku: "DB-BODY-MAGIC-OIL", dropiId: "239", packs: { duo: 42.99, trio: 59.99 } },
-      "55": { sku: "DB-SKIN-NECK-LIFT", dropiId: "196", packs: { duo: 40, trio: 55 } },
-      "50": { sku: "DB-SKIN-MEDICUBE-PDRN", dropiId: "167", packs: { duo: 48, trio: 65 } },
-      "45": { sku: "DB-WELL-NAD-60", dropiId: "93", packs: { duo: 52, trio: 70 } },
-      "21": { sku: "DB-BEAUTY-MELAXIN-9G", packs: { duo: 39, trio: 54 } },
-      "17": { sku: "DB-WELL-OREG-60", dropiId: "190", packs: { duo: 40, trio: 55 } },
-      "13": { sku: "DB-KBEAUTY-BOTA-SHAMP", packs: { duo: 105, trio: 145 } },
-      "9": { sku: "DB-KBEAUTY-ICD-SUN", packs: { duo: 105, trio: 145 } },
+      "59": {
+        sku: "DB-BODY-MAGIC-OIL",
+        dropiId: "239",
+        packs: { duo: 42.99, trio: 59.99 },
+        imageUrl: "https://davebeauty.daverod.tech/images/products/aceite-magico-reafirmante/luxury-v1-1200.webp",
+      },
+      "55": {
+        sku: "DB-SKIN-NECK-LIFT",
+        dropiId: "196",
+        packs: { duo: 40, trio: 55 },
+        imageUrl: "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/196/17827922041000704956.jpg",
+      },
+      "50": {
+        sku: "DB-SKIN-MEDICUBE-PDRN",
+        dropiId: "167",
+        packs: { duo: 48, trio: 65 },
+        imageUrl: "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/167/17783019261000614740.webp",
+      },
+      "45": {
+        sku: "DB-WELL-NAD-60",
+        dropiId: "93",
+        packs: { duo: 52, trio: 70 },
+        imageUrl: "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/93/17698802731000454694.webp",
+      },
+      "21": {
+        sku: "DB-BEAUTY-MELAXIN-9G",
+        packs: { duo: 39, trio: 54 },
+        imageUrl: "https://davebeauty.daverod.tech/images/products/dr-melaxin-calcium-volume-multi-balm/premium-v1.webp",
+      },
+      "17": {
+        sku: "DB-WELL-OREG-60",
+        dropiId: "190",
+        packs: { duo: 40, trio: 55 },
+        imageUrl: "https://davebeauty.daverod.tech/images/products/aceite-de-oregano-semilla-negra/premium-v1.webp",
+      },
+      "13": {
+        sku: "DB-KBEAUTY-BOTA-SHAMP",
+        packs: { duo: 105, trio: 145 },
+        imageUrl: "https://cdn.rimanbuild.com/Botalab/EX/DeserticolaShampoo/TL_DeserticolaShampoo_DFLT.png",
+      },
+      "9": {
+        sku: "DB-KBEAUTY-ICD-SUN",
+        packs: { duo: 105, trio: 145 },
+        imageUrl: "https://cdn.rimanbuild.com/Incellderm/EX/DailyAquaBB/TL_DailyAquaBB_DFLT.png",
+      },
     };
 
     const sold = new Map<string, { units: number; revenue: number }>();
@@ -371,7 +428,7 @@ export function registerApi(app: Hono, rt: Runtime): void {
             revenue: sold.get(p.id)?.revenue ?? 0,
             description: p.description,
             externalId: p.externalId,
-            imageUrl: p.imageUrl,
+            imageUrl: p.imageUrl || canonical?.imageUrl || null,
             weightGrams: p.weightGrams,
             sku,
             dropiId,

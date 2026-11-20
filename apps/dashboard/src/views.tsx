@@ -259,6 +259,17 @@ function DemoGuide({
 }
 
 /* ============================== INICIO ============================== */
+const CANONICAL_PRODUCT_IMAGES: Record<string, string> = {
+  "17": "https://davebeauty.daverod.tech/images/products/aceite-de-oregano-semilla-negra/premium-v1.webp",
+  "21": "https://davebeauty.daverod.tech/images/products/dr-melaxin-calcium-volume-multi-balm/premium-v1.webp",
+  "13": "https://cdn.rimanbuild.com/Botalab/EX/DeserticolaShampoo/TL_DeserticolaShampoo_DFLT.png",
+  "9": "https://cdn.rimanbuild.com/Incellderm/EX/DailyAquaBB/TL_DailyAquaBB_DFLT.png",
+  "50": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/167/17783019261000614740.webp",
+  "45": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/93/17698802731000454694.webp",
+  "55": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/196/17827922041000704956.jpg",
+  "59": "https://davebeauty.daverod.tech/images/products/aceite-magico-reafirmante/luxury-v1-1200.webp",
+};
+
 export function Inicio({
   ctx,
   orders,
@@ -274,26 +285,51 @@ export function Inicio({
 }) {
   const k = state.kpis;
   const products = useResource<Product[]>("/api/products", ctx.tick).data ?? [];
-  const live = orders.filter(
-    (o) => o.payment === "cod" && o.status !== "delivered" && o.shipments.length > 0,
-  );
-  const porCobrar = live.reduce((s, o) => s + o.total, 0);
   const demo = Boolean(state.demo);
+
+  const activeOrders = orders.filter((o) => !["cancelled", "rejected"].includes(o.status));
+  const cancelledOrders = orders.filter((o) => ["cancelled", "rejected"].includes(o.status));
+  const porConfirmarOrders = orders.filter((o) =>
+    ["pending", "received", "on_hold", "on-hold"].includes(o.status),
+  );
+  const codPendientes = orders.filter(
+    (o) => o.payment === "cod" && !["delivered", "cancelled", "rejected"].includes(o.status),
+  );
+
+  const totalGmv = activeOrders.reduce((s, o) => s + o.total, 0);
+  const porCobrar = codPendientes.reduce((s, o) => s + o.total, 0);
+  const cancelledAmount = cancelledOrders.reduce((s, o) => s + o.total, 0);
+  const enCaminoCount = k.inTransit || orders.filter((o) => ["shipped", "in_transit"].includes(o.status)).length;
+  const entregadosCount = k.delivered || orders.filter((o) => o.status === "delivered").length;
+
   return (
     <div className="stack">
       <div className="topbar">
         <div>
-          <h1>Hola. Esto es lo que va pasando</h1>
+          <h1>Panel de Control de Operaciones</h1>
           <p className="lead">
-            Llevo {k.orders} pedidos de {state.store.name}: {k.inTransit} en camino y {k.delivered}{" "}
-            entregados.{" "}
-            {k.pendingApprovals > 0
-              ? `Hay ${k.pendingApprovals} ${plural(k.pendingApprovals, "cosa", "cosas")} esperando tu decisión. `
-              : "No tengo nada esperando tu decisión. "}
-            {k.incidents > 0
-              ? `${k.incidents} ${plural(k.incidents, "guía tiene", "guías tienen")} novedad.`
-              : "Ninguna guía tiene novedad."}
+            {activeOrders.length} {plural(activeOrders.length, "pedido activo", "pedidos activos")} por {usd(totalGmv)}
+            {porConfirmarOrders.length > 0 ? ` · ${porConfirmarOrders.length} por confirmar COD` : " · Todo confirmado"}
+            {enCaminoCount > 0 ? ` · ${enCaminoCount} en camino` : ""}
+            {cancelledOrders.length > 0 ? ` · ${cancelledOrders.length} cancelados ($${cancelledAmount.toFixed(2)})` : ""}
           </p>
+        </div>
+        <div className="row" style={{ gap: 8 }}>
+          <Button
+            variant="agent"
+            icon="refresh"
+            onClick={async () => {
+              try {
+                await post("/api/store/import");
+                ctx.refresh();
+                ctx.toast("Tienda sincronizada con WooCommerce HPOS");
+              } catch (e) {
+                ctx.toast("Error al sincronizar");
+              }
+            }}
+          >
+            Sincronizar tienda
+          </Button>
         </div>
       </div>
 
@@ -327,32 +363,45 @@ export function Inicio({
         </section>
       )}
 
-      <div className="grid-kpi">
+      <div className="grid-kpi" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
         <KpiCard
           hero
+          label="Facturación Activa (GMV)"
+          value={usd(totalGmv)}
+          hint={`${activeOrders.length} ${plural(activeOrders.length, "orden activa", "órdenes activas")}`}
+        />
+        <KpiCard
+          tone="amber"
           label="Contraentrega por cobrar"
-          value={copShort(porCobrar)}
-          hint={`${live.length} ${plural(live.length, "pedido", "pedidos")} en camino con recaudo`}
+          value={usd(porCobrar)}
+          hint={`${codPendientes.length} ${plural(codPendientes.length, "pedido COD", "pedidos COD")} en proceso`}
         />
         <KpiCard
-          label="En camino"
-          value={k.inTransit}
-          unit={plural(k.inTransit, "guía", "guías")}
+          label="Por confirmar (COD)"
+          value={porConfirmarOrders.length}
+          unit={plural(porConfirmarOrders.length, "orden", "órdenes")}
+          hint="En espera de guía Dropi"
         />
         <KpiCard
+          tone="blue"
+          label="En camino / Tránsito"
+          value={enCaminoCount}
+          unit={plural(enCaminoCount, "guía", "guías")}
+          hint="Flaash Express / MRW / Zoom"
+        />
+        <KpiCard
+          tone="emerald"
           label="Entregados"
-          value={k.delivered}
-          unit={plural(k.delivered, "guía", "guías")}
+          value={entregadosCount}
+          unit={plural(entregadosCount, "pedido", "pedidos")}
+          hint={activeOrders.length ? `${Math.round((entregadosCount / activeOrders.length) * 100)}% efectividad COD` : undefined}
         />
         <KpiCard
-          label="Con novedad"
-          value={k.incidents}
-          unit={plural(k.incidents, "guía", "guías")}
-        />
-        <KpiCard
-          label="Fletes pagados"
-          value={copShort(k.shippingSpend)}
-          hint={k.simulatedShipments ? "incluye guías simuladas" : undefined}
+          tone="rose"
+          label="Cancelados / Rollback"
+          value={cancelledOrders.length}
+          unit={plural(cancelledOrders.length, "orden", "órdenes")}
+          hint={cancelledAmount > 0 ? `$${cancelledAmount.toFixed(2)} sin despacho` : "0 cancelaciones"}
         />
       </div>
 
@@ -392,9 +441,26 @@ export function Inicio({
                 </span>
               </div>
             </div>
-            <Button variant="agent" icon="tag" onClick={() => ctx.go("productos")}>
-              Ver catálogo completo
-            </Button>
+            <div className="row" style={{ gap: 8 }}>
+              <Button
+                variant="agent"
+                icon="refresh"
+                onClick={async () => {
+                  try {
+                    await post("/api/products/sync");
+                    ctx.refresh();
+                    ctx.toast("Catálogo actualizado desde WooCommerce");
+                  } catch (e) {
+                    ctx.toast("Error al actualizar catálogo");
+                  }
+                }}
+              >
+                Sincronizar catálogo
+              </Button>
+              <Button icon="tag" onClick={() => ctx.go("productos")}>
+                Ver catálogo completo
+              </Button>
+            </div>
           </div>
 
           <div
@@ -404,76 +470,79 @@ export function Inicio({
               gap: 12,
             }}
           >
-            {products.slice(0, 4).map((p) => (
-              <div
-                key={p.id}
-                onClick={() => ctx.go("productos")}
-                style={{
-                  background: "var(--surface)",
-                  padding: "10px 12px",
-                  borderRadius: "8px",
-                  border: "1px solid var(--line)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  cursor: "pointer",
-                }}
-              >
-                {p.imageUrl ? (
-                  <img
-                    src={p.imageUrl}
-                    alt={p.title}
-                    style={{
-                      width: 48,
-                      height: 48,
-                      objectFit: "cover",
-                      borderRadius: 6,
-                      flexShrink: 0,
-                    }}
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = "none";
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 6,
-                      background: "rgba(255, 200, 5, 0.12)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "var(--brand)",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Icon name="tag" size={22} />
-                  </div>
-                )}
-                <div style={{ overflow: "hidden", flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontWeight: 600,
-                      fontSize: "0.88rem",
-                      color: "var(--ink)",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                    title={p.title}
-                  >
-                    {p.title}
-                  </div>
-                  <div style={{ fontSize: "0.85rem", color: "var(--brand)", fontWeight: 700 }}>
-                    {usd(p.price)}
-                  </div>
-                  <div style={{ fontSize: "0.72rem", color: "var(--ink-muted)" }}>
-                    {vesFromUsd(p.price)}
+            {products.slice(0, 4).map((p) => {
+              const displayImg = p.imageUrl || CANONICAL_PRODUCT_IMAGES[p.externalId || ""];
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => ctx.go("productos")}
+                  style={{
+                    background: "var(--surface)",
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--line)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    cursor: "pointer",
+                  }}
+                >
+                  {displayImg ? (
+                    <img
+                      src={displayImg}
+                      alt={p.title}
+                      style={{
+                        width: 48,
+                        height: 48,
+                        objectFit: "cover",
+                        borderRadius: 6,
+                        flexShrink: 0,
+                      }}
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 6,
+                        background: "rgba(255, 200, 5, 0.12)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "var(--brand)",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Icon name="tag" size={22} />
+                    </div>
+                  )}
+                  <div style={{ overflow: "hidden", flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        fontSize: "0.88rem",
+                        color: "var(--ink)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                      title={p.title}
+                    >
+                      {p.title}
+                    </div>
+                    <div style={{ fontSize: "0.85rem", color: "var(--brand)", fontWeight: 700 }}>
+                      {usd(p.price)}
+                    </div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--ink-muted)" }}>
+                      {vesFromUsd(p.price)}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
@@ -484,33 +553,48 @@ export function Inicio({
         </div>
         {demo && <DemoGuide ctx={ctx} orders={orders} openOrder={openOrder} />}
         <section className="card" aria-labelledby="feed-h" style={{ gridArea: "feed" }}>
-          <div className="row between" style={{ marginBottom: 8 }}>
-            <h2 id="feed-h">Lo que estoy haciendo</h2>
-            <button type="button" className="btn ghost sm" onClick={() => ctx.go("actividad")}>
-              Ver todo
+          <div className="row between" style={{ marginBottom: 12 }}>
+            <h2 id="feed-h">Últimos pedidos registrados</h2>
+            <button type="button" className="btn ghost sm" onClick={() => ctx.go("pedidos")}>
+              Ver todos ({orders.length})
             </button>
           </div>
-          <div className="feed" role="log" aria-live="polite" aria-label="Actividad del agente">
-            {ctx.events
-              .slice(-6)
-              .reverse()
-              .map((e) => (
-                <AgentActivityEntry
-                  key={e.id}
-                  e={e}
-                  fresh={ctx.fresh.has(e.id)}
-                  tag={e.orderId ? ctx.tags.get(e.orderId) : undefined}
-                />
-              ))}
-            {ctx.events.length === 0 && (
+          <div className="stack" style={{ gap: 8 }}>
+            {orders.slice(0, 6).map((o) => (
+              <div
+                key={o.id}
+                className="row between click"
+                onClick={() => openOrder(o.id)}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: "8px",
+                  background: "rgba(255, 255, 255, 0.02)",
+                  border: "1px solid var(--line)",
+                  alignItems: "center",
+                }}
+              >
+                <div className="row" style={{ gap: 10, alignItems: "center" }}>
+                  <span className="mono" style={{ fontWeight: 700, fontSize: "0.95rem" }}>
+                    {o.number}
+                  </span>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{o.address.name}</div>
+                    <div className="caption">{o.address.city}</div>
+                  </div>
+                </div>
+                <div className="row" style={{ gap: 12, alignItems: "center" }}>
+                  <span className="mono num" style={{ fontWeight: 700 }}>
+                    {usd(o.total)}
+                  </span>
+                  <StatusBadge status={o.status} />
+                </div>
+              </div>
+            ))}
+            {orders.length === 0 && (
               <EmptyState
-                icon="spark"
-                title="Todavía no he hecho nada"
-                text={
-                  demo
-                    ? "Simula un pedido y mírame trabajar."
-                    : "Cuando entre un pedido, aquí verás cada decisión que tomo."
-                }
+                icon="box"
+                title="Sin pedidos todavía"
+                text="Los pedidos entrantes de WooCommerce aparecerán aquí con su estado en vivo."
               />
             )}
           </div>

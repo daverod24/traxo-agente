@@ -26,6 +26,7 @@ import {
 } from "./ui.tsx";
 import type { Ctx } from "./views.tsx";
 import { CreativosDola } from "./views-dola.tsx";
+import { CampanasEstrategicas, RadarQueEmpujar } from "./views-marketing-strategy.tsx";
 import { Biblioteca, MediaPicker, MediaThumb } from "./views-media.tsx";
 
 const LIMITS = {
@@ -58,10 +59,20 @@ export function Clientes({ ctx }: { ctx: Ctx }) {
   const [preview, setPreview] = useState<{ recipients: number; excluded: number } | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [target, setTarget] = useState<{ id: string; name: string } | undefined>();
-  const customers = (data?.customers ?? [])
+  const [search, setSearch] = useState("");
+  const allFiltered = (data?.customers ?? [])
     .filter((c) => seg === "all" || c.segments.includes(seg))
-    .sort((a, b) => b.spent - a.spent)
-    .slice(0, 25);
+    .filter((c) => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return (
+        c.name.toLowerCase().includes(q) ||
+        (c.phone && c.phone.includes(q)) ||
+        (c.city && c.city.toLowerCase().includes(q))
+      );
+    })
+    .sort((a, b) => b.spent - a.spent);
+  const customers = allFiltered.slice(0, 50);
   const sendable = seg !== "sin_consentimiento";
 
   useEffect(() => {
@@ -160,11 +171,30 @@ export function Clientes({ ctx }: { ctx: Ctx }) {
       </div>
 
       <section className="card" aria-labelledby="cl-h">
-        <div className="row between" style={{ marginBottom: 8 }}>
-          <h2 id="cl-h">{SEG.find((s) => s[0] === seg)?.[1] ?? "Clientes"}</h2>
-          <button type="button" className="btn ghost sm" onClick={() => pick("all")}>
-            Ver todos
-          </button>
+        <div className="row between" style={{ marginBottom: 12, alignItems: "center", gap: 12 }}>
+          <h2 id="cl-h">
+            {SEG.find((s) => s[0] === seg)?.[1] ?? "Clientes"} ({allFiltered.length})
+          </h2>
+          <div className="row" style={{ gap: 8, flex: 1, maxWidth: 360 }}>
+            <input
+              type="search"
+              placeholder="Buscar cliente, teléfono o ciudad..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "6px 12px",
+                borderRadius: "8px",
+                border: "1px solid var(--line)",
+                background: "var(--surface)",
+                color: "inherit",
+                fontSize: "0.85rem",
+              }}
+            />
+            <button type="button" className="btn ghost sm" onClick={() => pick("all")}>
+              Todos
+            </button>
+          </div>
         </div>
         <div className="only-wide scroll-x">
           <table className="table">
@@ -213,7 +243,30 @@ export function Clientes({ ctx }: { ctx: Ctx }) {
                     </ToneBadge>
                   </td>
                   <td>
-                    <div className="row" style={{ flexWrap: "nowrap" }}>
+                    <div className="row" style={{ flexWrap: "nowrap", gap: 6 }}>
+                      {c.phone && (
+                        <a
+                          href={`https://wa.me/${c.phone.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola ${c.name}, te escribimos de Davebeauty.`)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn sm"
+                          style={{
+                            textDecoration: "none",
+                            background: "rgba(16, 185, 129, 0.12)",
+                            color: "#10b981",
+                            border: "1px solid rgba(16, 185, 129, 0.25)",
+                            padding: "4px 8px",
+                            fontSize: "0.78rem",
+                            borderRadius: 6,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                        >
+                          <Icon name="device" size={13} />
+                          WhatsApp
+                        </a>
+                      )}
                       <Button
                         sm
                         variant="ghost"
@@ -414,51 +467,47 @@ export function Clientes({ ctx }: { ctx: Ctx }) {
 /* ============================== MARKETING ============================== */
 export function Marketing({ ctx }: { ctx: Ctx }) {
   const [tab, setTab] = useState("campanas");
-  const [asset, setAsset] = useState<MediaAsset>();
+  const [selectedSku, setSelectedSku] = useState("DB-WELL-OREG-60");
+
   return (
     <div className="stack">
       <div className="topbar">
         <div>
-          <h1>Marketing</h1>
+          <h1>Marketing y Adquisición de Clientes</h1>
           <p className="lead">
-            Qué empujar, qué anuncios tengo, y cómo armar el siguiente. Las campañas nacen en pausa;
-            activarlas es tuyo.
+            Estrategia de Paid Media (Meta Ads & WhatsApp), radar financiero Dropi y generador de creativos.
           </p>
         </div>
       </div>
-      <Banner tone="neutral">
-        Nada se publica ni se gasta sin tu sí. Los creativos con Higgsfield cuestan créditos.
-        También puedes usar la pestaña <strong>Creativos Gratis (Dola AI)</strong> para generar imágenes de alta conversión y guiones UGC sin gastar créditos.
-      </Banner>
+
       <Tabs
         label="Marketing"
         value={tab}
         onChange={setTab}
         items={[
-          ["campanas", "Campañas"],
-          ["creativos", "Creativos (Higgsfield)"],
-          ["dola", "Creativos Gratis (Dola AI)"],
-          ["biblioteca", "Biblioteca"],
-          ["nueva", "Nueva campaña"],
-          ["productos", "Qué empujar"],
+          ["campanas", "Campañas Estratégicas (Meta Ads & WhatsApp)"],
+          ["dola", "Generador Creativo DALL-E"],
+          ["productos", "Radar Qué Empujar (Márgenes Dropi)"],
         ]}
       />
-      {tab === "campanas" && <Campanas ctx={ctx} />}
-      {tab === "creativos" && <Creativos ctx={ctx} onGoDola={() => setTab("dola")} />}
-      {tab === "dola" && <CreativosDola ctx={ctx} />}
-      {tab === "biblioteca" && (
-        <Biblioteca
+      {tab === "campanas" && (
+        <CampanasEstrategicas
           ctx={ctx}
-          onUse={(a) => {
-            setAsset(a);
-            setTab("nueva");
+          selectedSku={selectedSku}
+          onSelectSku={setSelectedSku}
+          onGoDola={() => setTab("dola")}
+        />
+      )}
+      {tab === "dola" && <CreativosDola ctx={ctx} />}
+      {tab === "productos" && (
+        <RadarQueEmpujar
+          ctx={ctx}
+          onSelectToCampaign={(sku) => {
+            setSelectedSku(sku);
+            setTab("campanas");
           }}
         />
       )}
-      {tab === "nueva" && (
-        <NuevaCampana ctx={ctx} asset={asset} onSaved={() => setTab("campanas")} />
-      )}
-      {tab === "productos" && <Productos ctx={ctx} />}
     </div>
   );
 }

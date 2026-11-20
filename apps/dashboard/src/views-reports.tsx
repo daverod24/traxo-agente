@@ -88,14 +88,14 @@ export function Reportes({ ctx }: { ctx: Ctx }) {
           <span className="caption">de los pedidos</span>
         </div>
         <div className="kpi">
-          <span className="label">Entregados</span>
-          <span className="value num">{pct(t?.deliveredPct ?? null)}</span>
-          <span className="caption">de lo enviado</span>
+          <span className="label">Cancelados</span>
+          <span className="value num" style={{ color: "#fb7185" }}>{t?.cancelled ?? 0}</span>
+          <span className="caption">pedidos cancelados</span>
         </div>
         <div className="kpi">
-          <span className="label">Devueltos</span>
-          <span className="value num">{pct(t?.returnedPct ?? null)}</span>
-          <span className="caption">{t?.cancelled ?? 0} cancelados</span>
+          <span className="label">Efectividad</span>
+          <span className="value num" style={{ color: "#10b981" }}>{pct(t?.deliveredPct ?? null)}</span>
+          <span className="caption">de entregas exitosas</span>
         </div>
       </div>
 

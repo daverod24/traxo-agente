@@ -52,6 +52,9 @@ export const OrderSchema = z.object({
   total: z.number().nonnegative(),
   totalDecimal: z.string().optional(),
   payment: PaymentMethod,
+  status: z.string().optional(),
+  trackingNumber: z.string().optional(),
+  carrier: z.string().optional(),
   utm: z.record(z.string(), z.string()).optional(),
   createdAt: z.string(),
 });

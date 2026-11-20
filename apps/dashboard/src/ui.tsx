@@ -119,11 +119,14 @@ export const STATUS: Record<string, { tone: Tone; label: string }> = {
   incident: { tone: "attention", label: "Novedad" },
   returning: { tone: "critical", label: "En devolución" },
   returned: { tone: "critical", label: "Devuelto" },
-  cancelled: { tone: "neutral", label: "Cancelado" },
+  cancelled: { tone: "critical", label: "Cancelado" },
   received: { tone: "neutral", label: "Recibido" },
-  cancelled_order: { tone: "neutral", label: "Cancelado" },
+  cancelled_order: { tone: "critical", label: "Cancelado" },
   shipped: { tone: "progress", label: "Enviado" },
-  pending: { tone: "attention", label: "Esperando tu aprobación" },
+  pending: { tone: "attention", label: "Por confirmar COD" },
+  on_hold: { tone: "attention", label: "Por confirmar COD" },
+  "on-hold": { tone: "attention", label: "Por confirmar COD" },
+  processing: { tone: "progress", label: "En preparación Dropi" },
   approved: { tone: "success", label: "Aprobada" },
   rejected: { tone: "neutral", label: "Rechazada" },
   DRAFT: { tone: "neutral", label: "Borrador" },
@@ -238,16 +241,19 @@ export function KpiCard({
   value,
   unit,
   hero,
+  tone,
   hint,
 }: {
   label: string;
   value: string | number;
   unit?: string;
   hero?: boolean;
+  tone?: "amber" | "blue" | "rose" | "emerald";
   hint?: string;
 }) {
+  const toneClass = tone ? `${tone}-card` : "";
   return (
-    <div className={`kpi ${hero ? "hero" : ""}`}>
+    <div className={`kpi ${hero ? "hero" : ""} ${toneClass}`}>
       <span className="label">{label}</span>
       <span className="value num">
         {value}

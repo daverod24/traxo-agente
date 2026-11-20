@@ -177,24 +177,23 @@ export function Pipeline({
   working: boolean;
 }) {
   const ships = orders.flatMap((o) => o.shipments);
-  const n = (st: string[]) => ships.filter((s) => st.includes(s.status)).length;
+  const nShip = (st: string[]) => ships.filter((s) => st.includes(s.status)).length;
+  const nOrd = (st: string[]) => orders.filter((o) => st.includes(o.status)).length;
+
+  const porRevisar = Math.max(pending, nOrd(["pending", "received", "on-hold", "on_hold"]));
+  const conGuia = nOrd(["confirmed", "processing", "packed"]) + nShip(["created", "pickup_scheduled"]);
+  const enCamino = nOrd(["shipped", "in_transit"]) + nShip(["picked_up", "in_transit", "out_for_delivery"]);
+  const novedad = nShip(["incident", "returning"]);
+  const entregados = Math.max(nOrd(["delivered"]), nShip(["delivered"]));
+  const cancelados = nOrd(["cancelled", "rejected", "refunded"]);
+
   const stages = [
-    { key: "rev", t: "Por revisar", n: pending, warn: pending > 0, icon: "alert" },
-    { key: "gui", t: "Con guía", n: n(["created", "pickup_scheduled"]), icon: "box" },
-    {
-      key: "cam",
-      t: "En camino",
-      n: n(["picked_up", "in_transit", "out_for_delivery"]),
-      icon: "truck",
-    },
-    {
-      key: "nov",
-      t: "Novedad",
-      n: n(["incident", "returning"]),
-      warn: n(["incident", "returning"]) > 0,
-      icon: "alert",
-    },
-    { key: "ent", t: "Entregado", n: n(["delivered"]), icon: "check" },
+    { key: "rev", t: "Por confirmar", n: porRevisar, warn: porRevisar > 0, icon: "alert" },
+    { key: "gui", t: "Con guía Dropi", n: conGuia, icon: "box" },
+    { key: "cam", t: "En camino", n: enCamino, icon: "truck" },
+    { key: "nov", t: "Novedad", n: novedad, warn: novedad > 0, icon: "alert" },
+    { key: "ent", t: "Entregado", n: entregados, icon: "check" },
+    { key: "can", t: "Cancelado", n: cancelados, isMuted: true, icon: "x" },
   ];
   return (
     <section className="card" aria-labelledby="pipe-h">
@@ -202,14 +201,14 @@ export function Pipeline({
         <h2 id="pipe-h">Dónde está cada pedido</h2>
         <span className="row" style={{ gap: 6 }}>
           <AgentMark working={working} />
-          <span className="caption">{working ? "Trabajando…" : "Al día"}</span>
+          <span className="caption">{working ? "Sincronizado" : "Al día"}</span>
         </span>
       </div>
       <ol className="pipe" style={{ listStyle: "none", margin: 0, padding: 0 }}>
         {stages.map((s) => (
-          <li key={s.key} className={`st ${s.warn ? "warn" : s.n > 0 ? "on" : ""}`}>
+          <li key={s.key} className={`st ${s.warn ? "warn" : s.n > 0 ? "on" : ""} ${s.isMuted ? "muted-stage" : ""}`}>
             <span className="dot">
-              <Icon name={s.icon} size={16} />
+              <Icon name={s.icon as any} size={16} />
             </span>
             <span className="n num">{s.n}</span>
             <span className="t">{s.t}</span>
