@@ -203,32 +203,48 @@ export function registerApi(app: Hono, rt: Runtime): void {
       }
 
       if (provider === "groq") {
-        const model = "llama-3.3-70b-versatile";
-        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
+        // 1. Probar primero el endpoint de modelos (más robusto contra variaciones de modelos)
+        const checkRes = await fetch("https://api.groq.com/openai/v1/models", {
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${apiKey}`,
           },
-          body: JSON.stringify({
-            model,
-            messages: [{ role: "user", content: "ping" }],
-            max_tokens: 5,
-          }),
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(6000),
         });
-        if (res.ok) {
+
+        if (checkRes.ok) {
+          const data = (await checkRes.json().catch(() => ({}))) as { data?: Array<{ id: string }> };
+          const modelsList = Array.isArray(data?.data) ? data.data.map((m) => m.id) : [];
+          const preferredModel =
+            (env as any).GROQ_MODEL || process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+          const activeModel = modelsList.includes(preferredModel)
+            ? preferredModel
+            : modelsList.includes("llama-3.3-70b-versatile")
+              ? "llama-3.3-70b-versatile"
+              : modelsList.includes("llama-3.1-8b-instant")
+                ? "llama-3.1-8b-instant"
+                : modelsList[0] || preferredModel;
+
           return c.json({
             ok: true,
             provider: "groq",
-            model,
-            message: `Conexión exitosa con Groq Cloud (${model})`,
+            model: activeModel,
+            message: `Conexión exitosa con Groq Cloud (${activeModel})`,
           });
         }
+
+        const errText = await checkRes.text().catch(() => "");
+        let errMsg = `Error HTTP ${checkRes.status} al conectar con Groq`;
+        try {
+          const parsed = JSON.parse(errText) as { error?: { message?: string } };
+          if (parsed?.error?.message) errMsg = `Groq: ${parsed.error.message}`;
+        } catch {
+          if (errText) errMsg = `Groq (${checkRes.status}): ${errText.slice(0, 100)}`;
+        }
+
         return c.json({
           ok: false,
           provider: "groq",
-          message: `Error HTTP ${res.status} al conectar con Groq`,
+          message: errMsg,
         });
       }
 
@@ -245,7 +261,7 @@ export function registerApi(app: Hono, rt: Runtime): void {
             messages: [{ role: "user", content: "ping" }],
             max_tokens: 5,
           }),
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(6000),
         });
         if (res.ok) {
           return c.json({
@@ -255,10 +271,18 @@ export function registerApi(app: Hono, rt: Runtime): void {
             message: `Conexión exitosa con xAI (${model})`,
           });
         }
+        const errText = await res.text().catch(() => "");
+        let errMsg = `Error HTTP ${res.status} al conectar con xAI`;
+        try {
+          const parsed = JSON.parse(errText) as { error?: { message?: string } };
+          if (parsed?.error?.message) errMsg = `xAI: ${parsed.error.message}`;
+        } catch {
+          if (errText) errMsg = `xAI (${res.status}): ${errText.slice(0, 100)}`;
+        }
         return c.json({
           ok: false,
           provider: "xai",
-          message: `Error HTTP ${res.status} al conectar con xAI`,
+          message: errMsg,
         });
       }
 
@@ -275,7 +299,7 @@ export function registerApi(app: Hono, rt: Runtime): void {
             messages: [{ role: "user", content: "ping" }],
             max_tokens: 5,
           }),
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(6000),
         });
         if (res.ok) {
           return c.json({
@@ -285,10 +309,18 @@ export function registerApi(app: Hono, rt: Runtime): void {
             message: `Conexión exitosa con NVIDIA NIM (${model})`,
           });
         }
+        const errText = await res.text().catch(() => "");
+        let errMsg = `Error HTTP ${res.status} al conectar con NVIDIA`;
+        try {
+          const parsed = JSON.parse(errText) as { error?: { message?: string } };
+          if (parsed?.error?.message) errMsg = `NVIDIA: ${parsed.error.message}`;
+        } catch {
+          if (errText) errMsg = `NVIDIA (${res.status}): ${errText.slice(0, 100)}`;
+        }
         return c.json({
           ok: false,
           provider: "nvidia",
-          message: `Error HTTP ${res.status} al conectar con NVIDIA NIM`,
+          message: errMsg,
         });
       }
 
