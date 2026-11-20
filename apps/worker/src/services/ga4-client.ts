@@ -66,9 +66,29 @@ let cachedAccessToken: { token: string; expiresAt: number } | null = null;
  * Parsea el Service Account desde string base64 o JSON crudo.
  */
 export function parseServiceAccount(b64OrJson?: string): GoogleServiceAccount | null {
-  if (!b64OrJson || !b64OrJson.trim()) return null;
+  const rawInput = b64OrJson || env.GA4_SERVICE_ACCOUNT_B64 || process.env.GA4_SERVICE_ACCOUNT_B64;
+  if (!rawInput || !rawInput.trim()) {
+    // Intentar leer desde variables separadas GA4_CLIENT_EMAIL y GA4_PRIVATE_KEY
+    const email = env.GA4_CLIENT_EMAIL || process.env.GA4_CLIENT_EMAIL;
+    let key = env.GA4_PRIVATE_KEY || process.env.GA4_PRIVATE_KEY;
+    if (email && key) {
+      key = key.trim();
+      if (!key.includes("BEGIN PRIVATE KEY")) {
+        try {
+          key = Buffer.from(key, "base64").toString("utf8");
+        } catch {}
+      }
+      key = key.replace(/\\n/g, "\n");
+      return {
+        client_email: email.trim(),
+        private_key: key,
+        token_uri: "https://oauth2.googleapis.com/token",
+      };
+    }
+    return null;
+  }
   try {
-    let raw = b64OrJson.trim();
+    let raw = rawInput.trim();
     if (!raw.startsWith("{")) {
       raw = Buffer.from(raw, "base64").toString("utf8");
     }

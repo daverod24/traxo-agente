@@ -40,10 +40,15 @@ export const ServerEnvSchema = z.object({
   // Proveedores LLM (Inferencia Multi-Provider en Cascada)
   GEMINI_API_KEY: optionalString,
   GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+  GROQ_API_KEY: optionalString,
+  GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),
+  NVIDIA_API_KEY: optionalString,
+  NVIDIA_MODEL: z.string().default("meta/llama-3.3-70b-instruct"),
   XAI_API_KEY: optionalString,
   XAI_MODEL: z.string().default("grok-2-mini"),
   OPENROUTER_API_KEY: optionalString,
   OPENROUTER_MODEL: z.string().default("anthropic/claude-3.5-sonnet"),
+  OPENAI_API_KEY: optionalString,
   ANTHROPIC_API_KEY: optionalString,
   ANTHROPIC_MODEL: z.string().default("claude-3-5-sonnet-latest"),
 
@@ -56,6 +61,8 @@ export const ServerEnvSchema = z.object({
   // Google Analytics 4 (Data API)
   GA4_PROPERTY_ID: optionalString,
   GA4_SERVICE_ACCOUNT_B64: optionalString,
+  GA4_CLIENT_EMAIL: optionalString,
+  GA4_PRIVATE_KEY: optionalString,
 
   // Microsoft Clarity
   CLARITY_PROJECT_ID: optionalString,
