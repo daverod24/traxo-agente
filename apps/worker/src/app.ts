@@ -18,7 +18,7 @@ export type AppDeps = {
   onCarrierEvent?: (trackingNumber: string, event: TrackingEvent) => Promise<boolean> | boolean;
   onInbound?: (msg: InboundMessage) => Promise<void> | void;
   /** Proveedor de pagos con verificación de eventos firmados (Wompi). */
-  payments?: { verifyEvent?: (event: any) => boolean };
+  payments?: { verifyEvent?: (event: unknown) => boolean };
   /** Un pago aprobado de un link: devuelve false si no hay un pedido esperándolo. */
   onPaymentApproved?: (paymentLinkId: string) => Promise<boolean> | boolean;
 };

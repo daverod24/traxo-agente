@@ -160,9 +160,12 @@ describe("auditoría con estándares venezolanos y visibilidad en IA (AEO)", () 
       if (path === "/robots.txt") return new Response(ROBOTS_VE, { status: 200 });
       if (path === "/sitemap.xml") return new Response("Not found", { status: 404 });
       if (path === "/sitemap-index.xml")
-        return new Response("<sitemapindex><sitemap><loc>https://davebeauty.daverod.tech/sitemap-0.xml</loc></sitemap></sitemapindex>", {
-          status: 200,
-        });
+        return new Response(
+          "<sitemapindex><sitemap><loc>https://davebeauty.daverod.tech/sitemap-0.xml</loc></sitemap></sitemapindex>",
+          {
+            status: 200,
+          },
+        );
       if (path === "/llms.txt") return new Response("# Davebeauty LLMs", { status: 200 });
       return new Response("Not found", { status: 404 });
     }) as unknown as typeof fetch;
@@ -256,12 +259,17 @@ describe("auditoría con estándares venezolanos y visibilidad en IA (AEO)", () 
       if (path === "/") return new Response(ADVANCED_AEO_HTML, { status: 200 });
       if (path === "/robots.txt") return new Response(ROBOTS_BLOCKING, { status: 200 });
       if (path === "/sitemap.xml") return new Response("Not found", { status: 404 });
-      if (path === "/sitemap-index.xml") return new Response("<sitemapindex></sitemapindex>", { status: 200 });
-      if (path === "/llms.txt") return new Response("# Davebeauty LLMs\nResumen del catálogo", { status: 200 });
+      if (path === "/sitemap-index.xml")
+        return new Response("<sitemapindex></sitemapindex>", { status: 200 });
+      if (path === "/llms.txt")
+        return new Response("# Davebeauty LLMs\nResumen del catálogo", { status: 200 });
       return new Response("Not found", { status: 404 });
     }) as unknown as typeof fetch;
 
-    const r = await auditUrl("seo", "https://davebeauty.daverod.tech", { fetch: fSite, resolve: pub });
+    const r = await auditUrl("seo", "https://davebeauty.daverod.tech", {
+      fetch: fSite,
+      resolve: pub,
+    });
     const by = Object.fromEntries(r.checks.map((c) => [c.id, c.status]));
 
     expect(by.bluf).toBe("pass");

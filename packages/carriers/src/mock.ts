@@ -5,7 +5,7 @@ import type {
   TrackingEvent,
   TrackingStatus,
 } from "@traxo/core";
-import { BASE_DAYS, BASE_FREIGHT, type Zone, weightFactor, zoneFor } from "./tariffs.ts";
+import { BASE_DAYS, BASE_FREIGHT, weightFactor, type Zone, zoneFor } from "./tariffs.ts";
 import type { CarrierProvider } from "./types.ts";
 
 export type CarrierProfile = {
@@ -191,9 +191,12 @@ export class MockCarrierProvider implements CarrierProvider {
       const baseFreightUSD = 4.5;
       const freight = isVe
         ? Number(
-            (baseFreightUSD * weightFactor(draft.weightGrams) * p.price * (1 + this.markup)).toFixed(
-              2,
-            ),
+            (
+              baseFreightUSD *
+              weightFactor(draft.weightGrams) *
+              p.price *
+              (1 + this.markup)
+            ).toFixed(2),
           )
         : Math.round(
             (BASE_FREIGHT[zone] * weightFactor(draft.weightGrams) * p.price * (1 + this.markup)) /

@@ -242,7 +242,7 @@ describe("herramientas de crecimiento por MCP", () => {
 
   it("sugerir_campana usa los datos del producto y no inventa el margen", async () => {
     const products = (await rt.commerce.listProducts()) as Array<{ id: string }>;
-    const prod = await db.prisma.product.findFirstOrThrow();
+    const prod = await db.prisma.product.findFirstOrThrow({ where: { storeId: rt.storeId } });
     void products;
     const r = await call("sugerir_campana", { producto_id: prod.id, plataforma: "google" });
     expect(r.text).toContain("utm_campaign=");
@@ -256,7 +256,7 @@ describe("herramientas de crecimiento por MCP", () => {
     });
     expect(preview.text).toContain("Borrador");
     expect((rt.messaging as unknown as { sent: unknown[] }).sent).toHaveLength(0);
-    const cu = await db.prisma.customer.findFirstOrThrow();
+    const cu = await db.prisma.customer.findFirstOrThrow({ where: { storeId: rt.storeId } });
     expect((await call("borrar_datos_cliente", { cliente_id: cu.id })).text).toContain(
       "No se puede deshacer",
     );
@@ -305,9 +305,10 @@ describe("herramientas de crecimiento por MCP", () => {
       const out = await call("exportar_tema", { diseno_id: id, carpeta: "mi-tema", confirm: true });
       expect(out.text).toMatch(/escribí \d+ archivos/);
       expect(out.text).toContain("sin problemas");
-      expect(readFileSync(join(dir, "mi-tema", "layout", "theme.liquid"), "utf8")).toContain(
-        "content_for_header",
-      );
+      expect(
+        existsSync(join(dir, "mi-tema", "gutenberg-pattern.html")) ||
+          existsSync(join(dir, "mi-tema", "src", "components", "PacksLadder.astro")),
+      ).toBe(true);
 
       const again = await call("exportar_tema", {
         diseno_id: id,

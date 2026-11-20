@@ -1,10 +1,10 @@
 import { WooCommerce } from "@traxo/commerce";
 import { EventBus } from "@traxo/core";
 import { type Db, openDb, seedDemo } from "@traxo/db";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { createApp } from "../src/app.ts";
-import { registerApi } from "../src/api.ts";
 import { Hono } from "hono";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { registerApi } from "../src/api.ts";
+import { createApp } from "../src/app.ts";
 
 describe("Catálogo Headless: Sincronización WooCommerce HPOS y Traxo Agente", () => {
   let db: Db;

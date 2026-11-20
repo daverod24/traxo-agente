@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { openDb } from "@traxo/db";
 import { Hono } from "hono";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { registerBuilderApi } from "../src/builder.ts";
 import { createRuntime } from "../src/runtime.ts";
 

@@ -1,5 +1,12 @@
 import { sampleAudit } from "@traxo/audit";
-import { BASE_DAYS, BASE_FREIGHT, CARRIER_PROFILES, type Zone, weightFactor, zoneFor } from "@traxo/carriers";
+import {
+  BASE_DAYS,
+  BASE_FREIGHT,
+  CARRIER_PROFILES,
+  weightFactor,
+  type Zone,
+  zoneFor,
+} from "@traxo/carriers";
 import {
   DEMO_BEAUTY_PRODUCTS,
   DEMO_BEAUTY_STORE,
@@ -195,16 +202,8 @@ export async function seedRich(
   const isCafe = storeId === "store_demo_cafe";
   const isVe = isBeauty || isCafe;
 
-  const catalog = isBeauty
-    ? DEMO_BEAUTY_PRODUCTS
-    : isCafe
-      ? DEMO_CAFE_PRODUCTS
-      : DEMO_PRODUCTS;
-  const storeProfile = isBeauty
-    ? DEMO_BEAUTY_STORE
-    : isCafe
-      ? DEMO_CAFE_STORE
-      : DEMO_STORE;
+  const catalog = isBeauty ? DEMO_BEAUTY_PRODUCTS : isCafe ? DEMO_CAFE_PRODUCTS : DEMO_PRODUCTS;
+  const storeProfile = isBeauty ? DEMO_BEAUTY_STORE : isCafe ? DEMO_CAFE_STORE : DEMO_STORE;
   const storeName = isBeauty
     ? "Davebeauty Sandbox VE"
     : isCafe
@@ -246,7 +245,11 @@ export async function seedRich(
         richVersion: RICH_VERSION,
         sample: true,
         vertical: storeProfile.vertical,
-        shipsWith: isVe ? (isBeauty ? "Flash Courier (Dropi VE)" : "Grupo Zoom / MRW") : "Envia.com",
+        shipsWith: isVe
+          ? isBeauty
+            ? "Flash Courier (Dropi VE)"
+            : "Grupo Zoom / MRW"
+          : "Envia.com",
         codShare: 0.66,
       },
     },
@@ -676,12 +679,15 @@ export async function seedRich(
     });
   const conv = (idx: number) => {
     const cu = customers[idx] as (typeof customers)[number];
-    if (!store.convs.has(cu.id)) store.convs.set(cu.id, isVe ? `conv_rich_${storeId}_${cu.id}` : `conv_rich_${cu.id}`);
+    if (!store.convs.has(cu.id))
+      store.convs.set(cu.id, isVe ? `conv_rich_${storeId}_${cu.id}` : `conv_rich_${cu.id}`);
     return store.convs.get(cu.id) as string;
   };
   const msg = (idx: number, dir: "in" | "out", text: string, when: Date, template?: string) =>
     store.messages.push({
-      id: isVe ? `msg_rich_${storeId}_${store.messages.length}` : `msg_rich_${store.messages.length}`,
+      id: isVe
+        ? `msg_rich_${storeId}_${store.messages.length}`
+        : `msg_rich_${store.messages.length}`,
       conversationId: conv(idx),
       direction: dir,
       text,
@@ -721,12 +727,13 @@ export async function seedRich(
     const markup = route.provider === "envia-com" ? 0.04 : route.provider === "99envios" ? 0.03 : 0;
     const freight = isVe
       ? Number((4.5 * prof.price).toFixed(2))
-      : Math.round((BASE_FREIGHT[zone] * weightFactor(weight) * prof.price * (1 + markup)) / 100) * 100;
+      : Math.round((BASE_FREIGHT[zone] * weightFactor(weight) * prof.price * (1 + markup)) / 100) *
+        100;
     const cod =
       o.payment === "cod"
-        ? (isVe
-            ? Math.max(prof.codMin, Number((o.total * prof.codRate).toFixed(2)))
-            : Math.max(prof.codMin, Math.round((o.total * prof.codRate) / 100) * 100))
+        ? isVe
+          ? Math.max(prof.codMin, Number((o.total * prof.codRate).toFixed(2)))
+          : Math.max(prof.codMin, Math.round((o.total * prof.codRate) / 100) * 100)
         : 0;
     const days_ = (isVe ? 2 : BASE_DAYS[zone]) + prof.extraDays;
     const fmt = (val: number) => (isVe ? `$ ${val.toFixed(2)}` : formatCOP(val));
@@ -792,7 +799,10 @@ export async function seedRich(
                 : "shipped";
     let address = o.address;
     if (special === "needAddress")
-      address = { ...address, street: isVe ? "por la plaza Bolívar, casa verde" : "por el parque, casa azul" };
+      address = {
+        ...address,
+        street: isVe ? "por la plaza Bolívar, casa verde" : "por el parque, casa azul",
+      };
     const total = special === "overCap" ? (isVe ? 140 : 560_000) : o.total;
     store.orders.push({
       id: o.id,
@@ -856,7 +866,7 @@ export async function seedRich(
           store.quotes.push({
             id: isVe ? `qt_rich_${storeId}_cap_${j}` : `qt_rich_cap_${j}`,
             orderId: o.id,
-            provider: isVe ? (k === "flash" ? "dropi" : k) : (j === 3 ? "99envios" : "envia-com"),
+            provider: isVe ? (k === "flash" ? "dropi" : k) : j === 3 ? "99envios" : "envia-com",
             carrier: CARRIER_PROFILES[k]?.carrier ?? k,
             service: isVe ? "Nacional VE" : "Estándar",
             freight: isVe ? Number((28 + j * 3.5).toFixed(2)) : 61_000 + j * 4_200,
@@ -898,9 +908,12 @@ export async function seedRich(
           orderId: o.id,
           kind: "shipment",
           title: `Aprobar guía de ${o.number} con ${topCarrier}`,
-          detail:
-            `Elegí ${topCarrier}: ${topCostStr} en ${isVe ? 2 : 3} días hábiles. La guía cuesta ${topCostStr}, más que tu tope automático de ${topLimitStr}.`,
-          payload: { orderId: o.id, provider: isVe ? "dropi" : "interrapidisimo", carrier: topCarrier },
+          detail: `Elegí ${topCarrier}: ${topCostStr} en ${isVe ? 2 : 3} días hábiles. La guía cuesta ${topCostStr}, más que tu tope automático de ${topLimitStr}.`,
+          payload: {
+            orderId: o.id,
+            provider: isVe ? "dropi" : "interrapidisimo",
+            carrier: topCarrier,
+          },
           status: "pending",
           createdAt: new Date(t0 + 60_000),
         });
@@ -1191,12 +1204,7 @@ export async function seedRich(
           : "Carrera 15 # 100-25 en Bogotá, apto 301";
         const altCity = isVe ? "Caracas" : "Bogotá";
         const altDane = isVe ? "VE-A" : "11001";
-        msg(
-          o.customerIdx,
-          "in",
-          `Mejor a ${altStreet}`,
-          new Date(when.getTime() + 20 * 60_000),
-        );
+        msg(o.customerIdx, "in", `Mejor a ${altStreet}`, new Date(when.getTime() + 20 * 60_000));
         msg(
           o.customerIdx,
           "out",
@@ -1270,19 +1278,79 @@ export async function seedRich(
   // Aprobaciones ya resueltas (historia).
   const past: Array<[string, string, string, number, "approved" | "rejected"]> = isVe
     ? [
-        ["shipment", "Aprobar guía de #1043 con MRW Venezuela", "La guía cuesta $ 28.50, más que tu tope automático.", 11, "approved"],
-        ["address", "Dirección por confirmar en #1051", "La dirección parece incompleta.", 14, "approved"],
-        ["return", "Una clienta no quiere recibir #1066", "Respondió «no lo quiero» tras la novedad.", 19, "approved"],
-        ["no_response", "Un cliente no confirmó #1072", "Pasaron más de 24 h sin respuesta.", 23, "rejected"],
-        ["unknown_reply", "Respuesta que no entendí", "Escribió: «mmm quien eres».", 27, "approved"],
+        [
+          "shipment",
+          "Aprobar guía de #1043 con MRW Venezuela",
+          "La guía cuesta $ 28.50, más que tu tope automático.",
+          11,
+          "approved",
+        ],
+        [
+          "address",
+          "Dirección por confirmar en #1051",
+          "La dirección parece incompleta.",
+          14,
+          "approved",
+        ],
+        [
+          "return",
+          "Una clienta no quiere recibir #1066",
+          "Respondió «no lo quiero» tras la novedad.",
+          19,
+          "approved",
+        ],
+        [
+          "no_response",
+          "Un cliente no confirmó #1072",
+          "Pasaron más de 24 h sin respuesta.",
+          23,
+          "rejected",
+        ],
+        [
+          "unknown_reply",
+          "Respuesta que no entendí",
+          "Escribió: «mmm quien eres».",
+          27,
+          "approved",
+        ],
         ["shipment", "Aprobar guía de #1090 con Tealca", "La guía cuesta $ 31.00.", 31, "rejected"],
       ]
     : [
-        ["shipment", "Aprobar guía de #1043 con Servientrega", "La guía cuesta $ 68.400, más que tu tope automático.", 11, "approved"],
-        ["address", "Dirección por confirmar en #1051", "La dirección parece incompleta.", 14, "approved"],
-        ["return", "Una clienta no quiere recibir #1066", "Respondió «no lo quiero» tras la novedad.", 19, "approved"],
-        ["no_response", "Un cliente no confirmó #1072", "Pasaron más de 24 h sin respuesta.", 23, "rejected"],
-        ["unknown_reply", "Respuesta que no entendí", "Escribió: «mmm quien eres».", 27, "approved"],
+        [
+          "shipment",
+          "Aprobar guía de #1043 con Servientrega",
+          "La guía cuesta $ 68.400, más que tu tope automático.",
+          11,
+          "approved",
+        ],
+        [
+          "address",
+          "Dirección por confirmar en #1051",
+          "La dirección parece incompleta.",
+          14,
+          "approved",
+        ],
+        [
+          "return",
+          "Una clienta no quiere recibir #1066",
+          "Respondió «no lo quiero» tras la novedad.",
+          19,
+          "approved",
+        ],
+        [
+          "no_response",
+          "Un cliente no confirmó #1072",
+          "Pasaron más de 24 h sin respuesta.",
+          23,
+          "rejected",
+        ],
+        [
+          "unknown_reply",
+          "Respuesta que no entendí",
+          "Escribió: «mmm quien eres».",
+          27,
+          "approved",
+        ],
         ["shipment", "Aprobar guía de #1090 con TCC", "La guía cuesta $ 82.000.", 31, "rejected"],
       ];
   past.forEach(([kind, title, detail, d, st], j) =>
@@ -1452,9 +1520,14 @@ export async function seedRich(
       .filter((o) => o.utm.utm_campaign === c.utm && okStatus.get(o.id) !== "cancelled")
       .reduce((sum, o) => sum + o.total, 0);
     const target = TARGET_ROAS[c.key] ?? 3;
-    c.spend = rev > 0
-      ? (isVe ? Number((rev / target).toFixed(2)) : Math.round(rev / target / 1000) * 1000)
-      : (isVe ? 50 : 150_000);
+    c.spend =
+      rev > 0
+        ? isVe
+          ? Number((rev / target).toFixed(2))
+          : Math.round(rev / target / 1000) * 1000
+        : isVe
+          ? 50
+          : 150_000;
     c.clicks = Math.max(1, Math.round(c.spend / CPC[c.platform]));
     c.impressions = Math.round(c.clicks / CTR[c.platform]);
   }
@@ -1506,7 +1579,8 @@ export async function seedRich(
           dailyBudget: c.budget,
           audience: {
             ...sug.audience,
-            customerSegment: c.key === "susc-tiktok" || c.key.includes("tiktok") ? "recompra" : undefined,
+            customerSegment:
+              c.key === "susc-tiktok" || c.key.includes("tiktok") ? "recompra" : undefined,
           },
           copy: sug.copy,
           creatives: sug.creatives.map((x, j) => ({

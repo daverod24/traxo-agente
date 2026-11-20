@@ -1,0 +1,149 @@
+---
+// PacksLadder.astro — Componente canónico de Escalera de Packs para Astro Storefront
+export interface Props {
+  productTitle?: string;
+  basePriceUsd?: number;
+  bcvRate?: number;
+  whatsappNumber?: string;
+  duoDiscountPct?: number;
+  trioDiscountPct?: number;
+}
+
+const {
+  productTitle = "Producto Exclusivo",
+  basePriceUsd = 24.99,
+  bcvRate = 880.0,
+  whatsappNumber = "584121234567",
+  duoDiscountPct = 10,
+  trioDiscountPct = 20,
+} = Astro.props;
+
+const cleanWa = whatsappNumber.replace(/\D/g, "") || "584121234567";
+
+// 1x Unidad
+const p1Usd = basePriceUsd;
+const p1Ves = Math.round(p1Usd * bcvRate * 100) / 100;
+const wa1 = `https://wa.me/${cleanWa}?text=${encodeURIComponent(`¡Hola! Quiero ordenar 1x Unidad de ${productTitle} por $${p1Usd.toFixed(2)} USD (~Bs. ${p1Ves.toLocaleString("es-VE")}) con Pago Contra Entrega COD.`)}`;
+
+// 2x Pack Dúo
+const duoFull = basePriceUsd * 2;
+const duoSaveUsd = Math.round(duoFull * (duoDiscountPct / 100) * 100) / 100;
+const p2Usd = Math.round((duoFull - duoSaveUsd) * 100) / 100;
+const p2Ves = Math.round(p2Usd * bcvRate * 100) / 100;
+const duoSaveVes = Math.round(duoSaveUsd * bcvRate * 100) / 100;
+const wa2 = `https://wa.me/${cleanWa}?text=${encodeURIComponent(`¡Hola! Quiero ordenar el Pack Dúo (2x) de ${productTitle} con ${duoDiscountPct}% de descuento por $${p2Usd.toFixed(2)} USD (~Bs. ${p2Ves.toLocaleString("es-VE")}). Ahorro: $${duoSaveUsd.toFixed(2)} USD.`)}`;
+
+// 3x Pack Trío (Envío gratis)
+const trioFull = basePriceUsd * 3;
+const trioSaveUsd = Math.round(trioFull * (trioDiscountPct / 100) * 100) / 100;
+const p3Usd = Math.round((trioFull - trioSaveUsd) * 100) / 100;
+const p3Ves = Math.round(p3Usd * bcvRate * 100) / 100;
+const trioSaveVes = Math.round(trioSaveUsd * bcvRate * 100) / 100;
+const wa3 = `https://wa.me/${cleanWa}?text=${encodeURIComponent(`¡Hola! Quiero ordenar el Pack Trío (3x) de ${productTitle} con ${trioDiscountPct}% de descuento y Envío Gratis COD por $${p3Usd.toFixed(2)} USD (~Bs. ${p3Ves.toLocaleString("es-VE")}). Ahorro: $${trioSaveUsd.toFixed(2)} USD.`)}`;
+---
+
+<section id="packs-ladder" class="packs-ladder-wrap">
+  <div class="packs-container">
+    <div class="packs-header">
+      <span class="badge-cod">PAGO CONTRA ENTREGA NACIONAL</span>
+      <h2>Escalera de Ahorro para {productTitle}</h2>
+      <p class="subtitle">Paga al recibir en dólares en efectivo o en Bolívares por Pago Móvil a tasa oficial BCV ({bcvRate} Bs./USD).</p>
+    </div>
+
+    <div class="packs-cards-grid">
+      <!-- 1x Unidad -->
+      <div class="pack-card">
+        <div class="tier-head">
+          <h3>1 Unidad</h3>
+          <p class="tagline">Tratamiento Inicial</p>
+        </div>
+        <div class="tier-price">
+          <span class="currency">$</span>
+          <span class="val">{p1Usd.toFixed(2)}</span>
+          <span class="curr-unit">USD</span>
+        </div>
+        <div class="tier-bcv">≈ Bs. {p1Ves.toLocaleString("es-VE", { minimumFractionDigits: 2 })} BCV</div>
+        <ul class="tier-benefits">
+          <li>✓ 1 Frasco para 30 días</li>
+          <li>✓ Despacho express asegurado</li>
+          <li>✓ Pago Contra Entrega</li>
+        </ul>
+        <a href={wa1} class="btn-pack btn-subtle" target="_blank" rel="noopener">Pedir 1 Unidad</a>
+      </div>
+
+      <!-- 2x Pack Dúo -->
+      <div class="pack-card popular">
+        <div class="card-pill">Más Popular · Ahorra {duoDiscountPct}%</div>
+        <div class="tier-head">
+          <h3>Pack Dúo (2x)</h3>
+          <p class="tagline">Tratamiento Recomendado (60 Días)</p>
+        </div>
+        <div class="tier-price">
+          <span class="currency">$</span>
+          <span class="val">{p2Usd.toFixed(2)}</span>
+          <span class="curr-unit">USD</span>
+        </div>
+        <div class="tier-bcv">≈ Bs. {p2Ves.toLocaleString("es-VE", { minimumFractionDigits: 2 })} BCV</div>
+        <div class="savings-tag">Ahorras ${duoSaveUsd.toFixed(2)} USD (~Bs. {duoSaveVes.toLocaleString("es-VE")})</div>
+        <ul class="tier-benefits">
+          <li>✓ 2 Frascos para 60 días</li>
+          <li>✓ Descuento del {duoDiscountPct}% incluido</li>
+          <li>✓ Pago Contra Entrega</li>
+        </ul>
+        <a href={wa2} class="btn-pack btn-highlight" target="_blank" rel="noopener">Pedir Pack Dúo</a>
+      </div>
+
+      <!-- 3x Pack Trío -->
+      <div class="pack-card trio">
+        <div class="card-pill free-ship">Mejor Valor · Envío Gratis</div>
+        <div class="tier-head">
+          <h3>Pack Trío (3x)</h3>
+          <p class="tagline">Máximo Ahorro (90 Días)</p>
+        </div>
+        <div class="tier-price">
+          <span class="currency">$</span>
+          <span class="val">{p3Usd.toFixed(2)}</span>
+          <span class="curr-unit">USD</span>
+        </div>
+        <div class="tier-bcv">≈ Bs. {p3Ves.toLocaleString("es-VE", { minimumFractionDigits: 2 })} BCV</div>
+        <div class="savings-tag gold">Ahorras ${trioSaveUsd.toFixed(2)} USD + Envío Gratis</div>
+        <ul class="tier-benefits">
+          <li>✓ 3 Frascos para 90 días completos</li>
+          <li>✓ Envío GRATIS nacional con tracking</li>
+          <li>✓ Pago Contra Entrega</li>
+        </ul>
+        <a href={wa3} class="btn-pack btn-highlight gold" target="_blank" rel="noopener">Pedir Pack Trío</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .packs-ladder-wrap { padding: 48px 16px; background: var(--surface, #fafafa); }
+  .packs-container { max-width: 1040px; margin: 0 auto; font-family: system-ui, sans-serif; }
+  .packs-header { text-align: center; margin-bottom: 36px; }
+  .badge-cod { display: inline-block; font-size: 12px; font-weight: 700; color: #059669; background: #d1fae5; padding: 4px 12px; border-radius: 999px; margin-bottom: 10px; }
+  .packs-header h2 { font-size: clamp(24px, 4vw, 32px); margin: 0 0 8px; color: var(--text, #111827); }
+  .packs-header .subtitle { color: var(--muted, #6b7280); font-size: 15px; margin: 0; }
+  .packs-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+  .pack-card { background: #ffffff; border: 1px solid var(--line, #e5e7eb); border-radius: 16px; padding: 28px 20px; display: flex; flex-direction: column; position: relative; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.04); }
+  .pack-card.popular { border: 2px solid #10b981; }
+  .pack-card.trio { border: 2px solid #f59e0b; }
+  .card-pill { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #10b981; color: #fff; font-size: 11px; font-weight: 700; padding: 3px 12px; border-radius: 999px; }
+  .card-pill.free-ship { background: #d97706; }
+  .tier-head h3 { margin: 0 0 4px; font-size: 20px; text-align: center; }
+  .tier-head .tagline { margin: 0 0 16px; font-size: 13px; color: #6b7280; text-align: center; }
+  .tier-price { display: flex; align-items: baseline; justify-content: center; gap: 4px; }
+  .tier-price .currency { font-size: 20px; font-weight: 700; }
+  .tier-price .val { font-size: 38px; font-weight: 800; line-height: 1; }
+  .tier-price .curr-unit { font-size: 13px; color: #6b7280; font-weight: 600; }
+  .tier-bcv { text-align: center; font-size: 14px; font-weight: 600; color: #4b5563; margin-top: 4px; }
+  .savings-tag { margin: 12px 0 0; text-align: center; font-size: 12px; font-weight: 700; color: #047857; background: #ecfdf5; padding: 6px; border-radius: 8px; }
+  .savings-tag.gold { color: #b45309; background: #fffbeb; }
+  .tier-benefits { list-style: none; padding: 0; margin: 20px 0; font-size: 14px; color: #374151; }
+  .tier-benefits li { margin-bottom: 8px; }
+  .btn-pack { display: flex; align-items: center; justify-content: center; min-height: 46px; border-radius: 999px; font-weight: 700; text-decoration: none; margin-top: auto; font-size: 15px; }
+  .btn-highlight { background: #10b981; color: #fff; }
+  .btn-highlight.gold { background: #f59e0b; color: #fff; }
+  .btn-subtle { background: #f3f4f6; color: #111827; }
+</style>

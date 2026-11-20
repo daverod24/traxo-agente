@@ -385,36 +385,126 @@ function Detalle({
     });
   };
 
-  const isShopify = project.platform === "shopify";
-  const isWoo = project.platform === "woocommerce";
   const [publishing, setPublishing] = useState(false);
-  const [publishedPage, setPublishedPage] = useState<{ id?: number; link?: string; slug?: string; title?: string } | null>(null);
+  const [publishingHeadless, setPublishingHeadless] = useState(false);
+  const [exportingAstro, setExportingAstro] = useState(false);
+  const [exportingHtml, setExportingHtml] = useState(false);
+  const [headlessResult, setHeadlessResult] = useState<{
+    slug: string;
+    publicApiUrl: string;
+  } | null>(null);
+
+  const [publishedPage, setPublishedPage] = useState<{
+    id?: number;
+    link?: string;
+    slug?: string;
+    title?: string;
+  } | null>(null);
+  const defaultFunnelSlug = `${(d.brand || "funnel")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")}-${project.id.slice(-6)}`;
   const store = useResource<StoreStatus>("/api/store/status", ctx.tick).data;
-  const storeUrl = (store?.url && !store.url.includes("nginx"))
-    ? store.url.replace(/\/$/, "")
-    : (typeof window !== "undefined" && window.location.hostname !== "localhost")
-      ? `${window.location.protocol}//${window.location.hostname.replace(/^traxo\./, "api.")}`
-      : "http://localhost:8080";
+  const storeUrl =
+    store?.url && !store.url.includes("nginx")
+      ? store.url.replace(/\/$/, "")
+      : typeof window !== "undefined" && window.location.hostname !== "localhost"
+        ? `${window.location.protocol}//${window.location.hostname.replace(/^traxo\./, "api.")}`
+        : "http://localhost:8080";
+
+  // Estado del Editor de la Escalera de Packs
+  const primaryProductPrice = d.products[0]?.price
+    ? d.products[0].price > 1000
+      ? d.products[0].price / 100
+      : d.products[0].price
+    : 24.99;
+
+  const [packBasePrice, setPackBasePrice] = useState(primaryProductPrice);
+  const [duoDiscount, setDuoDiscount] = useState(10);
+  const [trioDiscount, setTrioDiscount] = useState(20);
+  const bcvRate = 880.0;
+
+  // Precios computados en tiempo real
+  const p1Usd = packBasePrice;
+  const p1Ves = p1Usd * bcvRate;
+
+  const p2Full = packBasePrice * 2;
+  const p2Save = p2Full * (duoDiscount / 100);
+  const p2Usd = p2Full - p2Save;
+  const p2Ves = p2Usd * bcvRate;
+
+  const p3Full = packBasePrice * 3;
+  const p3Save = p3Full * (trioDiscount / 100);
+  const p3Usd = p3Full - p3Save;
+  const p3Ves = p3Usd * bcvRate;
 
   const getZip = async () => {
     try {
-      await download(
-        `/api/builder/${project.id}/theme.zip`,
-        isShopify ? "tema-shopify.zip" : isWoo ? "paquete-astro-gutenberg.zip" : "sitio.zip",
-      );
+      await download(`/api/builder/${project.id}/theme.zip`, "paquete-headless-astro.zip");
       onChanged();
     } catch {
-      ctx.toast("No pude descargar el archivo.");
+      ctx.toast("No pude descargar el archivo zip.");
+    }
+  };
+
+  const publishHeadless = async () => {
+    setPublishingHeadless(true);
+    try {
+      const res = await post<{
+        ok: boolean;
+        published: boolean;
+        slug: string;
+        publicApiUrl: string;
+        message?: string;
+      }>(`/api/builder/${project.id}/publish-headless`, {});
+      if (res.ok) {
+        setHeadlessResult({ slug: res.slug, publicApiUrl: res.publicApiUrl });
+        ctx.toast(res.message ?? "Funnel publicado en la API Headless.");
+        onChanged();
+      } else {
+        ctx.toast("No se pudo publicar en la API Headless.");
+      }
+    } catch {
+      ctx.toast("Error de red al publicar en la API.");
+    } finally {
+      setPublishingHeadless(false);
+    }
+  };
+
+  const handleExportAstro = async () => {
+    setExportingAstro(true);
+    try {
+      const fileSlug = project.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      await download(`/api/builder/${project.id}/export-astro`, `${fileSlug}-landing.astro`);
+      ctx.toast("Descarga de paquete Astro completada.");
+    } catch {
+      ctx.toast("Error al descargar paquete Astro.");
+    } finally {
+      setExportingAstro(false);
+    }
+  };
+
+  const handleExportHtml = async () => {
+    setExportingHtml(true);
+    try {
+      const fileSlug = project.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      await download(`/api/builder/${project.id}/export-html`, `${fileSlug}-landing.html`);
+      ctx.toast("Descarga de landing HTML autónoma completada.");
+    } catch {
+      ctx.toast("Error al descargar landing HTML autónoma.");
+    } finally {
+      setExportingHtml(false);
     }
   };
 
   const publishToWp = async () => {
     setPublishing(true);
     try {
-      const res = await post<{ ok: boolean; message?: string; page?: { id?: number; link?: string; slug?: string; title?: string } }>(
-        `/api/builder/${project.id}/publish-wp`,
-        {},
-      );
+      const res = await post<{
+        ok: boolean;
+        message?: string;
+        page?: { id?: number; link?: string; slug?: string; title?: string };
+      }>(`/api/builder/${project.id}/publish-wp`, {});
       if (res.ok) {
         if (res.page) setPublishedPage(res.page);
         ctx.toast(res.message ?? "Página publicada con éxito en WordPress.");
@@ -433,7 +523,7 @@ function Detalle({
     <div className="builder-grid">
       <section className="card preview-card" aria-labelledby="pv-h">
         <div className="row between" style={{ marginBottom: 12 }}>
-          <h2 id="pv-h">Vista previa</h2>
+          <h2 id="pv-h">Vista previa en Vivo</h2>
           <Tabs
             label="Dispositivo"
             value={device}
@@ -457,127 +547,367 @@ function Detalle({
           )}
         </div>
         <p className="caption" style={{ marginTop: 8 }}>
-          Así se ve la portada. En {isShopify ? "Shopify" : isWoo ? "WooCommerce / Astro" : "tu plataforma"} verás tus productos y
-          fotos reales.
+          Vista previa interactiva responsiva. En Astro Storefront se consumen los tokens y
+          componentes nativos.
         </p>
       </section>
 
-      <div className="stack">
-        <section className="card stack" aria-labelledby="pb-h">
-          <div className="row between">
-            <h2 id="pb-h">Llevarlo a tu tienda</h2>
+      <div className="stack" style={{ gap: 16 }}>
+        {/* =========================================================================
+            SECCIÓN: ACCIONES UNIVERSAL DUAL-MODE BUILDER
+        ========================================================================= */}
+        <section className="card stack" aria-labelledby="pb-h" style={{ padding: 20 }}>
+          <div className="row between" style={{ alignItems: "center" }}>
+            <div>
+              <h2 id="pb-h" style={{ margin: 0, fontSize: 17 }}>
+                Publicación & Exportación
+              </h2>
+              <span className="caption">Universal Headless API & Standalone Landing Generator</span>
+            </div>
             <ToneBadge tone={STATUS[project.status].tone}>{STATUS[project.status].label}</ToneBadge>
           </div>
-          <ol className="steps">
-            <li>
-              <strong>Descarga {isShopify ? "el tema" : isWoo ? "el paquete Astro + Gutenberg" : "el sitio"}.</strong>
-              <span className="caption">
-                {isShopify
-                  ? "En Shopify: Tienda online → Temas → Agregar tema → Subir archivo zip. Queda sin publicar."
-                  : isWoo
-                    ? "Incluye gutenberg-pattern.html con templateLock: contentOnly y componentes Astro Headless."
-                    : "Incluye la portada en HTML y el diseño en JSON para llevarlo a tu plantilla."}
-              </span>
-              <div className="row" style={{ gap: 8, marginTop: 6, flexWrap: "wrap" }}>
-                <Button variant="primary" icon="upload" sm onClick={getZip}>
-                  Descargar .zip
-                </Button>
-                {isWoo && (
-                  <Button
-                    variant=""
-                    icon="arrow-right"
-                    sm
-                    onClick={publishToWp}
-                    disabled={publishing}
-                  >
-                    Publicar en WordPress
-                  </Button>
-                )}
+
+          <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+            <Button
+              variant="primary"
+              icon="spark"
+              sm
+              disabled={publishingHeadless}
+              onClick={publishHeadless}
+            >
+              {publishingHeadless ? "Publicando..." : "Publicar en API Headless"}
+            </Button>
+            <Button
+              variant="agent"
+              icon="layout"
+              sm
+              disabled={exportingAstro}
+              onClick={handleExportAstro}
+            >
+              {exportingAstro ? "Descargando..." : "Descargar Paquete Astro"}
+            </Button>
+            <Button variant="" icon="device" sm disabled={exportingHtml} onClick={handleExportHtml}>
+              {exportingHtml ? "Descargando..." : "Exportar Landing HTML Autónoma"}
+            </Button>
+            <Button variant="ghost" icon="upload" sm onClick={getZip}>
+              Descargar .zip
+            </Button>
+            {project.platform === "woocommerce" && (
+              <Button variant="ghost" icon="upload" sm disabled={publishing} onClick={publishToWp}>
+                {publishing ? "Publicando en WP..." : "Publicar en WordPress"}
+              </Button>
+            )}
+          </div>
+
+          {/* Información de Publicación Headless Activa */}
+          {(headlessResult || project.status === "subido") && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: "12px 14px",
+                background: "rgba(16, 185, 129, 0.08)",
+                border: "1px solid rgba(16, 185, 129, 0.3)",
+                borderRadius: 8,
+              }}
+            >
+              <div className="row between" style={{ alignItems: "center", marginBottom: 6 }}>
+                <strong style={{ fontSize: 13, color: "#10b981" }}>
+                  ✓ Funnel Activo en API Headless:
+                </strong>
+                <span className="badge tone-success">Listo para Storefront</span>
               </div>
-              {isWoo && (publishedPage || project.status === "subido") && (
-                <div className="card" style={{ marginTop: 10, padding: 12, background: "var(--surface-sunken, #f8fafc)", border: "1px solid var(--border)" }}>
-                  <div className="row between" style={{ marginBottom: 6 }}>
-                    <strong style={{ fontSize: 13 }}>📍 Ubicación y Acceso Directo:</strong>
-                    <ToneBadge tone="success">Publicado en WordPress</ToneBadge>
-                  </div>
-                  <ul className="caption" style={{ margin: "0 0 8px 16px", padding: 0 }}>
-                    <li><strong>Base de Datos Traxo:</strong> Tabla <code>SiteProject</code> (ID: {project.id})</li>
-                    <li><strong>WordPress CMS:</strong> Tabla <code>wp_posts</code> (Página Gutenberg con <code>templateLock="contentOnly"</code>)</li>
-                    <li><strong>Stack Headless:</strong> Componentes Astro en <code>paquete-astro-gutenberg.zip</code></li>
-                  </ul>
-                  <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-                    <a
-                      className="btn primary sm"
-                      href={publishedPage?.link || `${storeUrl}/inicio/`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      🌐 Ver página en vivo
-                    </a>
-                    <a
-                      className="btn ghost sm"
-                      href={
-                        publishedPage?.id
-                          ? `${storeUrl}/wp-admin/post.php?post=${publishedPage.id}&action=edit`
-                          : `${storeUrl}/wp-admin/edit.php?post_type=page`
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      ✏️ Editar en wp-admin (Gutenberg)
-                    </a>
-                  </div>
-                </div>
-              )}
-            </li>
-            <li>
-              <strong>Pule el diseño con Claude (opcional).</strong>
-              <span className="caption">
-                Pídele <code>/traxo:constructor</code> en Claude Code: refina el tema, lo sube a un
-                repositorio privado de GitHub y a Shopify sin publicar.
-              </span>
-              <span className="chips-static">
-                {TOOLS.map((t) => (
-                  <span key={t} className="tool">
-                    {t}
-                  </span>
-                ))}
-              </span>
-            </li>
-            <li>
-              <strong>Revísalo y publícalo tú.</strong>
-              <span className="caption">Traxo nunca publica el tema por ti.</span>
+              <div className="mono" style={{ fontSize: 12, wordBreak: "break-all" }}>
+                GET {headlessResult?.publicApiUrl ?? `/api/public/funnels/${defaultFunnelSlug}`}
+              </div>
+              <div className="row" style={{ gap: 8, marginTop: 8 }}>
+                <a
+                  className="btn sm ghost"
+                  href={headlessResult?.publicApiUrl ?? `/api/public/funnels/${defaultFunnelSlug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: 11 }}
+                >
+                  Probar API en vivo (JSON)
+                </a>
+              </div>
+            </div>
+          )}
+
+          {project.platform === "woocommerce" && (publishedPage || project.status === "subido") && (
+            <div
+              className="card"
+              style={{
+                marginTop: 10,
+                padding: 12,
+                background: "var(--surface-sunken, #f8fafc)",
+                border: "1px solid var(--border)",
+              }}
+            >
+              <div className="row between" style={{ marginBottom: 6 }}>
+                <strong style={{ fontSize: 13 }}>📍 Ubicación en WordPress:</strong>
+                <ToneBadge tone="success">Publicado en WordPress</ToneBadge>
+              </div>
+              <ul className="caption" style={{ margin: "0 0 8px 16px", padding: 0 }}>
+                <li>
+                  <strong>Base de Datos Traxo:</strong> Tabla <code>SiteProject</code> (ID:{" "}
+                  {project.id})
+                </li>
+                <li>
+                  <strong>WordPress CMS:</strong> Tabla <code>wp_posts</code> (Página Gutenberg con{" "}
+                  <code>templateLock="contentOnly"</code>)
+                </li>
+              </ul>
               <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-                <label className="sr-only" htmlFor="gh">
-                  Enlace del repositorio en GitHub
-                </label>
-                <input
-                  id="gh"
-                  className="input"
-                  placeholder="https://github.com/tu-usuario/tu-tienda"
-                  value={github}
-                  onChange={(e) => setGithub(e.target.value)}
-                  style={{ flex: 1, minWidth: 200 }}
-                />
-                <Button
-                  sm
-                  disabled={busy || !github}
-                  onClick={() =>
-                    save({ githubUrl: github, status: "en-github" }, "Anotado: está en GitHub.")
+                <a
+                  className="btn primary sm"
+                  href={publishedPage?.link || `${storeUrl}/inicio/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  🌐 Ver página en vivo
+                </a>
+                <a
+                  className="btn ghost sm"
+                  href={
+                    publishedPage?.id
+                      ? `${storeUrl}/wp-admin/post.php?post=${publishedPage.id}&action=edit`
+                      : `${storeUrl}/wp-admin/edit.php?post_type=page`
                   }
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
-                  Guardar enlace
-                </Button>
-                <Button
-                  sm
-                  disabled={busy || project.status === "subido"}
-                  onClick={() => save({ status: "subido" }, "Anotado: ya está en tu tienda.")}
-                >
-                  Ya lo subí
-                </Button>
+                  ✏️ Editar en wp-admin
+                </a>
               </div>
-            </li>
-          </ol>
+            </div>
+          )}
+        </section>
+
+        {/* =========================================================================
+            SECCIÓN: EDITOR VISUAL DE LA ESCALERA DE PACKS (1X, 2X, 3X)
+        ========================================================================= */}
+        <section className="card stack" style={{ padding: 20 }}>
+          <div className="row between" style={{ alignItems: "center" }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 17 }}>Editor Visual de Escalera de Packs</h2>
+              <span className="caption">
+                Reglas canónicas de AOV (1x PVP, 2x -10%, 3x -20% + Envío Gratis COD)
+              </span>
+            </div>
+            <span className="badge tone-progress">Tasa BCV {bcvRate} Bs./USD</span>
+          </div>
+
+          {/* Controles de Configuración */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+              gap: 10,
+              marginTop: 8,
+            }}
+          >
+            <label className="field">
+              <span className="caption" style={{ fontWeight: 600 }}>
+                PVP Base ($ USD)
+              </span>
+              <input
+                type="number"
+                step="0.5"
+                min="1"
+                className="input"
+                style={{ fontSize: 13 }}
+                value={packBasePrice}
+                onChange={(e) => setPackBasePrice(Math.max(1, Number(e.target.value)))}
+              />
+            </label>
+            <label className="field">
+              <span className="caption" style={{ fontWeight: 600 }}>
+                Descuento Dúo (%)
+              </span>
+              <input
+                type="number"
+                min="0"
+                max="50"
+                className="input"
+                style={{ fontSize: 13 }}
+                value={duoDiscount}
+                onChange={(e) => setDuoDiscount(Math.max(0, Number(e.target.value)))}
+              />
+            </label>
+            <label className="field">
+              <span className="caption" style={{ fontWeight: 600 }}>
+                Descuento Trío (%)
+              </span>
+              <input
+                type="number"
+                min="0"
+                max="60"
+                className="input"
+                style={{ fontSize: 13 }}
+                value={trioDiscount}
+                onChange={(e) => setTrioDiscount(Math.max(0, Number(e.target.value)))}
+              />
+            </label>
+          </div>
+
+          {/* Tarjetas de Previsualización de Packs */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 10,
+              marginTop: 10,
+            }}
+          >
+            {/* 1x */}
+            <div
+              style={{
+                padding: 12,
+                borderRadius: 8,
+                background: "var(--surface-sunken)",
+                border: "1px solid var(--line)",
+                textAlign: "center",
+              }}
+            >
+              <div className="caption" style={{ fontWeight: 700 }}>
+                1x Unidad
+              </div>
+              <div style={{ fontSize: "1.3rem", fontWeight: 800, margin: "4px 0" }}>
+                ${p1Usd.toFixed(2)}
+              </div>
+              <div className="caption" style={{ fontSize: 11 }}>
+                ≈ Bs. {p1Ves.toLocaleString("es-VE")}
+              </div>
+              <span
+                className="caption"
+                style={{ color: "var(--ink-muted)", display: "block", marginTop: 4 }}
+              >
+                PVP Estándar
+              </span>
+            </div>
+
+            {/* 2x Dúo */}
+            <div
+              style={{
+                padding: 12,
+                borderRadius: 8,
+                background: "rgba(16, 185, 129, 0.05)",
+                border: "1.5px solid #10b981",
+                textAlign: "center",
+                position: "relative",
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  top: -8,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  background: "#10b981",
+                  color: "#fff",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  padding: "2px 6px",
+                  borderRadius: 999,
+                }}
+              >
+                -{duoDiscount}%
+              </span>
+              <div className="caption" style={{ fontWeight: 700, color: "#10b981" }}>
+                Pack Dúo (2x)
+              </div>
+              <div style={{ fontSize: "1.3rem", fontWeight: 800, margin: "4px 0" }}>
+                ${p2Usd.toFixed(2)}
+              </div>
+              <div className="caption" style={{ fontSize: 11 }}>
+                ≈ Bs. {p2Ves.toLocaleString("es-VE")}
+              </div>
+              <div className="caption" style={{ color: "#059669", fontWeight: 600, marginTop: 4 }}>
+                Ahorra ${p2Save.toFixed(2)}
+              </div>
+            </div>
+
+            {/* 3x Trío */}
+            <div
+              style={{
+                padding: 12,
+                borderRadius: 8,
+                background: "rgba(245, 158, 11, 0.05)",
+                border: "1.5px solid #f59e0b",
+                textAlign: "center",
+                position: "relative",
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  top: -8,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  background: "#f59e0b",
+                  color: "#fff",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  padding: "2px 6px",
+                  borderRadius: 999,
+                }}
+              >
+                Envío Gratis
+              </span>
+              <div className="caption" style={{ fontWeight: 700, color: "#b45309" }}>
+                Pack Trío (3x)
+              </div>
+              <div style={{ fontSize: "1.3rem", fontWeight: 800, margin: "4px 0" }}>
+                ${p3Usd.toFixed(2)}
+              </div>
+              <div className="caption" style={{ fontSize: 11 }}>
+                ≈ Bs. {p3Ves.toLocaleString("es-VE")}
+              </div>
+              <div className="caption" style={{ color: "#b45309", fontWeight: 600, marginTop: 4 }}>
+                Ahorra ${p3Save.toFixed(2)}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* =========================================================================
+            SECCIÓN: REPOSITORIO GITHUB (OPCIONAL)
+        ========================================================================= */}
+        <section className="card stack" style={{ padding: 20 }}>
+          <h2 style={{ margin: 0, fontSize: 17 }}>Repositorio GitHub (Opcional)</h2>
+          <span className="caption">
+            Guarda la URL del repositorio donde sincronizaste el paquete Astro o la landing
+            autónoma.
+          </span>
+          <div className="row" style={{ gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+            <label className="sr-only" htmlFor="gh">
+              Enlace del repositorio en GitHub
+            </label>
+            <input
+              id="gh"
+              className="input"
+              placeholder="https://github.com/tu-usuario/tu-tienda"
+              value={github}
+              onChange={(e) => setGithub(e.target.value)}
+              style={{ flex: 1, minWidth: 200 }}
+            />
+            <Button
+              sm
+              disabled={busy || !github}
+              onClick={() =>
+                save({ githubUrl: github, status: "en-github" }, "Anotado: está en GitHub.")
+              }
+            >
+              Guardar enlace
+            </Button>
+            <Button
+              sm
+              disabled={busy || project.status === "subido"}
+              onClick={() => save({ status: "subido" }, "Anotado: ya está en tu tienda.")}
+            >
+              Ya lo subí
+            </Button>
+          </div>
         </section>
 
         <section className="card stack" aria-labelledby="ed-h">

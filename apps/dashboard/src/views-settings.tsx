@@ -32,7 +32,11 @@ const PROVIDERS: Array<[string, string]> = [
 /* ============================== CONEXIONES ============================== */
 const HUB: Array<[string, string, string]> = [
   ["whatsapp", "WhatsApp Business", "Compra asistida y confirmaciones (+58)"],
-  ["pago-movil", "Pago Móvil / Bancrecer / MisPidi / AvilaPay", "Conciliación automática y referencias en Bs. BCV"],
+  [
+    "pago-movil",
+    "Pago Móvil / Bancrecer / MisPidi / AvilaPay",
+    "Conciliación automática y referencias en Bs. BCV",
+  ],
   ["crypto", "USDT (Binance Pay / TRC20)", "Cobro en stablecoins sin comisiones"],
   ["dropi", "Dropi Venezuela MCP", "Catálogo y logística nacional"],
   ["instagram", "Instagram DM", "Venta conversacional"],

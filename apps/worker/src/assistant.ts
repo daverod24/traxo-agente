@@ -41,33 +41,43 @@ const norm = (s: string): string => s.toLowerCase().normalize("NFD").replace(/[Ì
 /** Todo lo que el agente sabe de la tienda, calculado de la base de datos (nada inventado). */
 export async function snapshot(db: Db, storeId: string) {
   const now = Date.now();
-  const [store, orders, shipments, approvals, campaigns, customers, audits, products, audiences, convs] =
-    await Promise.all([
-      db.prisma.store.findUnique({ where: { id: storeId } }),
-      db.prisma.order.findMany({
-        where: { storeId, createdAt: { gte: new Date(now - 90 * DAY) } },
-        include: {
-          shipments: { include: { events: { orderBy: { at: "desc" }, take: 1 } } },
-          customer: true,
-        },
-        orderBy: { createdAt: "desc" },
-      }),
-      db.prisma.shipment.findMany({ where: { order: { storeId } } }),
-      db.prisma.approval.findMany({ where: { storeId, status: "pending" } }),
-      db.prisma.campaignDraft.findMany({ where: { storeId } }),
-      db.prisma.customer.findMany({
-        where: { storeId },
-        include: { orders: { select: { createdAt: true, total: true, status: true } } },
-      }),
-      db.prisma.storeAudit.findMany({
-        where: { storeId },
-        orderBy: { createdAt: "desc" },
-        take: 6,
-      }),
-      db.prisma.product.findMany({ where: { storeId } }),
-      db.prisma.audience.findMany({ where: { storeId } }),
-      db.prisma.conversation.count({ where: { storeId } }),
-    ]);
+  const [
+    store,
+    orders,
+    shipments,
+    approvals,
+    campaigns,
+    customers,
+    audits,
+    products,
+    audiences,
+    convs,
+  ] = await Promise.all([
+    db.prisma.store.findUnique({ where: { id: storeId } }),
+    db.prisma.order.findMany({
+      where: { storeId, createdAt: { gte: new Date(now - 90 * DAY) } },
+      include: {
+        shipments: { include: { events: { orderBy: { at: "desc" }, take: 1 } } },
+        customer: true,
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    db.prisma.shipment.findMany({ where: { order: { storeId } } }),
+    db.prisma.approval.findMany({ where: { storeId, status: "pending" } }),
+    db.prisma.campaignDraft.findMany({ where: { storeId } }),
+    db.prisma.customer.findMany({
+      where: { storeId },
+      include: { orders: { select: { createdAt: true, total: true, status: true } } },
+    }),
+    db.prisma.storeAudit.findMany({
+      where: { storeId },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+    }),
+    db.prisma.product.findMany({ where: { storeId } }),
+    db.prisma.audience.findMany({ where: { storeId } }),
+    db.prisma.conversation.count({ where: { storeId } }),
+  ]);
   return {
     store: store ?? { id: storeId, name: storeId, platform: "pending", profile: {} },
     now,
@@ -180,9 +190,7 @@ export function answer(s: Snap, question: string): AssistantReply {
 
   // Conciliaciones de Pago MÃ³vil, Zelle, USDT y pagos venezolanos
   if (
-    /(pago.*movil|pagomovil|zelle|usdt|concilia|transferencia.*bs|banco.*venezuela|banesco)/.test(
-      q,
-    )
+    /(pago.*movil|pagomovil|zelle|usdt|concilia|transferencia.*bs|banco.*venezuela|banesco)/.test(q)
   ) {
     const payPending = s.approvals.filter(
       (a) =>
@@ -625,7 +633,10 @@ export function registerAssistantApi(app: Hono, rt: Runtime): void {
   app.get("/api/assistant/suggestions", (c) => {
     const storeId = sid(c);
     const storeIsVe =
-      isVe || storeId === "store_main" || storeId.includes("demo_beauty") || storeId.includes("demo_cafe");
+      isVe ||
+      storeId === "store_main" ||
+      storeId.includes("demo_beauty") ||
+      storeId.includes("demo_cafe");
     return c.json({
       suggestions: storeIsVe ? SUGGEST_VE : SUGGEST,
       bcvRate: storeIsVe ? BCV_RATE : undefined,

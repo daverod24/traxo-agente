@@ -50,7 +50,10 @@ export async function createRuntime(
         platform: env.WOOCOMMERCE_KEY ? "woocommerce" : "pending",
         url: env.TRAXO_STORE_URL || "http://nginx",
         settings: StoreSettingsSchema.parse({ autonomy: 1, preferredProvider: "dropi" }),
-        profile: { vertical: "Belleza, K-Beauty y Bienestar Botánico", live: Boolean(env.WOOCOMMERCE_KEY) },
+        profile: {
+          vertical: "Belleza, K-Beauty y Bienestar Botánico",
+          live: Boolean(env.WOOCOMMERCE_KEY),
+        },
       },
     });
   }
@@ -66,7 +69,8 @@ export async function createRuntime(
     const demoStores = await db.prisma.store.findMany({
       where: { id: { in: ["store_demo_beauty", "store_demo_cafe", "store_demo"] } },
     });
-    const targets = demoStores.length > 0 ? demoStores : await db.prisma.store.findMany({ take: 1 });
+    const targets =
+      demoStores.length > 0 ? demoStores : await db.prisma.store.findMany({ take: 1 });
     for (const targetStore of targets) {
       const prof = targetStore.profile as { rich?: boolean; richVersion?: number } | null;
       if (!prof?.rich || (prof.richVersion ?? 1) < RICH_VERSION) {
@@ -81,12 +85,15 @@ export async function createRuntime(
   }
 
   // La tienda por defecto del runtime es store_main si hay credenciales WooCommerce, o store_demo
-  const store = (env.WOOCOMMERCE_KEY ? await db.prisma.store.findUnique({ where: { id: "store_main" } }) : null) ??
+  const store =
+    (env.WOOCOMMERCE_KEY
+      ? await db.prisma.store.findUnique({ where: { id: "store_main" } })
+      : null) ??
     (await db.prisma.store.findUnique({ where: { id: "store_demo" } })) ??
     (await db.prisma.store.findUnique({ where: { id: "store_demo_beauty" } })) ??
-    (await db.prisma.store.findFirst({ orderBy: { createdAt: "asc" } })) as NonNullable<
+    ((await db.prisma.store.findFirst({ orderBy: { createdAt: "asc" } })) as NonNullable<
       Awaited<ReturnType<Db["prisma"]["store"]["findFirst"]>>
-    >;
+    >);
 
   const bus = new EventBus();
   await loadOrderStoreIndex(db);

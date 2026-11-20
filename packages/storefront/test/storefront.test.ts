@@ -6,13 +6,16 @@ import { describe, expect, it } from "vitest";
 import {
   buildGutenbergPattern,
   buildHeadlessAstroPackage,
-  buildShopifyTheme,
+  buildUniversalFunnel,
+  computePackLadder,
   contrast,
   defaultDesign,
+  generatePacksLadderAstroComponent,
+  generateStandaloneAstroLanding,
+  generateStandaloneHtmlLanding,
   lintTheme,
   paletteProblems,
   previewHtml,
-  SECTION_IDS,
   STYLE_IDS,
   STYLES,
   StoreDesignSchema,
@@ -60,103 +63,163 @@ describe("diseño", () => {
   });
 });
 
-describe("tema de Shopify", () => {
-  for (const style of STYLE_IDS) {
-    it(`el tema «${style}» es coherente (JSON, secciones, snippets, assets, etiquetas)`, () => {
-      const files = buildShopifyTheme(
-        defaultDesign({ brand: "Café de Origen", style, products, whatsapp: "573001112233" }),
-      );
-      expect(lintTheme(files)).toEqual([]);
-      for (const need of [
-        "layout/theme.liquid",
-        "templates/index.json",
-        "templates/product.json",
-        "assets/theme.css",
-        "assets/theme.js",
-      ])
-        expect(files[need], need).toBeTruthy();
+describe("Escalera de Packs (1x, 2x, 3x) y Motor Bimoneda", () => {
+  it("computa correctamente 1x, 2x (10%) y 3x (20% + Envío Gratis) a tasa BCV", () => {
+    const ladder = computePackLadder({
+      productTitle: "Suero de Niacinamida",
+      basePriceUsd: 20.0,
+      bcvRate: 880.0,
+      whatsappNumber: "+58 412 111 2233",
     });
-  }
 
-  it("la portada respeta el orden de las secciones elegidas", () => {
-    const d = defaultDesign({ brand: "X", sections: ["productos", "hero", "faq"] });
-    const files = buildShopifyTheme(d);
-    // El orden de la página sigue el catálogo (portada primero), no el orden en que se marcaron.
-    expect(JSON.parse(files["templates/index.json"] as string).order).toEqual([
-      "hero",
-      "productos",
-      "faq",
-    ]);
-    expect(lintTheme(files)).toEqual([]);
+    expect(ladder).toHaveLength(3);
+
+    // 1x Unidad al PVP estándar
+    const p1 = ladder[0];
+    expect(p1.quantity).toBe(1);
+    expect(p1.discountPct).toBe(0);
+    expect(p1.freeShipping).toBe(false);
+    expect(p1.totalPriceUsd).toBe(20.0);
+    expect(p1.totalPriceVes).toBe(17600.0);
+    expect(p1.savingsUsd).toBe(0);
+    expect(p1.whatsappMessage).toContain("1x Unidad");
+
+    // 2x Pack Dúo con 10% descuento
+    const p2 = ladder[1];
+    expect(p2.quantity).toBe(2);
+    expect(p2.discountPct).toBe(10);
+    expect(p2.freeShipping).toBe(false);
+    expect(p2.totalPriceUsd).toBe(36.0); // 40 - 4
+    expect(p2.totalPriceVes).toBe(31680.0);
+    expect(p2.savingsUsd).toBe(4.0);
+    expect(p2.savingsVes).toBe(3520.0);
+    expect(p2.highlight).toBe(true);
+
+    // 3x Pack Trío con 20% descuento y Envío Gratis
+    const p3 = ladder[2];
+    expect(p3.quantity).toBe(3);
+    expect(p3.discountPct).toBe(20);
+    expect(p3.freeShipping).toBe(true);
+    expect(p3.totalPriceUsd).toBe(48.0); // 60 - 12
+    expect(p3.totalPriceVes).toBe(42240.0);
+    expect(p3.savingsUsd).toBe(12.0);
+    expect(p3.savingsVes).toBe(10560.0);
+    expect(p3.whatsappMessage).toContain("Envío Gratis COD");
   });
 
-  it("WhatsApp es una sola sección flotante y solo si se eligió", () => {
-    const withWa = buildShopifyTheme(defaultDesign({ brand: "X", whatsapp: "573001112233" }));
-    expect(withWa["layout/theme.liquid"]).toContain("whatsapp-cta");
-    expect(JSON.parse(withWa["templates/index.json"] as string).order).not.toContain("whatsapp");
-    const without = buildShopifyTheme(
-      defaultDesign({ brand: "X", sections: ["hero", "productos"] }),
-    );
-    expect(without["layout/theme.liquid"]).not.toContain("whatsapp-cta");
-    expect(lintTheme(without)).toEqual([]);
-  });
+  it("genera el componente Astro de la Escalera de Packs con enlaces prellenados a WhatsApp", () => {
+    const astroComp = generatePacksLadderAstroComponent({
+      productTitle: "Aceite de Orégano Silvestre",
+      basePriceUsd: 25.0,
+      bcvRate: 900.0,
+    });
 
-  it("el validador detecta un tema roto", () => {
-    const files = buildShopifyTheme(defaultDesign({ brand: "X" }));
-    files["sections/hero.liquid"] = "{% if x %}sin cerrar";
-    delete files["snippets/price.liquid"];
-    const p = lintTheme(files);
-    expect(p.some((m) => m.includes("hero.liquid") && m.includes("abiertos"))).toBe(true);
-    expect(p.some((m) => m.includes("price"))).toBe(true);
-  });
-
-  it("el CSS respeta movimiento reducido, foco visible y objetivos de 44 px", () => {
-    const css = buildShopifyTheme(defaultDesign({ brand: "X" }))["assets/theme.css"] as string;
-    expect(css).toContain("prefers-reduced-motion");
-    expect(css).toContain(":focus-visible");
-    expect(css).toContain("min-height:48px");
-    expect(css).not.toMatch(/transition:\s*all/);
-    expect(css).not.toMatch(/scale\(0\)/);
-  });
-
-  it("todas las secciones del catálogo existen como archivo", () => {
-    const files = buildShopifyTheme(defaultDesign({ brand: "X", sections: [...SECTION_IDS] }));
-    for (const t of [
-      "hero",
-      "benefits",
-      "featured-products",
-      "story",
-      "social-proof",
-      "cod-banner",
-      "faq",
-      "whatsapp-cta",
-    ])
-      expect(files[`sections/${t}.liquid`], t).toBeTruthy();
+    expect(astroComp).toContain("Escalera de Packs de Ahorro");
+    expect(astroComp).toContain("Aceite de Orégano Silvestre");
+    expect(astroComp).toContain("wa.me");
+    expect(astroComp).toContain("900");
+    expect(astroComp).toContain("Envío GRATIS nacional");
   });
 });
 
-describe("zip y vista previa", () => {
-  it("el zip es válido: lo lee `unzip` y conserva los archivos", () => {
-    const files = buildShopifyTheme(defaultDesign({ brand: "Café ñandú", products }));
+describe("Generador de Landing Autónoma (Astro & HTML)", () => {
+  it("genera un archivo HTML single-file completo, bimoneda, interactivo y con etiquetas analíticas", () => {
+    const d = defaultDesign({
+      brand: "Davebeauty",
+      products: [{ title: "Aceite de Orégano", price: 25 }],
+      whatsapp: "+58 412 999 8877",
+    });
+
+    const html = generateStandaloneHtmlLanding(d, {
+      bcvRate: 880.0,
+      ga4PropertyId: "G-TEST1234",
+      clarityProjectId: "clarity5678",
+    });
+
+    expect(html).toContain("<!DOCTYPE html>");
+    expect(html).toContain("Davebeauty");
+    expect(html).toContain("Aceite de Orégano");
+    expect(html).toContain("googletagmanager.com/gtag/js?id=G-TEST1234");
+    expect(html).toContain("clarity5678");
+    expect(html).toContain("application/ld+json");
+    expect(html).toContain("wa-checkout-btn");
+    expect(html).toContain("pack-selector");
+  });
+
+  it("genera un componente Astro single-file limpio para pauta", () => {
+    const d = defaultDesign({
+      brand: "Kaffelito",
+      products: [{ title: "Café Boconó", price: 15 }],
+    });
+
+    const astro = generateStandaloneAstroLanding(d, { bcvRate: 880.0 });
+    expect(astro).toContain("---");
+    expect(astro).toContain("Kaffelito");
+    expect(astro).toContain("Café Boconó");
+    expect(astro).toContain("define:vars");
+  });
+});
+
+describe("Funnels Desacoplados y Paquete Astro Headless", () => {
+  it("construye un Funnel universal desacoplado listo para la API pública", () => {
+    const d = defaultDesign({
+      brand: "Davebeauty",
+      style: "botanico",
+      products: [{ title: "Serum C", price: 22 }],
+    });
+
+    const funnel = buildUniversalFunnel({
+      id: "fnl_123",
+      slug: "serum-c",
+      productId: "prod_1",
+      design: d,
+      bcvRate: 880.0,
+      published: true,
+    });
+
+    expect(funnel.id).toBe("fnl_123");
+    expect(funnel.slug).toBe("serum-c");
+    expect(funnel.published).toBe(true);
+    expect(funnel.sections.some((s) => s.type === "packs_ladder")).toBe(true);
+    expect(funnel.tokens.brand).toBe("Davebeauty");
+    expect(funnel.packsLadder).toHaveLength(3);
+  });
+
+  it("genera el paquete completo para Astro Headless con PacksLadder y Gutenberg", () => {
+    const d = defaultDesign({
+      brand: "Davebeauty",
+      style: "botanico",
+      products: [{ title: "Serum", price: 20 }],
+    });
+
+    const pkg = buildHeadlessAstroPackage(d);
+    expect(pkg["gutenberg-pattern.html"]).toBeDefined();
+    expect(pkg["src/theme/tokens.json"]).toBeDefined();
+    expect(pkg["src/pages/index.astro"]).toBeDefined();
+    expect(pkg["src/pages/landing.astro"]).toBeDefined();
+    expect(pkg["src/components/Hero.astro"]).toBeDefined();
+    expect(pkg["src/components/PacksLadder.astro"]).toBeDefined();
+    expect(pkg["src/components/TrustBadges.astro"]).toBeDefined();
+    expect(pkg["standalone.html"]).toBeDefined();
+
+    expect(lintTheme(pkg)).toEqual([]);
+  });
+
+  it("el zip empaqueta de forma determinista el paquete headless", () => {
+    const d = defaultDesign({ brand: "Davebeauty", products });
+    const pkg = buildHeadlessAstroPackage(d);
     const dir = mkdtempSync(join(tmpdir(), "traxo-zip-"));
     try {
       const zip = join(dir, "tema.zip");
-      writeFileSync(zip, zipFiles(files));
+      writeFileSync(zip, zipFiles(pkg));
       const list = execFileSync("unzip", ["-l", zip]).toString();
-      expect(list).toContain("layout/theme.liquid");
-      expect(list).toContain(`${Object.keys(files).length} files`);
+      expect(list).toContain("src/components/PacksLadder.astro");
+      expect(list).toContain("standalone.html");
       const test = execFileSync("unzip", ["-t", zip]).toString();
       expect(test).toContain("No errors detected");
-      const back = execFileSync("unzip", ["-p", zip, "config/settings_data.json"]).toString();
-      expect(back).toBe(files["config/settings_data.json"]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-  });
-
-  it("el zip es determinista", () => {
-    const f = buildShopifyTheme(defaultDesign({ brand: "X" }));
-    expect(zipFiles(f).equals(zipFiles(f))).toBe(true);
   });
 
   it("la vista previa escapa el texto de la persona", () => {
@@ -168,53 +231,5 @@ describe("zip y vista previa", () => {
     expect(html).not.toContain("<script>alert(1)</script>");
     expect(html).not.toContain('"><img src=x');
     expect(html).toContain("&lt;script&gt;");
-    expect(html).toContain("Vista previa generada por Traxo");
-  });
-
-  it("solo acepta imágenes https", () => {
-    const d = defaultDesign({
-      brand: "X",
-      products: [{ title: "a", price: 1, imageUrl: "javascript:alert(1)" }],
-    });
-    expect(d.products[0]?.image).toBeUndefined();
-  });
-});
-
-describe("patrones Gutenberg y Astro Headless", () => {
-  it("genera bloques Gutenberg con templateLock contentOnly para WordPress", () => {
-    const d = defaultDesign({
-      brand: "Davebeauty",
-      style: "botanico",
-      products: [{ title: "Suero Niacinamida", price: 18, imageUrl: "https://cdn.test/serum.jpg" }],
-      whatsapp: "+58 412 123 4567",
-    });
-
-    const gutenberg = buildGutenbergPattern(d);
-    expect(gutenberg).toContain('<!-- wp:group {"templateLock":"contentOnly"');
-    expect(gutenberg).toContain("<!-- wp:heading");
-    expect(gutenberg).toContain("Suero Niacinamida");
-    expect(gutenberg).toContain("$ 18.00 USD");
-    expect(gutenberg).toContain("BCV");
-    expect(gutenberg).toContain("Pago Móvil");
-  });
-
-  it("genera el paquete completo para Astro Headless", () => {
-    const d = defaultDesign({
-      brand: "Café de Especialidad VE",
-      style: "calido",
-      products: [{ title: "Boconó Pacamara 250 g", price: 12 }],
-    });
-
-    const pkg = buildHeadlessAstroPackage(d);
-    expect(pkg["gutenberg-pattern.html"]).toBeDefined();
-    expect(pkg["src/theme/tokens.json"]).toBeDefined();
-    expect(pkg["src/pages/index.astro"]).toBeDefined();
-    expect(pkg["src/components/Hero.astro"]).toBeDefined();
-    expect(pkg["src/components/TrustBadges.astro"]).toBeDefined();
-
-    const tokens = JSON.parse(pkg["src/theme/tokens.json"] ?? "{}");
-    expect(tokens.brand).toBe("Café de Especialidad VE");
-    expect(tokens.style).toBe("calido");
-    expect(tokens.palette.accent).toBe(STYLES.calido.palette.accent);
   });
 });

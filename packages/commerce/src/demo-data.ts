@@ -1,7 +1,8 @@
 import { type Customer, newId, type Order, type Product } from "@traxo/core";
 import { cityByDane, findCity } from "@traxo/geo-co";
-import { type VenezuelaStateCode, VENEZUELA_STATES } from "@traxo/market-ve";
-export { type VenezuelaStateCode, VENEZUELA_STATES };
+import { VENEZUELA_STATES, type VenezuelaStateCode } from "@traxo/market-ve";
+
+export { VENEZUELA_STATES, type VenezuelaStateCode };
 
 /* ==============================================================================
    TIENDA DEMO 1: DAVEBEAUTY SANDBOX VE (BELLEZA, K-BEAUTY & BIENESTAR)
@@ -24,7 +25,8 @@ export const DEMO_BEAUTY_PRODUCTS: Product[] = [
     cost: 14,
     weightGrams: 450,
     imageUrl: "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/254/magnesio-trio.webp",
-    description: "Fórmula de máxima absorción para descanso profundo, balance muscular y energía mitocondrial.",
+    description:
+      "Fórmula de máxima absorción para descanso profundo, balance muscular y energía mitocondrial.",
   },
   {
     id: "prod_serum_nia",
@@ -34,7 +36,8 @@ export const DEMO_BEAUTY_PRODUCTS: Product[] = [
     cost: 7,
     weightGrams: 120,
     imageUrl: "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/255/niacinamide.webp",
-    description: "Regula la producción de sebo, minimiza la apariencia de poros y atenúa manchas oscuras.",
+    description:
+      "Regula la producción de sebo, minimiza la apariencia de poros y atenúa manchas oscuras.",
   },
   {
     id: "prod_crema_cer",
@@ -44,7 +47,8 @@ export const DEMO_BEAUTY_PRODUCTS: Product[] = [
     cost: 11,
     weightGrams: 200,
     imageUrl: "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/256/ceramide-cream.webp",
-    description: "Restauración intensiva de la barrera cutánea debilitada con fitoceramidas botánicas de Corea.",
+    description:
+      "Restauración intensiva de la barrera cutánea debilitada con fitoceramidas botánicas de Corea.",
   },
   {
     id: "prod_protector",
@@ -54,7 +58,8 @@ export const DEMO_BEAUTY_PRODUCTS: Product[] = [
     cost: 9,
     weightGrams: 150,
     imageUrl: "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/260/sunscreen-fluid.webp",
-    description: "Fotoprotección biotecnológica de amplio espectro, absorción instantánea y acabado mate transparente.",
+    description:
+      "Fotoprotección biotecnológica de amplio espectro, absorción instantánea y acabado mate transparente.",
   },
   {
     id: "prod_colageno",
@@ -64,7 +69,8 @@ export const DEMO_BEAUTY_PRODUCTS: Product[] = [
     cost: 12,
     weightGrams: 350,
     imageUrl: "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/261/collagen.webp",
-    description: "Péptidos bioactivos marinos tipo I y III para firmeza dérmica, salud articular y fortalecimiento capilar.",
+    description:
+      "Péptidos bioactivos marinos tipo I y III para firmeza dérmica, salud articular y fortalecimiento capilar.",
   },
 ];
 
@@ -88,7 +94,8 @@ export const DEMO_CAFE_PRODUCTS: Product[] = [
     price: 12,
     cost: 5,
     weightGrams: 360,
-    description: "Altura 1.650 msnm. Proceso honey con fragancia a miel silvestre, caña de azúcar y chocolate con leche.",
+    description:
+      "Altura 1.650 msnm. Proceso honey con fragancia a miel silvestre, caña de azúcar y chocolate con leche.",
   },
   {
     id: "prod_cafe_sanare",
@@ -97,7 +104,8 @@ export const DEMO_CAFE_PRODUCTS: Product[] = [
     price: 11,
     cost: 4.5,
     weightGrams: 360,
-    description: "Cultivado a 1.500 msnm en Sanare. Acidez cítrica brillante, notas florales a jazmín y caramelo suave.",
+    description:
+      "Cultivado a 1.500 msnm en Sanare. Acidez cítrica brillante, notas florales a jazmín y caramelo suave.",
   },
   {
     id: "prod_cafe_merida",
@@ -106,7 +114,8 @@ export const DEMO_CAFE_PRODUCTS: Product[] = [
     price: 16,
     cost: 7,
     weightGrams: 270,
-    description: "Fermentación anaeróbica 72h a 1.800 msnm. Perfil exótico con notas a frutas rojas, licor y cacao fino.",
+    description:
+      "Fermentación anaeróbica 72h a 1.800 msnm. Perfil exótico con notas a frutas rojas, licor y cacao fino.",
   },
   {
     id: "prod_cafe_biscucuy",
@@ -115,7 +124,8 @@ export const DEMO_CAFE_PRODUCTS: Product[] = [
     price: 14,
     cost: 6,
     weightGrams: 520,
-    description: "Cuna cafetalera andina venezolana. Tueste medio con cuerpo sedoso, acidez media y regusto a nuez.",
+    description:
+      "Cuna cafetalera andina venezolana. Tueste medio con cuerpo sedoso, acidez media y regusto a nuez.",
   },
   {
     id: "prod_cafe_miranda",
@@ -124,7 +134,8 @@ export const DEMO_CAFE_PRODUCTS: Product[] = [
     price: 12,
     cost: 5,
     weightGrams: 360,
-    description: "Micro-clima de niebla costera de montaña. Proceso lavado con notas dulces a panela y frutos secos.",
+    description:
+      "Micro-clima de niebla costera de montaña. Proceso lavado con notas dulces a panela y frutos secos.",
   },
   {
     id: "prod_cafe_tachira",
@@ -133,7 +144,8 @@ export const DEMO_CAFE_PRODUCTS: Product[] = [
     price: 13,
     cost: 5.5,
     weightGrams: 520,
-    description: "Herencia cafetalera tachirense centenaria. Sabor clásico y robusto a chocolate amargo y especias dulces.",
+    description:
+      "Herencia cafetalera tachirense centenaria. Sabor clásico y robusto a chocolate amargo y especias dulces.",
   },
 ];
 
@@ -240,13 +252,37 @@ export const VE_DESTINATIONS: Array<{
   city: string;
   street: string;
 }> = [
-  { stateCode: "VE-A", city: "Caracas", street: "Av. Francisco de Miranda, Los Palos Grandes, Res. Parque Cristal" },
-  { stateCode: "VE-N", city: "Caracas (El Hatillo)", street: "Calle La Lagunita, Quinta Los Samanes" },
-  { stateCode: "VE-G", city: "Valencia", street: "Urb. Las Chimeneas, Calle Los Robles, Res. Altamira" },
-  { stateCode: "VE-V", city: "Maracaibo", street: "Av. Bella Vista con Calle 72, Sector Tierra Negra" },
+  {
+    stateCode: "VE-A",
+    city: "Caracas",
+    street: "Av. Francisco de Miranda, Los Palos Grandes, Res. Parque Cristal",
+  },
+  {
+    stateCode: "VE-N",
+    city: "Caracas (El Hatillo)",
+    street: "Calle La Lagunita, Quinta Los Samanes",
+  },
+  {
+    stateCode: "VE-G",
+    city: "Valencia",
+    street: "Urb. Las Chimeneas, Calle Los Robles, Res. Altamira",
+  },
+  {
+    stateCode: "VE-V",
+    city: "Maracaibo",
+    street: "Av. Bella Vista con Calle 72, Sector Tierra Negra",
+  },
   { stateCode: "VE-L", city: "Barquisimeto", street: "Urb. Nueva Segovia, Carrera 1 con Calle 4" },
-  { stateCode: "VE-B", city: "Lechería", street: "Av. Principal de Lechería, CC Plaza Mayor, Edif. Cumaná" },
-  { stateCode: "VE-D", city: "Maracay", street: "Av. Las Delicias, Urb. El Bosque, Res. Cantaclaro" },
+  {
+    stateCode: "VE-B",
+    city: "Lechería",
+    street: "Av. Principal de Lechería, CC Plaza Mayor, Edif. Cumaná",
+  },
+  {
+    stateCode: "VE-D",
+    city: "Maracay",
+    street: "Av. Las Delicias, Urb. El Bosque, Res. Cantaclaro",
+  },
   { stateCode: "VE-M", city: "Mérida", street: "Av. Urdaneta, Conjunto Residencial El Rodeo" },
   { stateCode: "VE-S", city: "San Cristóbal", street: "Urb. Pirineos II, Carrera 18 con Calle 5" },
   { stateCode: "VE-P", city: "Porlamar", street: "Av. Santiago Mariño, Sector Bella Vista" },
@@ -379,11 +415,7 @@ export function buildDemoOrder(opts: DemoOrderOptions = {}): Order {
   const isCafe = storeId === "store_demo_cafe";
   const isVe = (isBeauty || isCafe) && !opts.dane;
 
-  const catalog = isBeauty
-    ? DEMO_BEAUTY_PRODUCTS
-    : isCafe
-      ? DEMO_CAFE_PRODUCTS
-      : DEMO_PRODUCTS;
+  const catalog = isBeauty ? DEMO_BEAUTY_PRODUCTS : isCafe ? DEMO_CAFE_PRODUCTS : DEMO_PRODUCTS;
   const seed = opts.seed ?? Math.floor(Math.random() * 1e9);
   const r = rng(seed);
 

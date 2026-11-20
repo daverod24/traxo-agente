@@ -9,6 +9,7 @@ import {
   signup,
 } from "@traxo/db";
 import type { Context, Hono } from "hono";
+import { env } from "./env.ts";
 import type { Runtime } from "./runtime.ts";
 
 type Session = { a: string; s: string; r: "admin" | "owner"; exp: number };
@@ -17,20 +18,24 @@ type Session = { a: string; s: string; r: "admin" | "owner"; exp: number };
 export const INTERNAL = randomBytes(24).toString("hex");
 const COOKIE = "traxo_session";
 const DAYS = 14;
-const SECRET = process.env.TRAXO_SESSION_SECRET ?? randomBytes(32).toString("hex");
+const DEFAULT_SECRET = () => env.TRAXO_SESSION_SECRET;
 
 const b64 = (s: string): string => Buffer.from(s).toString("base64url");
-const mac = (body: string, secret = SECRET): string =>
+const mac = (body: string, secret = DEFAULT_SECRET()): string =>
   createHmac("sha256", secret).update(body).digest("base64url");
 
-export function signSession(s: Omit<Session, "exp">, secret = SECRET, now = Date.now()): string {
+export function signSession(
+  s: Omit<Session, "exp">,
+  secret = DEFAULT_SECRET(),
+  now = Date.now(),
+): string {
   const body = b64(JSON.stringify({ ...s, exp: now + DAYS * 86_400_000 }));
   return `${body}.${mac(body, secret)}`;
 }
 
 export function readSession(
   token: string | undefined,
-  secret = SECRET,
+  secret = DEFAULT_SECRET(),
   now = Date.now(),
 ): Session | undefined {
   if (!token) return undefined;
@@ -53,6 +58,16 @@ const cookieOf = (c: Context): string | undefined =>
     ?.split(/;\s*/)
     .map((p) => p.split("="))
     .find(([k]) => k === COOKIE)?.[1];
+
+export const tokenOf = (c: Context): string | undefined => {
+  const cookie = cookieOf(c);
+  if (cookie) return cookie;
+  const auth = c.req.header("authorization");
+  if (auth && auth.toLowerCase().startsWith("bearer ")) {
+    return auth.slice(7).trim();
+  }
+  return undefined;
+};
 
 const setCookie = (c: Context, token: string, maxAge = DAYS * 86400): void => {
   const secure =
@@ -113,12 +128,13 @@ export function mountAuth(app: Hono, rt: Runtime, opts: AuthOptions = {}): void 
   });
 
   const start = (c: Context, a: AccountView) => {
-    setCookie(c, signSession({ a: a.id, s: a.storeId, r: a.role }));
-    return c.json({ ok: true, account: a });
+    const token = signSession({ a: a.id, s: a.storeId, r: a.role });
+    setCookie(c, token);
+    return c.json({ ok: true, account: a, token });
   };
 
   app.get("/api/auth/me", async (c) => {
-    const s = readSession(cookieOf(c));
+    const s = readSession(tokenOf(c));
     const account = s ? await accountById(rt.db, s.a) : undefined;
     return c.json({ account: account ?? null, ...publicInfo() });
   });
@@ -169,14 +185,20 @@ export function mountAuth(app: Hono, rt: Runtime, opts: AuthOptions = {}): void 
   });
 
   app.post("/api/auth/tour-done", async (c) => {
-    const s = readSession(cookieOf(c));
+    const s = readSession(tokenOf(c));
     if (s) await markTourDone(rt.db, s.a);
     return c.json({ ok: true });
   });
 
   app.use("/api/*", async (c, next) => {
-    if (c.req.path.startsWith("/api/auth/")) return next();
-    const s = readSession(cookieOf(c));
+    if (
+      c.req.path.startsWith("/api/auth/") ||
+      c.req.path.startsWith("/api/public/") ||
+      c.req.path.startsWith("/api/seo/")
+    )
+      return next();
+    const token = tokenOf(c);
+    const s = readSession(token);
     let account: AccountView | undefined;
     if (s) {
       account = await accountById(rt.db, s.a);

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useResource } from "./api.ts";
 import { HBars, LineChart } from "./charts.tsx";
 import { EmptyState } from "./components.tsx";
-import { DEFAULT_BCV_RATE, cop, copShort, vesFromUsd } from "./format.ts";
+import { cop, copShort, DEFAULT_BCV_RATE, vesFromUsd } from "./format.ts";
 import type { StoreStatus, UsageReport } from "./types.ts";
 import { Banner, CHANNELS, ChannelMark, SampleTag, Tabs } from "./ui.tsx";
 import type { Ctx } from "./views.tsx";
@@ -275,10 +275,11 @@ export function UsoAgentico({ ctx }: { ctx: Ctx }) {
           <summary>Supuestos del cálculo</summary>
           <p className="caption" style={{ marginTop: 8 }}>
             Son estimados, no una factura. La hora de trabajo se valora en{" "}
-            {u ? cop(u.assumptions.hourCop) : "—"} / {u ? vesFromUsd(u.assumptions.hourCop) : "—"} (cámbialo con <code>TRAXO_HOUR_COP</code>). El
-            costo de IA usa los precios por millón de tokens de{" "}
-            <code>TRAXO_AI_USD_PER_MTOK_IN/OUT</code> y la tasa oficial BCV de <code>TRAXO_BCV_RATE</code> (Bs. {DEFAULT_BCV_RATE.toFixed(2).replace(".", ",")} / USD). Los
-            créditos de Higgsfield solo cuentan si se anotan al agregarlos a la biblioteca.
+            {u ? cop(u.assumptions.hourCop) : "—"} / {u ? vesFromUsd(u.assumptions.hourCop) : "—"}{" "}
+            (cámbialo con <code>TRAXO_HOUR_COP</code>). El costo de IA usa los precios por millón de
+            tokens de <code>TRAXO_AI_USD_PER_MTOK_IN/OUT</code> y la tasa oficial BCV de{" "}
+            <code>TRAXO_BCV_RATE</code> (Bs. {DEFAULT_BCV_RATE.toFixed(2).replace(".", ",")} / USD).
+            Los créditos de Higgsfield solo cuentan si se anotan al agregarlos a la biblioteca.
           </p>
         </details>
       </section>

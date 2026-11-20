@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useResource } from "./api.ts";
 import { HBars, LineChart, Spark } from "./charts.tsx";
 import { EmptyState } from "./components.tsx";
-import { DEFAULT_BCV_RATE, cop, copShort, vesFromUsd } from "./format.ts";
+import { cop, copShort, DEFAULT_BCV_RATE, vesFromUsd } from "./format.ts";
 import type { Attribution, Logistics, Overview, StoreStatus } from "./types.ts";
 import { PlatformBadge, SampleTag, StatusBadge, Tabs } from "./ui.tsx";
 import type { Ctx } from "./views.tsx";
@@ -89,12 +89,16 @@ export function Reportes({ ctx }: { ctx: Ctx }) {
         </div>
         <div className="kpi">
           <span className="label">Cancelados</span>
-          <span className="value num" style={{ color: "#fb7185" }}>{t?.cancelled ?? 0}</span>
+          <span className="value num" style={{ color: "#fb7185" }}>
+            {t?.cancelled ?? 0}
+          </span>
           <span className="caption">pedidos cancelados</span>
         </div>
         <div className="kpi">
           <span className="label">Efectividad</span>
-          <span className="value num" style={{ color: "#10b981" }}>{pct(t?.deliveredPct ?? null)}</span>
+          <span className="value num" style={{ color: "#10b981" }}>
+            {pct(t?.deliveredPct ?? null)}
+          </span>
           <span className="caption">de entregas exitosas</span>
         </div>
       </div>
@@ -237,7 +241,9 @@ export function Reportes({ ctx }: { ctx: Ctx }) {
                     ) : (
                       <div>
                         <div>{cop(c.spend)}</div>
-                        <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block" }}>
+                        <small
+                          style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block" }}
+                        >
                           {vesFromUsd(c.spend)}
                         </small>
                       </div>

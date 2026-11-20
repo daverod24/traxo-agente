@@ -62,7 +62,9 @@ export function sampleAudit(
           "Un solo H1",
           "pass",
           "medio",
-          isVe ? "1 H1: «Cuidado botánico y K-Beauty Venezuela»" : "1 H1: «Café colombiano de origen»",
+          isVe
+            ? "1 H1: «Cuidado botánico y K-Beauty Venezuela»"
+            : "1 H1: «Café colombiano de origen»",
         ),
         c(
           "canonical",
@@ -73,7 +75,14 @@ export function sampleAudit(
           "No se encontró",
           'Añade <link rel="canonical"> para evitar contenido duplicado.',
         ),
-        c("lang", gTecnico, "Idioma declarado", "pass", "bajo", isVe ? 'lang="es-VE"' : 'lang="es-CO"'),
+        c(
+          "lang",
+          gTecnico,
+          "Idioma declarado",
+          "pass",
+          "bajo",
+          isVe ? 'lang="es-VE"' : 'lang="es-CO"',
+        ),
         c(
           "viewport",
           gTecnico,

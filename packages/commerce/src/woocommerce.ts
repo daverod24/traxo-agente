@@ -46,9 +46,7 @@ export function normalizeProductFromWoo(
 
   // Lectura robusta de Dropi ID (_dropi_id, _dropi_product_id, _dropi_product)
   const dropiIdRaw =
-    metaMap.get("_dropi_id") ??
-    metaMap.get("_dropi_product_id") ??
-    metaMap.get("dropi_id");
+    metaMap.get("_dropi_id") ?? metaMap.get("_dropi_product_id") ?? metaMap.get("dropi_id");
   let dropiId =
     dropiIdRaw != null && String(dropiIdRaw).trim() !== "" ? String(dropiIdRaw).trim() : undefined;
   if (!dropiId && metaMap.has("_dropi_product")) {
@@ -287,8 +285,9 @@ export class WooCommerce implements CommerceAdapter {
 
     for (const p of rows) {
       // Variaciones si existen
-      let variationsList: Array<{ id: number; sku?: string; price: number; name?: string }> | undefined =
-        undefined;
+      let variationsList:
+        | Array<{ id: number; sku?: string; price: number; name?: string }>
+        | undefined = undefined;
       if (Array.isArray(p.variations) && p.variations.length > 0) {
         try {
           const varRows = await this.call<

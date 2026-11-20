@@ -12,12 +12,12 @@ import { Agente } from "./views-agent.tsx";
 import { Constructor } from "./views-builder.tsx";
 import { Clientes, Marketing } from "./views-growth.tsx";
 import { Mensajes } from "./views-messages.tsx";
+import { CatalogoProductos } from "./views-products.tsx";
 import { Reportes } from "./views-reports.tsx";
 import { Ajustes, Conexiones } from "./views-settings.tsx";
 import { Envios } from "./views-ship.tsx";
 import { TiendaSeo } from "./views-store.tsx";
 import { UsoAgentico } from "./views-usage.tsx";
-import { CatalogoProductos } from "./views-products.tsx";
 
 type Item = [id: string, label: string, icon: string];
 const SECTIONS: Array<[string, Item[]]> = [
@@ -174,9 +174,27 @@ type StoreOption = {
 };
 
 const DEFAULT_STORES: StoreOption[] = [
-  { id: "store_main", name: "Davebeauty (WooCommerce en Vivo)", isLive: true, vertical: "Belleza & Bienestar", platform: "woocommerce" },
-  { id: "store_demo_beauty", name: "Davebeauty Sandbox VE", isLive: false, vertical: "K-Beauty & Magnesio", platform: "mock" },
-  { id: "store_demo_cafe", name: "Café de Especialidad VE", isLive: false, vertical: "Café de Origen", platform: "mock" },
+  {
+    id: "store_main",
+    name: "Davebeauty (WooCommerce en Vivo)",
+    isLive: true,
+    vertical: "Belleza & Bienestar",
+    platform: "woocommerce",
+  },
+  {
+    id: "store_demo_beauty",
+    name: "Davebeauty Sandbox VE",
+    isLive: false,
+    vertical: "K-Beauty & Magnesio",
+    platform: "mock",
+  },
+  {
+    id: "store_demo_cafe",
+    name: "Café de Especialidad VE",
+    isLive: false,
+    vertical: "Café de Origen",
+    platform: "mock",
+  },
 ];
 
 function StoreSwitcher({
@@ -208,12 +226,47 @@ function StoreSwitcher({
   }, [res.data, currentStoreId, onSelectStore]);
 
   return (
-    <div style={{ padding: "8px 10px", margin: "4px 8px 12px", background: "var(--surface-muted, rgba(0,0,0,0.03))", borderRadius: 8, border: "1px solid var(--border)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-        <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", fontWeight: 700 }}>
+    <div
+      style={{
+        padding: "8px 10px",
+        margin: "4px 8px 12px",
+        background: "var(--surface-muted, rgba(0,0,0,0.03))",
+        borderRadius: 8,
+        border: "1px solid var(--border)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 4,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 10,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            color: "var(--text-muted)",
+            fontWeight: 700,
+          }}
+        >
           Tienda / Entorno
         </span>
-        <span style={{ fontSize: 10, padding: "1px 5px", borderRadius: 4, background: currentStoreId === "store_main" ? "var(--success-surface, #e6f7ec)" : "var(--agent-surface, #f0eaff)", color: currentStoreId === "store_main" ? "var(--success)" : "var(--agent)", fontWeight: 600 }}>
+        <span
+          style={{
+            fontSize: 10,
+            padding: "1px 5px",
+            borderRadius: 4,
+            background:
+              currentStoreId === "store_main"
+                ? "var(--success-surface, #e6f7ec)"
+                : "var(--agent-surface, #f0eaff)",
+            color: currentStoreId === "store_main" ? "var(--success)" : "var(--agent)",
+            fontWeight: 600,
+          }}
+        >
           {currentStoreId === "store_main" ? "En Vivo" : "Demo"}
         </span>
       </div>
@@ -221,7 +274,14 @@ function StoreSwitcher({
         className="input"
         value={currentStoreId}
         onChange={(e) => onSelectStore(e.target.value)}
-        style={{ width: "100%", fontSize: 11, fontWeight: 600, padding: "4px 6px", height: "auto", cursor: "pointer" }}
+        style={{
+          width: "100%",
+          fontSize: 11,
+          fontWeight: 600,
+          padding: "4px 6px",
+          height: "auto",
+          cursor: "pointer",
+        }}
         aria-label="Seleccionar entorno o tienda"
       >
         {stores.map((s) => (
@@ -299,7 +359,12 @@ function Shell({
     } catch {}
     setStoreId(newId);
     setBump((b) => b + 1);
-    const label = newId === "store_main" ? "Davebeauty (WooCommerce en Vivo)" : newId === "store_demo_cafe" ? "Café de Especialidad VE" : "Davebeauty Sandbox VE";
+    const label =
+      newId === "store_main"
+        ? "Davebeauty (WooCommerce en Vivo)"
+        : newId === "store_demo_cafe"
+          ? "Café de Especialidad VE"
+          : "Davebeauty Sandbox VE";
     notify(`Entorno activo: ${label}`);
   };
   const state = useResource<State>("/api/state", tick).data;
@@ -405,7 +470,12 @@ function Shell({
             title={feed.live ? "En vivo" : "Reconectando"}
           />
         </div>
-        <StoreSwitcher currentStoreId={storeId} onSelectStore={handleSelectStore} tick={tick} storesList={activeStores} />
+        <StoreSwitcher
+          currentStoreId={storeId}
+          onSelectStore={handleSelectStore}
+          tick={tick}
+          storesList={activeStores}
+        />
         {SECTIONS.map(([sec, items]) => (
           <div key={sec} className="navsec" role="group" aria-label={sec}>
             <div className="navsec-t">{sec}</div>
@@ -453,15 +523,25 @@ function Shell({
             <select
               value={storeId}
               onChange={(e) => handleSelectStore(e.target.value)}
-              style={{ fontSize: 11, padding: "2px 6px", borderRadius: 6, background: "var(--surface)", border: "1px solid var(--border)", fontWeight: 600, maxWidth: 130 }}
+              style={{
+                fontSize: 11,
+                padding: "2px 6px",
+                borderRadius: 6,
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                fontWeight: 600,
+                maxWidth: 130,
+              }}
               aria-label="Seleccionar entorno"
             >
-              {(activeStores && activeStores.length > 0 ? activeStores : DEFAULT_STORES).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.isLive ? "🟢 " : s.id.includes("cafe") ? "🟤 " : "🟣 "}
-                  {s.name}
-                </option>
-              ))}
+              {(activeStores && activeStores.length > 0 ? activeStores : DEFAULT_STORES).map(
+                (s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.isLive ? "🟢 " : s.id.includes("cafe") ? "🟤 " : "🟣 "}
+                    {s.name}
+                  </option>
+                ),
+              )}
             </select>
             <ToneBadge tone={feed.live ? "success" : "neutral"}>
               {feed.live ? "En vivo" : "Sin conexión"}

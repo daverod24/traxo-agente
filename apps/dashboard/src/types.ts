@@ -446,3 +446,124 @@ export type BuiltPage = {
   tools: string[];
   kind: "referencia";
 };
+
+// =========================================================================
+// MARKETING ESTRATÉGICO & GENERACIONES
+// =========================================================================
+export type MetaAdsOutput = {
+  channel: "meta_ads";
+  campaignName: string;
+  hooks: string[];
+  primaryTexts: string[];
+  headlines: string[];
+  visualPrompts: {
+    ratio4x5: string;
+    ratio9x16: string;
+    safeZoneText: string;
+  };
+  utmTemplate: string;
+};
+
+export type ClickToWhatsAppOutput = {
+  channel: "click_to_whatsapp";
+  adCopy: string;
+  prefilledWhatsAppMessage: string;
+  closingScript: {
+    step1Greeting: string;
+    step2PricingBimoneda: string;
+    step3LogisticsConfirm: string;
+  };
+};
+
+export type TikTokUgcOutput = {
+  channel: "tiktok_ugc";
+  hooks0to3s: string[];
+  script30s: Array<{
+    timestamp: string;
+    cameraCue: string;
+    audioVoiceover: string;
+    onScreenText: string;
+  }>;
+  soundSuggestion: string;
+};
+
+export type MarketingGenerationOutput = MetaAdsOutput | ClickToWhatsAppOutput | TikTokUgcOutput;
+
+export type MarketingGeneration = {
+  id: string;
+  storeId: string;
+  productId: string;
+  channel: "meta_ads" | "click_to_whatsapp" | "tiktok_ugc";
+  angle: string;
+  mode: "explore" | "refine";
+  parentGenerationId: string | null;
+  userInstruction: string | null;
+  outputJson: MarketingGenerationOutput;
+  provider: string;
+  model: string;
+  latencyMs: number;
+  status: "generated" | "dispatched_n8n" | "archived";
+  createdAt: string;
+  product?: {
+    id: string;
+    title: string;
+    category?: string;
+    price: number;
+    imageUrl?: string | null;
+  };
+};
+
+// =========================================================================
+// PULSO EN VIVO: ANALÍTICA GA4, FUNNEL, CLARITY Y BRIEF IA
+// =========================================================================
+export type AnalyticsRealtimeResp = {
+  ok: boolean;
+  activeUsers: number;
+  mostViewedProduct: {
+    name: string;
+    views: number;
+  };
+  topChannel: string;
+  trafficSources?: Array<{ source: string; users: number }>;
+  clarity?: {
+    deepLink: string;
+    projectId?: string;
+  };
+};
+
+export type AnalyticsFunnelStep = {
+  step: string;
+  label: string;
+  count: number;
+  conversionFromPrevious: number;
+  conversionFromFirst: number;
+};
+
+export type AnalyticsFunnelResp = {
+  ok: boolean;
+  periodDays: number;
+  steps: AnalyticsFunnelStep[];
+  bottleneck: {
+    step: string;
+    severity: "critical" | "warning" | "good";
+    description: string;
+    recommendation: string;
+  };
+};
+
+export type AnalyticsBriefResp = {
+  ok: boolean;
+  brief: string;
+  bulletPoints?: string[];
+  generatedAt: string;
+  cached: boolean;
+};
+
+export type ClarityMetricsResp = {
+  ok: boolean;
+  sessionsCount?: number;
+  deadClicksCount?: number;
+  rageClicksCount?: number;
+  quickBacksCount?: number;
+  deepLink: string;
+};

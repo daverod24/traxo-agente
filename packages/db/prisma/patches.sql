@@ -87,3 +87,69 @@ CREATE TABLE IF NOT EXISTS "SiteProject" (
   CONSTRAINT "SiteProject_pkey" PRIMARY KEY ("id")
 );
 CREATE INDEX IF NOT EXISTS "SiteProject_storeId_updatedAt_idx" ON "SiteProject"("storeId", "updatedAt");
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ProductCategory') THEN
+    CREATE TYPE "ProductCategory" AS ENUM ('oral_supplement', 'facial_skincare', 'body_skincare', 'haircare', 'general');
+  END IF;
+END $$;
+
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "category" "ProductCategory" NOT NULL DEFAULT 'general';
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "referenceImageUrl" TEXT;
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "keyIngredients" TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "commonObjections" TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "packRules" JSONB;
+CREATE UNIQUE INDEX IF NOT EXISTS "Product_storeId_externalId_key" ON "Product"("storeId", "externalId");
+
+CREATE TABLE IF NOT EXISTS "MarketingGeneration" (
+  "id" TEXT NOT NULL,
+  "storeId" TEXT NOT NULL,
+  "productId" TEXT NOT NULL,
+  "channel" TEXT NOT NULL,
+  "angle" TEXT NOT NULL,
+  "mode" TEXT NOT NULL,
+  "parentGenerationId" TEXT,
+  "userInstruction" TEXT,
+  "outputJson" JSONB NOT NULL,
+  "provider" TEXT NOT NULL,
+  "model" TEXT NOT NULL,
+  "latencyMs" INTEGER NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'generated',
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "MarketingGeneration_pkey" PRIMARY KEY ("id"),
+  CONSTRAINT "MarketingGeneration_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT "MarketingGeneration_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+CREATE INDEX IF NOT EXISTS "MarketingGeneration_storeId_productId_channel_idx" ON "MarketingGeneration"("storeId", "productId", "channel");
+CREATE INDEX IF NOT EXISTS "MarketingGeneration_parentGenerationId_idx" ON "MarketingGeneration"("parentGenerationId");
+
+CREATE TABLE IF NOT EXISTS "Funnel" (
+  "id" TEXT NOT NULL,
+  "storeId" TEXT NOT NULL,
+  "slug" TEXT NOT NULL,
+  "title" TEXT NOT NULL,
+  "productId" TEXT NOT NULL,
+  "sectionsJson" JSONB NOT NULL,
+  "tokensJson" JSONB NOT NULL,
+  "published" BOOLEAN NOT NULL DEFAULT false,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "Funnel_pkey" PRIMARY KEY ("id"),
+  CONSTRAINT "Funnel_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT "Funnel_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "Funnel_storeId_slug_key" ON "Funnel"("storeId", "slug");
+CREATE INDEX IF NOT EXISTS "Funnel_slug_idx" ON "Funnel"("slug");
+
+CREATE TABLE IF NOT EXISTS "AnalyticsCache" (
+  "id" TEXT NOT NULL,
+  "storeId" TEXT NOT NULL,
+  "metricType" TEXT NOT NULL,
+  "payloadJson" JSONB NOT NULL,
+  "expiresAt" TIMESTAMP(3) NOT NULL,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "AnalyticsCache_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "AnalyticsCache_storeId_metricType_key" ON "AnalyticsCache"("storeId", "metricType");
+CREATE INDEX IF NOT EXISTS "AnalyticsCache_expiresAt_idx" ON "AnalyticsCache"("expiresAt");

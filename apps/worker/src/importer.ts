@@ -45,9 +45,14 @@ export async function importStore(
   });
   if (!storeExists) {
     const fallbackStore = (deps as any).storeId
-      ? await db.prisma.store.findUnique({ where: { id: (deps as any).storeId }, select: { id: true } })
+      ? await db.prisma.store.findUnique({
+          where: { id: (deps as any).storeId },
+          select: { id: true },
+        })
       : null;
-    const firstStore = fallbackStore ?? (await db.prisma.store.findFirst({ orderBy: { createdAt: "asc" }, select: { id: true } }));
+    const firstStore =
+      fallbackStore ??
+      (await db.prisma.store.findFirst({ orderBy: { createdAt: "asc" }, select: { id: true } }));
     if (firstStore) {
       validStoreId = firstStore.id;
     } else {
@@ -111,8 +116,7 @@ export async function importStore(
         if (p.weightGrams != null && found.weightGrams !== p.weightGrams)
           updateData.weightGrams = p.weightGrams;
         const targetImg = p.imageUrl || CANONICAL_PRODUCT_IMAGES[p.externalId] || null;
-        if (targetImg && found.imageUrl !== targetImg)
-          updateData.imageUrl = targetImg;
+        if (targetImg && found.imageUrl !== targetImg) updateData.imageUrl = targetImg;
         if (p.description !== undefined && found.description !== (p.description ?? null))
           updateData.description = p.description ?? null;
 
@@ -223,12 +227,18 @@ export async function importStore(
     products > 0 || updatedProducts > 0
       ? `Sincronización completada: ${products} nuevos, ${updatedProducts} actualizados (Total: ${totalProducts} productos en catálogo de Davebeauty).`
       : `Catálogo sincronizado: ${totalProducts} productos activos de Davebeauty al día (${totalCustomers} clientes y ${totalOrders} pedidos).`;
-  deps.bus.emit(
-    "store.imported",
-    msg,
-    { data: { storeId, totalProducts, totalCustomers, totalOrders, products, updatedProducts } },
-  );
-  return { products, updatedProducts, totalProducts, customers, totalCustomers, orders, totalOrders };
+  deps.bus.emit("store.imported", msg, {
+    data: { storeId, totalProducts, totalCustomers, totalOrders, products, updatedProducts },
+  });
+  return {
+    products,
+    updatedProducts,
+    totalProducts,
+    customers,
+    totalCustomers,
+    orders,
+    totalOrders,
+  };
 }
 
 export const isImported = async (db: Db, storeId: string): Promise<boolean> =>

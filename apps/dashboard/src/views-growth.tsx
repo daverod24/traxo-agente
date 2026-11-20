@@ -475,7 +475,8 @@ export function Marketing({ ctx }: { ctx: Ctx }) {
         <div>
           <h1>Marketing y Adquisición de Clientes</h1>
           <p className="lead">
-            Estrategia de Paid Media (Meta Ads & WhatsApp), radar financiero Dropi y generador de creativos.
+            Estrategia de Paid Media (Meta Ads & WhatsApp), radar financiero Dropi y generador de
+            creativos.
           </p>
         </div>
       </div>
@@ -561,7 +562,11 @@ function Campanas({ ctx }: { ctx: Ctx }) {
             <span className="label">Gasto en anuncios</span>
             <span className="value num">{known.length ? usdShort(spend) : "N/A"}</span>
             <span className="caption">
-              {spend > 0 ? `${vesFromUsd(spend)} (BCV)` : sample ? "datos de ejemplo" : "lo que reporta la plataforma"}
+              {spend > 0
+                ? `${vesFromUsd(spend)} (BCV)`
+                : sample
+                  ? "datos de ejemplo"
+                  : "lo que reporta la plataforma"}
             </span>
           </div>
           <div className="kpi">
@@ -572,7 +577,9 @@ function Campanas({ ctx }: { ctx: Ctx }) {
           <div className="kpi">
             <span className="label">Ventas atribuidas</span>
             <span className="value num">{usdShort(revenue)}</span>
-            <span className="caption">{revenue > 0 ? `${vesFromUsd(revenue)} (BCV)` : "pedidos con ese utm"}</span>
+            <span className="caption">
+              {revenue > 0 ? `${vesFromUsd(revenue)} (BCV)` : "pedidos con ese utm"}
+            </span>
           </div>
           <div className="kpi">
             <span className="label">ROAS combinado</span>
@@ -751,9 +758,14 @@ function Creativos({ ctx, onGoDola }: { ctx: Ctx; onGoDola?: () => void }) {
   return (
     <section className="stack">
       <Banner tone="neutral">
-        <div className="row between" style={{ alignItems: "center", width: "100%", gap: 12, flexWrap: "wrap" }}>
+        <div
+          className="row between"
+          style={{ alignItems: "center", width: "100%", gap: 12, flexWrap: "wrap" }}
+        >
           <div>
-            💡 <strong>¿Quieres ahorrar créditos?</strong> Puedes generar imágenes de producto y guiones UGC de alta conversión completamente GRATIS usando <strong>Dola AI</strong> (dola.com).
+            💡 <strong>¿Quieres ahorrar créditos?</strong> Puedes generar imágenes de producto y
+            guiones UGC de alta conversión completamente GRATIS usando <strong>Dola AI</strong>{" "}
+            (dola.com).
           </div>
           {onGoDola && (
             <Button sm variant="agent" icon="spark" onClick={onGoDola}>
@@ -1001,7 +1013,12 @@ function NuevaCampana({
               onChange={(e) => setF({ ...f, dailyBudget: Number(e.target.value) })}
             />
             <span className="caption" style={{ color: "var(--muted)", marginTop: 4 }}>
-              ~ Bs. {(Number(f.dailyBudget || 0) * 880).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} VES (Tasa oficial BCV)
+              ~ Bs.{" "}
+              {(Number(f.dailyBudget || 0) * 880).toLocaleString("es-VE", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{" "}
+              VES (Tasa oficial BCV)
             </span>
           </label>
           <Button

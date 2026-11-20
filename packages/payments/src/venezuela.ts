@@ -35,10 +35,12 @@ export class MisPidiGateway {
   private secretKey: string;
   private isSandbox: boolean;
 
-  constructor(opts: { apiKey?: string; secretKey?: string; webhookSecret?: string; sandbox?: boolean } = {}) {
+  constructor(
+    opts: { apiKey?: string; secretKey?: string; webhookSecret?: string; sandbox?: boolean } = {},
+  ) {
     this.apiKey = opts.apiKey || process.env.MISPIDI_API_KEY || "";
     this.secretKey = opts.secretKey || opts.webhookSecret || process.env.MISPIDI_SECRET_KEY || "";
-    this.isSandbox = opts.sandbox ?? (process.env.MISPIDI_ENV !== "production");
+    this.isSandbox = opts.sandbox ?? process.env.MISPIDI_ENV !== "production";
   }
 
   /**
@@ -54,7 +56,10 @@ export class MisPidiGateway {
    * Procesa un webhook recibido de MisPidi.
    */
   parseWebhook(payload: Record<string, any>): PagoMovilVerificationResult {
-    const isCompleted = payload.status === "COMPLETED" || payload.estado === "APROBADO" || payload.event === "transaction.completed";
+    const isCompleted =
+      payload.status === "COMPLETED" ||
+      payload.estado === "APROBADO" ||
+      payload.event === "transaction.completed";
     return {
       verified: Boolean(isCompleted),
       provider: "mispidi",
@@ -150,7 +155,7 @@ export class AvilaPayGateway {
   constructor(opts: { apiKey?: string; merchantId?: string; sandbox?: boolean } = {}) {
     this.apiKey = opts.apiKey || process.env.AVILAPAY_API_KEY || "";
     this.merchantId = opts.merchantId || process.env.AVILAPAY_MERCHANT_ID || "";
-    this.isSandbox = opts.sandbox ?? (process.env.AVILAPAY_ENV !== "production");
+    this.isSandbox = opts.sandbox ?? process.env.AVILAPAY_ENV !== "production";
   }
 
   /**
@@ -160,9 +165,7 @@ export class AvilaPayGateway {
     input: string | PagoMovilVerificationInput,
   ): Promise<PagoMovilVerificationResult> {
     const norm: PagoMovilVerificationInput =
-      typeof input === "string"
-        ? { orderId: "ord_avila", reference: input, amountVes: 0 }
-        : input;
+      typeof input === "string" ? { orderId: "ord_avila", reference: input, amountVes: 0 } : input;
     const ref = norm.reference || "";
     if (!this.apiKey || this.isSandbox) {
       const isValidRef = ref.trim().length >= 4;
@@ -236,10 +239,19 @@ export class BancrecerValidator {
   private clientSecret: string;
   private isSandbox: boolean;
 
-  constructor(opts: { clientId?: string; clientSecret?: string; apiKey?: string; accountNumber?: string; sandbox?: boolean } = {}) {
+  constructor(
+    opts: {
+      clientId?: string;
+      clientSecret?: string;
+      apiKey?: string;
+      accountNumber?: string;
+      sandbox?: boolean;
+    } = {},
+  ) {
     this.clientId = opts.clientId || opts.apiKey || process.env.BANCRECER_CLIENT_ID || "";
-    this.clientSecret = opts.clientSecret || opts.apiKey || process.env.BANCRECER_CLIENT_SECRET || "";
-    this.isSandbox = opts.sandbox ?? (process.env.BANCRECER_ENV !== "production");
+    this.clientSecret =
+      opts.clientSecret || opts.apiKey || process.env.BANCRECER_CLIENT_SECRET || "";
+    this.isSandbox = opts.sandbox ?? process.env.BANCRECER_ENV !== "production";
   }
 
   /**
@@ -316,7 +328,7 @@ export class BancrecerValidator {
         transactionId: data.numero_aprobacion,
         message: verified
           ? "Aprobación interbancaria confirmada por Bancrecer Connect."
-          : (data.mensaje || "Operación no confirmada por Bancrecer."),
+          : data.mensaje || "Operación no confirmada por Bancrecer.",
         rawResponse: data,
       };
     } catch (e) {

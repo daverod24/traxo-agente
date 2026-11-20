@@ -17,24 +17,42 @@ model Store {
   profile   Json?
   createdAt DateTime @default(now())
 
-  products  Product[]
-  customers Customer[]
-  orders    Order[]
+  products             Product[]
+  customers            Customer[]
+  orders               Order[]
+  marketingGenerations MarketingGeneration[]
+  funnels              Funnel[]
+}
+
+enum ProductCategory {
+  oral_supplement
+  facial_skincare
+  body_skincare
+  haircare
+  general
 }
 
 model Product {
-  id          String  @id
-  storeId     String
-  externalId  String
-  title       String
-  price       Int
-  cost        Int?
-  weightGrams Int     @default(500)
-  imageUrl    String?
-  description String?
+  id                String          @id
+  storeId           String
+  externalId        String
+  title             String
+  price             Int
+  cost              Int?
+  weightGrams       Int             @default(500)
+  imageUrl          String?
+  description       String?
+  category          ProductCategory @default(general)
+  referenceImageUrl String?
+  keyIngredients    String[]        @default([])
+  commonObjections  String[]        @default([])
+  packRules         Json?
 
-  store Store @relation(fields: [storeId], references: [id])
+  store       Store                 @relation(fields: [storeId], references: [id])
+  generations MarketingGeneration[]
+  funnels     Funnel[]
 
+  @@unique([storeId, externalId])
   @@index([storeId])
 }
 
@@ -302,4 +320,58 @@ model SiteProject {
   updatedAt DateTime @default(now())
 
   @@index([storeId, updatedAt])
+}
+
+model MarketingGeneration {
+  id                 String   @id
+  storeId            String
+  productId          String
+  channel            String
+  angle              String
+  mode               String
+  parentGenerationId String?
+  userInstruction    String?
+  outputJson         Json
+  provider           String
+  model              String
+  latencyMs          Int
+  status             String   @default("generated")
+  createdAt          DateTime @default(now())
+
+  store              Store    @relation(fields: [storeId], references: [id])
+  product            Product  @relation(fields: [productId], references: [id])
+
+  @@index([storeId, productId, channel])
+  @@index([parentGenerationId])
+}
+
+model Funnel {
+  id           String   @id
+  storeId      String
+  slug         String
+  title        String
+  productId    String
+  sectionsJson Json
+  tokensJson   Json
+  published    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  store        Store    @relation(fields: [storeId], references: [id])
+  product      Product  @relation(fields: [productId], references: [id])
+
+  @@unique([storeId, slug])
+  @@index([slug])
+}
+
+model AnalyticsCache {
+  id          String   @id
+  storeId     String
+  metricType  String
+  payloadJson Json
+  expiresAt   DateTime
+  updatedAt   DateTime @updatedAt
+
+  @@unique([storeId, metricType])
+  @@index([expiresAt])
 }

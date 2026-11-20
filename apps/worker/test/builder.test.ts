@@ -170,8 +170,55 @@ describe("constructor de tienda", () => {
       files: Record<string, string>;
       problems: string[];
     };
-    expect(Object.keys(bundle.files)).toContain("layout/theme.liquid");
+    expect(Object.keys(bundle.files)).toContain("gutenberg-pattern.html");
+    expect(Object.keys(bundle.files)).toContain("src/components/PacksLadder.astro");
     expect(bundle.problems).toEqual([]);
+  });
+
+  it("publica en la API Headless y exporta Astro / HTML", async () => {
+    const c = await signup();
+    const { project } = (await (
+      await call(c, "/api/builder", {
+        method: "POST",
+        body: JSON.stringify({ brand: "Davebeauty Demo", platform: "astro", ai: false }),
+      })
+    ).json()) as { project: { id: string } };
+
+    // Publicar hacia API Headless
+    const pub = await call(c, `/api/builder/${project.id}/publish-headless`, { method: "POST" });
+    const pubJson = (await pub.json()) as {
+      ok: boolean;
+      slug: string;
+      publicApiUrl: string;
+    };
+    expect(pubJson.ok).toBe(true);
+    expect(pubJson.publicApiUrl).toContain("/api/public/funnels/");
+
+    // Consumir el endpoint público sin cookie de sesión
+    const publicRes = await app.request(pubJson.publicApiUrl);
+    expect(publicRes.status).toBe(200);
+    const funnelData = (await publicRes.json()) as {
+      ok: boolean;
+      funnel: { slug: string; packsLadder: Array<{ quantity: number }> };
+    };
+    expect(funnelData.ok).toBe(true);
+    expect(funnelData.funnel.packsLadder).toHaveLength(3);
+
+    // Exportar Astro component
+    const astroRes = await call(c, `/api/builder/${project.id}/export-astro`);
+    expect(astroRes.status).toBe(200);
+    expect(astroRes.headers.get("content-disposition")).toContain("-landing.astro");
+    const astroCode = await astroRes.text();
+    expect(astroCode).toContain("---");
+    expect(astroCode).toContain("Davebeauty Demo");
+
+    // Exportar HTML autónomo
+    const htmlRes = await call(c, `/api/builder/${project.id}/export-html`);
+    expect(htmlRes.status).toBe(200);
+    expect(htmlRes.headers.get("content-disposition")).toContain("-landing.html");
+    const htmlCode = await htmlRes.text();
+    expect(htmlCode).toContain("<!DOCTYPE html>");
+    expect(htmlCode).toContain("wa-checkout-btn");
   });
 
   it("para otras plataformas entrega un sitio estático y lo dice", async () => {

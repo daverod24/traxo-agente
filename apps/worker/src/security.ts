@@ -1,14 +1,136 @@
-import type { Context, Hono } from "hono";
+import { createHmac, timingSafeEqual } from "node:crypto";
+import type { Context, Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { cors } from "hono/cors";
 import { ipOf } from "./auth.ts";
 
-const isLoopback = (c: Context): boolean => {
+export const isLoopback = (c: Context): boolean => {
   const host = new URL(c.req.url).hostname;
   return !c.req.header("x-forwarded-for") && (host === "localhost" || host === "127.0.0.1");
 };
 
+const DEFAULT_ALLOWED_ORIGINS = [
+  "http://localhost:5173",
+  "http://localhost:4000",
+  "http://localhost:3000",
+  "http://localhost:4321",
+  "https://davebeauty.daverod.tech",
+  "https://dashboard.daverod.tech",
+];
+
+/**
+ * Middleware CORS para el dashboard y storefronts autorizados.
+ */
+export function createCorsMiddleware(allowedOrigins?: string[]): MiddlewareHandler {
+  const origins =
+    allowedOrigins && allowedOrigins.length > 0 ? allowedOrigins : DEFAULT_ALLOWED_ORIGINS;
+
+  return cors({
+    origin: (origin) => {
+      if (!origin) return origins[0];
+      if (origins.includes(origin)) return origin;
+      if (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
+        return origin;
+      }
+      return null;
+    },
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      "x-store-id",
+      "x-traxo-signature",
+      "x-traxo-timestamp",
+      "x-traxo-internal",
+    ],
+    credentials: true,
+    maxAge: 86400,
+  });
+}
+
+/**
+ * Middleware de seguridad server-to-server mediante HMAC-SHA256 con timingSafeEqual y anti-replay (5 min).
+ */
+export function verifyServerHmacSignature(secret: string): MiddlewareHandler {
+  return async (c, next) => {
+    const signature = c.req.header("x-traxo-signature") ?? c.req.header("X-Traxo-Signature");
+    const timestampStr = c.req.header("x-traxo-timestamp") ?? c.req.header("X-Traxo-Timestamp");
+
+    if (!signature || !timestampStr) {
+      return c.json(
+        {
+          ok: false,
+          error: "Cabeceras de firma requeridas ausentes (x-traxo-signature, x-traxo-timestamp).",
+        },
+        401,
+      );
+    }
+
+    const timestamp = Number(timestampStr);
+    if (isNaN(timestamp) || !Number.isFinite(timestamp)) {
+      return c.json({ ok: false, error: "Timestamp de firma inválido." }, 401);
+    }
+
+    const now = Date.now();
+    const diff = Math.abs(now - timestamp);
+    // Ventana máxima de 5 minutos (300,000 ms) para prevenir ataques de replay
+    if (diff > 300_000) {
+      return c.json(
+        { ok: false, error: "Firma expirada: el timestamp difiere por más de 5 minutos." },
+        401,
+      );
+    }
+
+    const rawBody = await c.req.text();
+    const payload = `${timestamp}.${rawBody}`;
+    const cleanSignature = signature.replace(/^sha256=/, "").trim();
+
+    const expectedHex = createHmac("sha256", secret).update(payload, "utf8").digest("hex");
+    const sigBuf = Buffer.from(cleanSignature);
+    const expectedHexBuf = Buffer.from(expectedHex);
+
+    let isValid =
+      sigBuf.length === expectedHexBuf.length && timingSafeEqual(sigBuf, expectedHexBuf);
+
+    if (!isValid) {
+      const expectedB64 = createHmac("sha256", secret).update(payload, "utf8").digest("base64");
+      const expectedB64Buf = Buffer.from(expectedB64);
+      if (sigBuf.length === expectedB64Buf.length && timingSafeEqual(sigBuf, expectedB64Buf)) {
+        isValid = true;
+      }
+    }
+
+    if (!isValid) {
+      return c.json({ ok: false, error: "Firma HMAC inválida." }, 401);
+    }
+
+    await next();
+  };
+}
+
+/**
+ * Genera la firma HMAC-SHA256 para llamadas salientes server-to-server (ej. n8n, revalidación).
+ */
+export function generateServerHmacSignature(
+  secret: string,
+  body: string,
+  timestamp: number = Date.now(),
+): { signature: string; timestamp: number; headers: Record<string, string> } {
+  const payload = `${timestamp}.${body}`;
+  const signature = createHmac("sha256", secret).update(payload, "utf8").digest("hex");
+  return {
+    signature,
+    timestamp,
+    headers: {
+      "x-traxo-signature": signature,
+      "x-traxo-timestamp": String(timestamp),
+    },
+  };
+}
+
 /**
  * Endurecimiento de lo que queda expuesto a internet:
+ *  - CORS allowlist para frontend y dashboard,
  *  - cabeceras de seguridad en todo,
  *  - límite de peticiones por IP en /api y /mcp,
  *  - tope de tamaño del cuerpo (1 MB; solo la subida de archivos admite más),
@@ -17,8 +139,17 @@ const isLoopback = (c: Context): boolean => {
  */
 export function hardenApp(
   app: Hono,
-  opts: { authConfigured: boolean; live: boolean; mcpToken?: string },
+  opts: {
+    authConfigured: boolean;
+    live: boolean;
+    mcpToken?: string;
+    allowedOrigins?: string[];
+  },
 ): void {
+  // 1. CORS allowlist
+  app.use("*", createCorsMiddleware(opts.allowedOrigins));
+
+  // 2. Cabeceras de seguridad HTTP
   app.use("*", async (c, next) => {
     await next();
     c.header("X-Content-Type-Options", "nosniff");
@@ -81,21 +212,31 @@ export function hardenApp(
 
 /**
  * Sanitiza texto eliminando o enmascarando Información de Identificación Personal (PII)
- * y secretos (Bearer tokens, passwords, API keys, teléfonos E.164, correos).
+ * y secretos (Bearer tokens, API keys, cookies, passwords, teléfonos E.164, correos).
  */
 export function redactPii(text: string): string {
   if (!text) return text;
 
   let redacted = text;
 
-  // 1. Redactar Tokens Bearer y Secrets
+  // 1. Redactar Tokens Bearer
   redacted = redacted.replace(/Bearer\s+([A-Za-z0-9_\-\.]{8,})/gi, "Bearer [REDACTED]");
+
+  // 2. Redactar API Keys conocidas (Gemini, Anthropic, OpenAI, xAI)
+  redacted = redacted.replace(/AIza[A-Za-z0-9_\-]{30,45}/g, "AIzaSy[REDACTED]");
+  redacted = redacted.replace(/sk-(?:ant-)?[A-Za-z0-9_\-]{16,}/g, "sk-[REDACTED]");
+  redacted = redacted.replace(/xai-[A-Za-z0-9_\-]{16,}/g, "xai-[REDACTED]");
+
+  // 3. Redactar Cookies específicas y sesión
+  redacted = redacted.replace(/(traxo_session)=([^;\s\r\n]+)/gi, "$1=[REDACTED]");
+
+  // 4. Redactar campos JSON o pares clave:valor de credenciales
   redacted = redacted.replace(
-    /(token|secret|password|apiKey|api_key|wc_sec)["']?\s*[:=]\s*["']?([^"'\s,]+)/gi,
+    /(token|secret|password|apiKey|api_key|wc_sec)["']?\s*[:=]\s*["']?([^"'\s,;]+)/gi,
     '$1: "[REDACTED]"',
   );
 
-  // 2. Redactar correos electrónicos: valeria@davebeauty.test -> v***a@davebeauty.test
+  // 5. Redactar correos electrónicos: valeria@davebeauty.test -> v***a@davebeauty.test
   redacted = redacted.replace(
     /([a-zA-Z0-9_\.\-]+)@([a-zA-Z0-9_\.\-]+\.[a-zA-Z]{2,})/g,
     (_, user, domain) => {
@@ -104,7 +245,7 @@ export function redactPii(text: string): string {
     },
   );
 
-  // 3. Redactar números de teléfono (+58... y 04...)
+  // 6. Redactar números de teléfono (+58... y 04...)
   redacted = redacted.replace(/\+58(412|414|424|416|426|2\d{2})\d{7}/g, (match) => {
     return `${match.slice(0, 6)}***${match.slice(-4)}`;
   });
@@ -133,7 +274,12 @@ export function sanitizeLogData(data: unknown): unknown {
         lower.includes("secret") ||
         lower.includes("token") ||
         lower.includes("password") ||
-        lower.includes("auth")
+        lower.includes("auth") ||
+        lower.includes("cookie") ||
+        lower.includes("apikey") ||
+        lower.includes("api_key") ||
+        lower === "key" ||
+        lower.includes("session")
       ) {
         sanitized[key] = "[REDACTED]";
       } else {

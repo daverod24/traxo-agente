@@ -1,7 +1,7 @@
+import type { ShipmentDraft } from "@traxo/core";
 import { describe, expect, it } from "vitest";
 import { mockProviders } from "../src/mock.ts";
 import { selectQuote } from "../src/selector.ts";
-import type { ShipmentDraft } from "@traxo/core";
 
 describe("transportadoras y logística para Venezuela (Dropi, Flash Courier, MRW, Zoom)", () => {
   it("carga las vías de envío venezolanas cuando MARKET=VE", () => {

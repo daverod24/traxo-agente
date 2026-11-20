@@ -1,4 +1,6 @@
 import type { StoreDesign } from "./design.ts";
+import { generatePacksLadderAstroComponent } from "./pack-ladder.ts";
+import { generateStandaloneAstroLanding, generateStandaloneHtmlLanding } from "./standalone.ts";
 
 function escapeHtml(s: string): string {
   return s
@@ -91,10 +93,9 @@ export function buildGutenbergPattern(d: StoreDesign): string {
   <div class="wp-block-columns">
 ${d.products
   .slice(0, 4)
-  .map(
-    (p) => {
-      const bcvRate = Number(process.env.TRAXO_BCV_RATE) || 880.0;
-      return `    <!-- wp:column -->
+  .map((p) => {
+    const bcvRate = Number(process.env.TRAXO_BCV_RATE) || 880.0;
+    return `    <!-- wp:column -->
     <div class="wp-block-column">
       ${p.image ? `<!-- wp:image --><figure class="wp-block-image"><img src="${escapeHtml(p.image)}" alt="${escapeHtml(p.title)}"/></figure><!-- /wp:image -->` : ""}
       <!-- wp:heading {"level":3} -->
@@ -105,8 +106,7 @@ ${d.products
       <!-- /wp:paragraph -->
     </div>
     <!-- /wp:column -->`;
-    },
-  )
+  })
   .join("\n")}
   </div>
   <!-- /wp:columns -->
@@ -275,8 +275,23 @@ const {
 </section>
 `;
 
+  const bcvRate = Number(process.env.TRAXO_BCV_RATE) || 880.0;
+  const primaryProduct = d.products[0] ?? { title: d.brand, price: 24.99 };
+  const unitPrice = primaryProduct.price > 1000 ? primaryProduct.price / 100 : primaryProduct.price;
+
+  const packsLadderAstro = generatePacksLadderAstroComponent({
+    productTitle: primaryProduct.title,
+    basePriceUsd: unitPrice,
+    bcvRate,
+    whatsappNumber: d.contact.whatsapp,
+  });
+
+  const standaloneAstro = generateStandaloneAstroLanding(d, { bcvRate });
+  const standaloneHtml = generateStandaloneHtmlLanding(d, { bcvRate });
+
   const indexAstro = `---
 import Hero from "../components/Hero.astro";
+import PacksLadder from "../components/PacksLadder.astro";
 import TrustBadges from "../components/TrustBadges.astro";
 import tokens from "../theme/tokens.json";
 ---
@@ -306,6 +321,7 @@ import tokens from "../theme/tokens.json";
   <body>
     <main>
       <Hero />
+      <PacksLadder />
       <TrustBadges />
     </main>
   </body>
@@ -328,8 +344,12 @@ Generado automáticamente por **Traxo Agente**.
 
 3. \`src/pages/index.astro\` y \`src/components/\`:
    - Componentes Astro listos para renderizar la tienda de forma ultrarrápida.
+   - \`PacksLadder.astro\`: Escalera de packs 1x, 2x, 3x con descuentos y pago contraentrega.
 
-4. \`diseno.json\`:
+4. \`src/pages/landing.astro\` y \`standalone.html\`:
+   - Landing page autónoma single-file lista para campañas de pauta.
+
+5. \`diseno.json\`:
    - Especificación completa del diseño para Traxo.
 `;
 
@@ -337,8 +357,11 @@ Generado automáticamente por **Traxo Agente**.
     "gutenberg-pattern.html": gutenberg,
     "src/theme/tokens.json": tokens,
     "src/pages/index.astro": indexAstro,
+    "src/pages/landing.astro": standaloneAstro,
     "src/components/Hero.astro": heroAstro,
+    "src/components/PacksLadder.astro": packsLadderAstro,
     "src/components/TrustBadges.astro": trustBadgesAstro,
+    "standalone.html": standaloneHtml,
     "diseno.json": `${JSON.stringify(d, null, 2)}\n`,
     "LEEME.md": readme,
   };

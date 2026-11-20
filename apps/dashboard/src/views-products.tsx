@@ -194,8 +194,8 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
             </span>
           </div>
           <p className="lead">
-            Productos activos sincronizados en vivo con {store?.name ?? "Davebeauty"}.
-            Disponibles para la gestión agéntica, cotizaciones automatizadas, campañas y creación de pedidos.
+            Productos activos sincronizados en vivo con {store?.name ?? "Davebeauty"}. Disponibles
+            para la gestión agéntica, cotizaciones automatizadas, campañas y creación de pedidos.
           </p>
         </div>
         <div className="row" style={{ gap: 8 }}>
@@ -223,7 +223,13 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: 16,
+        }}
+      >
         <KpiCard
           hero
           label="Total en catálogo"
@@ -236,11 +242,7 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
           value={store?.platform?.toUpperCase() ?? "WOOCOMMERCE"}
           hint="WooCommerce HPOS REST API"
         />
-        <KpiCard
-          label="Bimoneda nativa"
-          value="USD / VES"
-          hint="Tasa oficial BCV referencial"
-        />
+        <KpiCard label="Bimoneda nativa" value="USD / VES" hint="Tasa oficial BCV referencial" />
       </div>
 
       <div className="row between" style={{ alignItems: "center", gap: 12 }}>
@@ -262,7 +264,8 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
           />
         </div>
         <div className="caption" style={{ fontWeight: 500 }}>
-          Mostrando {filtered.length} de {products.length} {plural(products.length, "producto", "productos")}
+          Mostrando {filtered.length} de {products.length}{" "}
+          {plural(products.length, "producto", "productos")}
         </div>
       </div>
 
@@ -270,7 +273,9 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
         <section className="card">
           <EmptyState
             icon="tag"
-            title={products.length === 0 ? "Aún no hay productos en el catálogo" : "No hay resultados"}
+            title={
+              products.length === 0 ? "Aún no hay productos en el catálogo" : "No hay resultados"
+            }
             text={
               products.length === 0
                 ? "Conecta tu tienda WooCommerce en la sección Conexiones para sincronizar tus productos en vivo."
@@ -288,261 +293,289 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
           }}
         >
           {filtered.map((p) => {
-            const displayImg = p.imageUrl || {
-              "17": "https://davebeauty.daverod.tech/images/products/aceite-de-oregano-semilla-negra/premium-v1.webp",
-              "21": "https://davebeauty.daverod.tech/images/products/dr-melaxin-calcium-volume-multi-balm/premium-v1.webp",
-              "13": "https://cdn.rimanbuild.com/Botalab/EX/DeserticolaShampoo/TL_DeserticolaShampoo_DFLT.png",
-              "9": "https://cdn.rimanbuild.com/Incellderm/EX/DailyAquaBB/TL_DailyAquaBB_DFLT.png",
-              "50": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/167/17783019261000614740.webp",
-              "45": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/93/17698802731000454694.webp",
-              "55": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/196/17827922041000704956.jpg",
-              "59": "https://davebeauty.daverod.tech/images/products/aceite-magico-reafirmante/luxury-v1-1200.webp",
-            }[p.externalId || ""] || null;
+            const displayImg =
+              p.imageUrl ||
+              {
+                "17": "https://davebeauty.daverod.tech/images/products/aceite-de-oregano-semilla-negra/premium-v1.webp",
+                "21": "https://davebeauty.daverod.tech/images/products/dr-melaxin-calcium-volume-multi-balm/premium-v1.webp",
+                "13": "https://cdn.rimanbuild.com/Botalab/EX/DeserticolaShampoo/TL_DeserticolaShampoo_DFLT.png",
+                "9": "https://cdn.rimanbuild.com/Incellderm/EX/DailyAquaBB/TL_DailyAquaBB_DFLT.png",
+                "50": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/167/17783019261000614740.webp",
+                "45": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/93/17698802731000454694.webp",
+                "55": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/196/17827922041000704956.jpg",
+                "59": "https://davebeauty.daverod.tech/images/products/aceite-magico-reafirmante/luxury-v1-1200.webp",
+              }[p.externalId || ""] ||
+              null;
 
             return (
-            <div
-              key={p.id}
-              className="card product-card-item"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                padding: 16,
-                borderRadius: 12,
-                gap: 12,
-                position: "relative",
-              }}
-            >
-              {displayImg ? (
-                <div
-                  style={{
-                    width: "100%",
-                    height: 180,
-                    borderRadius: 8,
-                    overflow: "hidden",
-                    backgroundColor: "var(--bg-subtle, rgba(0,0,0,0.03))",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <img
-                    src={displayImg}
-                    alt={p.title}
-                    width={280}
-                    height={180}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = "none";
+              <div
+                key={p.id}
+                className="card product-card-item"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  padding: 16,
+                  borderRadius: 12,
+                  gap: 12,
+                  position: "relative",
+                }}
+              >
+                {displayImg ? (
+                  <div
+                    style={{
+                      width: "100%",
+                      height: 180,
+                      borderRadius: 8,
+                      overflow: "hidden",
+                      backgroundColor: "var(--bg-subtle, rgba(0,0,0,0.03))",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
-                  />
-                </div>
-              ) : (
-                <div
-                  style={{
-                    width: "100%",
-                    height: 140,
-                    borderRadius: 8,
-                    background: "linear-gradient(135deg, rgba(37,99,235,0.08), rgba(99,102,241,0.12))",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    color: "var(--brand, #2563eb)",
-                  }}
-                >
-                  <Icon name="tag" size={32} />
-                  <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>Davebeauty</span>
-                </div>
-              )}
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
-                <div className="row between" style={{ alignItems: "center", flexWrap: "wrap", gap: 6 }}>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                    <span
-                      className="badge"
-                      style={{
-                        fontSize: "0.75rem",
-                        background: "rgba(100, 116, 139, 0.12)",
-                        color: "inherit",
-                        padding: "2px 8px",
-                        borderRadius: 6,
+                  >
+                    <img
+                      src={displayImg}
+                      alt={p.title}
+                      width={280}
+                      height={180}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
                       }}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      width: "100%",
+                      height: 140,
+                      borderRadius: 8,
+                      background:
+                        "linear-gradient(135deg, rgba(37,99,235,0.08), rgba(99,102,241,0.12))",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      color: "var(--brand, #2563eb)",
+                    }}
+                  >
+                    <Icon name="tag" size={32} />
+                    <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>Davebeauty</span>
+                  </div>
+                )}
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+                  <div
+                    className="row between"
+                    style={{ alignItems: "center", flexWrap: "wrap", gap: 6 }}
+                  >
+                    <div
+                      style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}
                     >
-                      WC #{p.externalId ?? p.id}
-                    </span>
-                    {p.dropiId && (
                       <span
                         className="badge"
                         style={{
                           fontSize: "0.75rem",
-                          background: "rgba(37, 99, 235, 0.12)",
-                          color: "var(--brand, #2563eb)",
-                          fontWeight: 600,
+                          background: "rgba(100, 116, 139, 0.12)",
+                          color: "inherit",
                           padding: "2px 8px",
                           borderRadius: 6,
                         }}
                       >
-                        Dropi #{p.dropiId}
+                        WC #{p.externalId ?? p.id}
                       </span>
-                    )}
-                    {p.sku && (
+                      {p.dropiId && (
+                        <span
+                          className="badge"
+                          style={{
+                            fontSize: "0.75rem",
+                            background: "rgba(37, 99, 235, 0.12)",
+                            color: "var(--brand, #2563eb)",
+                            fontWeight: 600,
+                            padding: "2px 8px",
+                            borderRadius: 6,
+                          }}
+                        >
+                          Dropi #{p.dropiId}
+                        </span>
+                      )}
+                      {p.sku && (
+                        <span
+                          className="badge"
+                          style={{
+                            fontSize: "0.72rem",
+                            background: "rgba(100, 116, 139, 0.08)",
+                            color: "inherit",
+                            fontFamily: "monospace",
+                            padding: "2px 6px",
+                            borderRadius: 6,
+                          }}
+                        >
+                          {p.sku}
+                        </span>
+                      )}
+                    </div>
+                    <ToneBadge tone="success">Activo</ToneBadge>
+                  </div>
+
+                  <h3
+                    style={{
+                      margin: "4px 0",
+                      fontSize: "1.05rem",
+                      fontWeight: 600,
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {p.title}
+                  </h3>
+
+                  {p.description && (
+                    <p
+                      className="caption"
+                      style={{
+                        margin: 0,
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {p.description.replace(/<[^>]*>?/gm, "").trim()}
+                    </p>
+                  )}
+
+                  {/* Escalera de packs (1x, 2x, 3x) */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+                    <span
+                      className="badge"
+                      style={{
+                        fontSize: "0.72rem",
+                        background: "var(--bg-subtle, rgba(0,0,0,0.04))",
+                        border: "1px solid var(--line, rgba(100,116,139,0.2))",
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                      }}
+                    >
+                      <strong>1x:</strong> {usd(p.price)}
+                    </span>
+                    {p.packs?.duo && (
                       <span
                         className="badge"
                         style={{
                           fontSize: "0.72rem",
-                          background: "rgba(100, 116, 139, 0.08)",
-                          color: "inherit",
-                          fontFamily: "monospace",
+                          background: "rgba(16, 185, 129, 0.08)",
+                          color: "var(--success, #16a34a)",
+                          border: "1px solid rgba(16, 185, 129, 0.25)",
                           padding: "2px 6px",
-                          borderRadius: 6,
+                          borderRadius: 4,
                         }}
                       >
-                        {p.sku}
+                        <strong>2x Dúo:</strong> {usd(p.packs.duo)}
+                      </span>
+                    )}
+                    {p.packs?.trio && (
+                      <span
+                        className="badge"
+                        style={{
+                          fontSize: "0.72rem",
+                          background: "rgba(99, 102, 241, 0.08)",
+                          color: "var(--brand, #4f46e5)",
+                          border: "1px solid rgba(99, 102, 241, 0.25)",
+                          padding: "2px 6px",
+                          borderRadius: 4,
+                        }}
+                      >
+                        <strong>3x Trío:</strong> {usd(p.packs.trio)}
                       </span>
                     )}
                   </div>
-                  <ToneBadge tone="success">Activo</ToneBadge>
                 </div>
 
-                <h3
+                <div
                   style={{
-                    margin: "4px 0",
-                    fontSize: "1.05rem",
-                    fontWeight: 600,
-                    lineHeight: 1.3,
+                    borderTop: "1px solid var(--border-subtle, rgba(100,116,139,0.15))",
+                    paddingTop: 12,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-end",
                   }}
                 >
-                  {p.title}
-                </h3>
-
-                {p.description && (
-                  <p
-                    className="caption"
-                    style={{
-                      margin: 0,
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                      overflow: "hidden",
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    {p.description.replace(/<[^>]*>?/gm, "").trim()}
-                  </p>
-                )}
-
-                {/* Escalera de packs (1x, 2x, 3x) */}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
-                  <span
-                    className="badge"
-                    style={{
-                      fontSize: "0.72rem",
-                      background: "var(--bg-subtle, rgba(0,0,0,0.04))",
-                      border: "1px solid var(--line, rgba(100,116,139,0.2))",
-                      padding: "2px 6px",
-                      borderRadius: 4,
-                    }}
-                  >
-                    <strong>1x:</strong> {usd(p.price)}
-                  </span>
-                  {p.packs?.duo && (
-                    <span
-                      className="badge"
+                  <div>
+                    <div className="caption">Precio de venta</div>
+                    <div
                       style={{
-                        fontSize: "0.72rem",
-                        background: "rgba(16, 185, 129, 0.08)",
-                        color: "var(--success, #16a34a)",
-                        border: "1px solid rgba(16, 185, 129, 0.25)",
-                        padding: "2px 6px",
-                        borderRadius: 4,
+                        fontSize: "1.3rem",
+                        fontWeight: 700,
+                        color: "var(--brand, #2563eb)",
                       }}
                     >
-                      <strong>2x Dúo:</strong> {usd(p.packs.duo)}
-                    </span>
-                  )}
-                  {p.packs?.trio && (
-                    <span
-                      className="badge"
-                      style={{
-                        fontSize: "0.72rem",
-                        background: "rgba(99, 102, 241, 0.08)",
-                        color: "var(--brand, #4f46e5)",
-                        border: "1px solid rgba(99, 102, 241, 0.25)",
-                        padding: "2px 6px",
-                        borderRadius: 4,
-                      }}
-                    >
-                      <strong>3x Trío:</strong> {usd(p.packs.trio)}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  borderTop: "1px solid var(--border-subtle, rgba(100,116,139,0.15))",
-                  paddingTop: 12,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-end",
-                }}
-              >
-                <div>
-                  <div className="caption">Precio de venta</div>
-                  <div style={{ fontSize: "1.3rem", fontWeight: 700, color: "var(--brand, #2563eb)" }}>
-                    {usd(p.price)}
-                  </div>
-                  <div style={{ fontSize: "0.8rem", color: "var(--muted)", fontWeight: 500 }}>
-                    {vesFromUsd(p.price)} BCV
-                  </div>
-                </div>
-
-                {p.marginPct != null ? (
-                  <div style={{ textAlign: "right" }}>
-                    <div className="caption">Margen</div>
-                    <span className="badge tone-success" style={{ fontWeight: 600 }}>
-                      {p.marginPct}%
-                    </span>
-                  </div>
-                ) : p.unitsSold > 0 ? (
-                  <div style={{ textAlign: "right" }}>
-                    <div className="caption">Ventas</div>
-                    <div style={{ fontWeight: 600 }}>
-                      {p.unitsSold} {plural(p.unitsSold, "ud", "uds")}
+                      {usd(p.price)}
+                    </div>
+                    <div style={{ fontSize: "0.8rem", color: "var(--muted)", fontWeight: 500 }}>
+                      {vesFromUsd(p.price)} BCV
                     </div>
                   </div>
-                ) : (
-                  <div style={{ textAlign: "right" }}>
-                    <div className="caption">Disponibilidad</div>
-                    <span className="caption" style={{ color: "var(--success, #16a34a)", fontWeight: 600 }}>
-                      En inventario
-                    </span>
-                  </div>
-                )}
-              </div>
 
-              <div className="row" style={{ marginTop: 6, gap: 8 }}>
-                <Button
-                  variant="agent"
-                  style={{ flex: 1, justifyContent: "center", fontSize: "0.82rem", padding: "6px 8px" }}
-                  icon="chart"
-                  onClick={() => {
-                    setCockpitProductId(p.id);
-                    setShowCockpit(true);
-                  }}
-                >
-                  Cockpit Financiero
-                </Button>
-                <Button
-                  style={{ flex: 1, justifyContent: "center", fontSize: "0.82rem", padding: "6px 8px" }}
-                  icon="edit"
-                  onClick={() => openEdit(p)}
-                >
-                  Administrar
-                </Button>
+                  {p.marginPct != null ? (
+                    <div style={{ textAlign: "right" }}>
+                      <div className="caption">Margen</div>
+                      <span className="badge tone-success" style={{ fontWeight: 600 }}>
+                        {p.marginPct}%
+                      </span>
+                    </div>
+                  ) : p.unitsSold > 0 ? (
+                    <div style={{ textAlign: "right" }}>
+                      <div className="caption">Ventas</div>
+                      <div style={{ fontWeight: 600 }}>
+                        {p.unitsSold} {plural(p.unitsSold, "ud", "uds")}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: "right" }}>
+                      <div className="caption">Disponibilidad</div>
+                      <span
+                        className="caption"
+                        style={{ color: "var(--success, #16a34a)", fontWeight: 600 }}
+                      >
+                        En inventario
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="row" style={{ marginTop: 6, gap: 8 }}>
+                  <Button
+                    variant="agent"
+                    style={{
+                      flex: 1,
+                      justifyContent: "center",
+                      fontSize: "0.82rem",
+                      padding: "6px 8px",
+                    }}
+                    icon="chart"
+                    onClick={() => {
+                      setCockpitProductId(p.id);
+                      setShowCockpit(true);
+                    }}
+                  >
+                    Cockpit Financiero
+                  </Button>
+                  <Button
+                    style={{
+                      flex: 1,
+                      justifyContent: "center",
+                      fontSize: "0.82rem",
+                      padding: "6px 8px",
+                    }}
+                    icon="edit"
+                    onClick={() => openEdit(p)}
+                  >
+                    Administrar
+                  </Button>
+                </div>
               </div>
-            </div>
             );
           })}
         </div>
@@ -550,10 +583,7 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
 
       {/* Sheet modal para editar producto */}
       {editing && (
-        <Sheet
-          title={`Administrar: ${editing.title}`}
-          onClose={() => setEditing(null)}
-        >
+        <Sheet title={`Administrar: ${editing.title}`} onClose={() => setEditing(null)}>
           <div className="stack" style={{ gap: 16 }}>
             {error && (
               <div className="auth-error" role="alert">
@@ -608,7 +638,9 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
                   value={form.imageUrl}
                   onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
                 />
-                <span className="caption">Enlace directo a la imagen del producto (CDN, WordPress o web)</span>
+                <span className="caption">
+                  Enlace directo a la imagen del producto (CDN, WordPress o web)
+                </span>
               </label>
             </div>
 
@@ -636,7 +668,8 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
                 style={{ resize: "vertical" }}
               />
               <span className="caption">
-                Esta descripción la utiliza el agente autónomo para responder dudas en mensajes y generar creativos.
+                Esta descripción la utiliza el agente autónomo para responder dudas en mensajes y
+                generar creativos.
               </span>
             </label>
 
@@ -652,7 +685,10 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
                   value={form.price}
                   onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
                 />
-                <span className="caption" style={{ color: "var(--brand, #2563eb)", fontWeight: 600, marginTop: 4 }}>
+                <span
+                  className="caption"
+                  style={{ color: "var(--brand, #2563eb)", fontWeight: 600, marginTop: 4 }}
+                >
                   ~ {vesFromUsd(form.price)} (Tasa oficial BCV)
                 </span>
               </label>
@@ -671,7 +707,8 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
                 <span className="caption" style={{ marginTop: 4 }}>
                   {form.cost !== "" && Number(form.cost) > 0 && form.price > 0 ? (
                     <strong style={{ color: "var(--success, #16a34a)" }}>
-                      Margen: {Math.round(((form.price - Number(form.cost)) / form.price) * 100)}% (${(form.price - Number(form.cost)).toFixed(2)} ganancia)
+                      Margen: {Math.round(((form.price - Number(form.cost)) / form.price) * 100)}%
+                      (${(form.price - Number(form.cost)).toFixed(2)} ganancia)
                     </strong>
                   ) : (
                     "Opcional para cálculo de margen"
@@ -690,7 +727,9 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
                 value={form.weightGrams}
                 onChange={(e) => setForm({ ...form, weightGrams: Number(e.target.value) })}
               />
-              <span className="caption">Utilizado para cotizaciones automáticas de flete con Zoom, MRW y Tealca.</span>
+              <span className="caption">
+                Utilizado para cotizaciones automáticas de flete con Zoom, MRW y Tealca.
+              </span>
             </label>
 
             {/* Enlace WooCommerce */}
@@ -707,8 +746,12 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
                 }}
               >
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>WooCommerce HPOS ID #{editing.externalId}</div>
-                  <span className="caption">Gestiona inventario avanzado o variaciones en WordPress</span>
+                  <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                    WooCommerce HPOS ID #{editing.externalId}
+                  </div>
+                  <span className="caption">
+                    Gestiona inventario avanzado o variaciones en WordPress
+                  </span>
                 </div>
                 <a
                   href={`https://apiv2backecom.daverod.tech/wp-admin/post.php?post=${editing.externalId}&action=edit`}

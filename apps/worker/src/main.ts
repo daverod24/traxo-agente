@@ -7,6 +7,7 @@ import { registerAssistantApi } from "./assistant.ts";
 import { mountAuth } from "./auth.ts";
 import { registerBuilderApi } from "./builder.ts";
 import { checkConfirmationTimeouts, markPaid } from "./confirmation.ts";
+import { env, loadEnv } from "./env.ts";
 import { registerGrowthApi } from "./growth.ts";
 import { handleInbound } from "./inbound.ts";
 import { mountMcp } from "./mcp.ts";
@@ -17,6 +18,9 @@ import { hardenApp } from "./security.ts";
 import { mountDashboard } from "./static.ts";
 import { ingestCarrierEvent, pollTracking } from "./tracking.ts";
 import { registerUsageApi } from "./usage-api.ts";
+
+// Inicialización y validación estricta de variables de entorno al arrancar
+loadEnv();
 
 // Los datos de ejemplo solo se cargan en modo demo (TRAXO_DEMO=1). Una instalación normal arranca limpia.
 const demo = isDemo();
@@ -87,7 +91,7 @@ if (!apiToken && !process.env.TRAXO_ADMIN_EMAIL && !demo) {
   );
 }
 
-const port = Number(process.env.PORT ?? 8787);
+const port = env.PORT;
 serve({ fetch: app.fetch, port }, () => {
   console.log(
     `Traxo escuchando en http://localhost:${port} (base: ${rt.db.mode}, tienda: ${rt.storeName})`,

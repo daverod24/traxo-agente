@@ -299,7 +299,8 @@ export function Inicio({
   const totalGmv = activeOrders.reduce((s, o) => s + o.total, 0);
   const porCobrar = codPendientes.reduce((s, o) => s + o.total, 0);
   const cancelledAmount = cancelledOrders.reduce((s, o) => s + o.total, 0);
-  const enCaminoCount = k.inTransit || orders.filter((o) => ["shipped", "in_transit"].includes(o.status)).length;
+  const enCaminoCount =
+    k.inTransit || orders.filter((o) => ["shipped", "in_transit"].includes(o.status)).length;
   const entregadosCount = k.delivered || orders.filter((o) => o.status === "delivered").length;
 
   return (
@@ -308,10 +309,15 @@ export function Inicio({
         <div>
           <h1>Panel de Control de Operaciones</h1>
           <p className="lead">
-            {activeOrders.length} {plural(activeOrders.length, "pedido activo", "pedidos activos")} por {usd(totalGmv)}
-            {porConfirmarOrders.length > 0 ? ` · ${porConfirmarOrders.length} por confirmar COD` : " · Todo confirmado"}
+            {activeOrders.length} {plural(activeOrders.length, "pedido activo", "pedidos activos")}{" "}
+            por {usd(totalGmv)}
+            {porConfirmarOrders.length > 0
+              ? ` · ${porConfirmarOrders.length} por confirmar COD`
+              : " · Todo confirmado"}
             {enCaminoCount > 0 ? ` · ${enCaminoCount} en camino` : ""}
-            {cancelledOrders.length > 0 ? ` · ${cancelledOrders.length} cancelados ($${cancelledAmount.toFixed(2)})` : ""}
+            {cancelledOrders.length > 0
+              ? ` · ${cancelledOrders.length} cancelados ($${cancelledAmount.toFixed(2)})`
+              : ""}
           </p>
         </div>
         <div className="row" style={{ gap: 8 }}>
@@ -363,7 +369,10 @@ export function Inicio({
         </section>
       )}
 
-      <div className="grid-kpi" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+      <div
+        className="grid-kpi"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}
+      >
         <KpiCard
           hero
           label="Facturación Activa (GMV)"
@@ -394,14 +403,20 @@ export function Inicio({
           label="Entregados"
           value={entregadosCount}
           unit={plural(entregadosCount, "pedido", "pedidos")}
-          hint={activeOrders.length ? `${Math.round((entregadosCount / activeOrders.length) * 100)}% efectividad COD` : undefined}
+          hint={
+            activeOrders.length
+              ? `${Math.round((entregadosCount / activeOrders.length) * 100)}% efectividad COD`
+              : undefined
+          }
         />
         <KpiCard
           tone="rose"
           label="Cancelados / Rollback"
           value={cancelledOrders.length}
           unit={plural(cancelledOrders.length, "orden", "órdenes")}
-          hint={cancelledAmount > 0 ? `$${cancelledAmount.toFixed(2)} sin despacho` : "0 cancelaciones"}
+          hint={
+            cancelledAmount > 0 ? `$${cancelledAmount.toFixed(2)} sin despacho` : "0 cancelaciones"
+          }
         />
       </div>
 
@@ -409,7 +424,8 @@ export function Inicio({
         <section
           className="card"
           style={{
-            background: "linear-gradient(135deg, rgba(37, 99, 235, 0.04), rgba(99, 102, 241, 0.07))",
+            background:
+              "linear-gradient(135deg, rgba(37, 99, 235, 0.04), rgba(99, 102, 241, 0.07))",
             border: "1px solid rgba(37, 99, 235, 0.18)",
           }}
         >
@@ -432,7 +448,8 @@ export function Inicio({
               <div>
                 <div className="row" style={{ gap: 8, alignItems: "center" }}>
                   <h2 style={{ margin: 0, fontSize: "1.1rem" }}>
-                    Catálogo activo: {products.length} {plural(products.length, "producto sincronizado", "productos sincronizados")}
+                    Catálogo activo: {products.length}{" "}
+                    {plural(products.length, "producto sincronizado", "productos sincronizados")}
                   </h2>
                   <ToneBadge tone="success">WooCommerce HPOS</ToneBadge>
                 </div>

@@ -22,8 +22,8 @@ const DEFAULT_TIERS: PackTier[] = [
     units: 1,
     badge: "Entrada / Prueba",
     currentPrice: 22.99,
-    scalePrice: 26.00,
-    baseCostUnit: 6.00,
+    scalePrice: 26.0,
+    baseCostUnit: 6.0,
   },
   {
     id: "pack2",
@@ -32,7 +32,7 @@ const DEFAULT_TIERS: PackTier[] = [
     badge: "Ahorro Familiar (+Vendido)",
     currentPrice: 39.99,
     scalePrice: 45.99,
-    baseCostUnit: 6.00,
+    baseCostUnit: 6.0,
   },
   {
     id: "pack3",
@@ -41,7 +41,7 @@ const DEFAULT_TIERS: PackTier[] = [
     badge: "Tratamiento Completo",
     currentPrice: 54.99,
     scalePrice: 62.99,
-    baseCostUnit: 6.00,
+    baseCostUnit: 6.0,
   },
 ];
 
@@ -65,7 +65,7 @@ export function PricingCockpit({
         p.title.toLowerCase().includes("oregano") ||
         (p.externalId && String(p.externalId) === "17"),
     );
-    return oreg ? oreg.id : products[0]?.id ?? "prod_oregano_canonical";
+    return oreg ? oreg.id : (products[0]?.id ?? "prod_oregano_canonical");
   });
 
   const selectedProduct = useMemo(() => {
@@ -74,7 +74,7 @@ export function PricingCockpit({
         id: "prod_oregano_canonical",
         title: "Aceite de orégano con semilla negra (60 softgels)",
         price: 22.99,
-        cost: 6.00,
+        cost: 6.0,
         externalId: "17",
         unitsSold: 0,
         revenue: 0,
@@ -86,19 +86,22 @@ export function PricingCockpit({
   // 2. Parámetros interactivos del simulador
   const [pricingMode, setPricingMode] = useState<"current" | "scale">("current");
   const [activeTierId, setActiveTierId] = useState<"pack1" | "pack2" | "pack3">("pack1");
-  const [shippingDestination, setShippingDestination] = useState<"caracas" | "nacional">("nacional");
+  const [shippingDestination, setShippingDestination] = useState<"caracas" | "nacional">(
+    "nacional",
+  );
   const [storeAbsorbsShipping, setStoreAbsorbsShipping] = useState<boolean>(true);
   const [applyCoupon, setApplyCoupon] = useState<boolean>(false);
   const [couponCode, setCouponCode] = useState<"PRIMERACOMPRA5" | "BIENESTAR5">("PRIMERACOMPRA5");
   const [expectedOrdersPerDay, setExpectedOrdersPerDay] = useState<number>(10);
-  const [targetCpa, setTargetCpa] = useState<number>(6.50);
+  const [targetCpa, setTargetCpa] = useState<number>(6.5);
 
   // Parámetros de riesgo COD (contraentrega)
   const [codCancellationRate, setCodCancellationRate] = useState<number>(8); // 8%
   const [codReturnRate, setCodReturnRate] = useState<number>(6); // 6%
 
   // Tiers adaptados
-  const baseCostPerUnit = selectedProduct.cost && selectedProduct.cost > 0 ? selectedProduct.cost : 6.00;
+  const baseCostPerUnit =
+    selectedProduct.cost && selectedProduct.cost > 0 ? selectedProduct.cost : 6.0;
   const tiers: PackTier[] = useMemo(() => {
     const isOregano =
       selectedProduct.title.toLowerCase().includes("or\u00e9gano") ||
@@ -150,22 +153,25 @@ export function PricingCockpit({
 
   // Cálculos de Unit Economics
   const economics = useMemo(() => {
-    const nominalPrice = pricingMode === "current" ? activeTier.currentPrice : activeTier.scalePrice;
+    const nominalPrice =
+      pricingMode === "current" ? activeTier.currentPrice : activeTier.scalePrice;
     const discountAmount = applyCoupon ? Math.round(nominalPrice * 0.05 * 100) / 100 : 0.0;
     const netRevenue = nominalPrice - discountAmount;
     const totalCogs = activeTier.units * activeTier.baseCostUnit;
 
-    const shippingOutCost = shippingDestination === "caracas" ? 3.50 : 6.70;
+    const shippingOutCost = shippingDestination === "caracas" ? 3.5 : 6.7;
     const effectiveShippingCost = storeAbsorbsShipping ? shippingOutCost : 0.0;
 
-    const returnFreight = 6.70;
+    const returnFreight = 6.7;
     const codRiskProvision = Math.round(returnFreight * (codReturnRate / 100) * 100) / 100;
 
-    const realGrossMarginUsd = Math.round((netRevenue - totalCogs - effectiveShippingCost - codRiskProvision) * 100) / 100;
+    const realGrossMarginUsd =
+      Math.round((netRevenue - totalCogs - effectiveShippingCost - codRiskProvision) * 100) / 100;
     const realGrossMarginPct = Math.round((realGrossMarginUsd / netRevenue) * 100);
 
     const breakEvenCpa = Math.max(0, realGrossMarginUsd);
-    const breakEvenRoas = realGrossMarginUsd > 0 ? Math.round((nominalPrice / realGrossMarginUsd) * 100) / 100 : 9.99;
+    const breakEvenRoas =
+      realGrossMarginUsd > 0 ? Math.round((nominalPrice / realGrossMarginUsd) * 100) / 100 : 9.99;
 
     const suggestedDailyAdSpend = Math.max(5, Math.round(realGrossMarginUsd * 0.35 * 10) / 10);
 
@@ -179,11 +185,18 @@ export function PricingCockpit({
     const totalReturnFreight = returnedOrders * returnFreight;
     const totalAdSpend = deliveredOrders * targetCpa;
 
-    const dailyNetProfit = Math.round(
-      (totalProductRevenue - totalProductCogs - totalShippingCost - totalReturnFreight - totalAdSpend) * 100
-    ) / 100;
+    const dailyNetProfit =
+      Math.round(
+        (totalProductRevenue -
+          totalProductCogs -
+          totalShippingCost -
+          totalReturnFreight -
+          totalAdSpend) *
+          100,
+      ) / 100;
     const monthlyNetProfit = Math.round(dailyNetProfit * 30 * 100) / 100;
-    const netProfitPerOrder = deliveredOrders > 0 ? Math.round((dailyNetProfit / deliveredOrders) * 100) / 100 : 0;
+    const netProfitPerOrder =
+      deliveredOrders > 0 ? Math.round((dailyNetProfit / deliveredOrders) * 100) / 100 : 0;
 
     return {
       nominalPrice,
@@ -225,7 +238,12 @@ export function PricingCockpit({
   const advisorTips = useMemo(() => {
     const tips: string[] = [];
 
-    if (activeTier.id === "pack1" && storeAbsorbsShipping && shippingDestination === "nacional" && pricingMode === "current") {
+    if (
+      activeTier.id === "pack1" &&
+      storeAbsorbsShipping &&
+      shippingDestination === "nacional" &&
+      pricingMode === "current"
+    ) {
       tips.push(
         "⚠️ En Pack 1 con flete nacional gratis ($6.70), el margen bruto se comprime al " +
           economics.realGrossMarginPct +
@@ -276,12 +294,24 @@ export function PricingCockpit({
     }
 
     return tips;
-  }, [activeTier, storeAbsorbsShipping, shippingDestination, pricingMode, economics, applyCoupon, couponCode, targetCpa]);
+  }, [
+    activeTier,
+    storeAbsorbsShipping,
+    shippingDestination,
+    pricingMode,
+    economics,
+    applyCoupon,
+    couponCode,
+    targetCpa,
+  ]);
 
   return (
     <div className="stack" style={{ gap: 16 }}>
       {/* Barra de Contexto (Sin duplicar el título del Sheet) */}
-      <div className="row between" style={{ alignItems: "center", paddingBottom: 10, borderBottom: "1px solid var(--line)" }}>
+      <div
+        className="row between"
+        style={{ alignItems: "center", paddingBottom: 10, borderBottom: "1px solid var(--line)" }}
+      >
         <div className="row" style={{ gap: 8, alignItems: "center" }}>
           <span
             style={{
@@ -325,7 +355,9 @@ export function PricingCockpit({
         >
           <div>
             <label className="field" style={{ margin: 0 }}>
-              <span style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--ink)" }}>Producto a Simular</span>
+              <span style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--ink)" }}>
+                Producto a Simular
+              </span>
               <select
                 className="input"
                 value={selectedProductId}
@@ -335,7 +367,7 @@ export function PricingCockpit({
                 {products.length > 0 ? (
                   products.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.title} (Costo base: ${p.cost ?? 6.00} | Venta: ${p.price})
+                      {p.title} (Costo base: ${p.cost ?? 6.0} | Venta: ${p.price})
                     </option>
                   ))
                 ) : (
@@ -348,7 +380,10 @@ export function PricingCockpit({
           </div>
 
           <div>
-            <div className="caption" style={{ fontWeight: 600, marginBottom: 6, color: "var(--ink)" }}>
+            <div
+              className="caption"
+              style={{ fontWeight: 600, marginBottom: 6, color: "var(--ink)" }}
+            >
               Estrategia de Precios en Tienda
             </div>
             <div
@@ -417,7 +452,13 @@ export function PricingCockpit({
         >
           1. Selecciona el Pack / Volumen de Compra
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+            gap: 12,
+          }}
+        >
           {tiers.map((t) => {
             const isSelected = t.id === activeTierId;
             const price = pricingMode === "current" ? t.currentPrice : t.scalePrice;
@@ -455,9 +496,17 @@ export function PricingCockpit({
                     {simpleMargin}% bruto base
                   </span>
                 </div>
-                <div style={{ fontWeight: 700, fontSize: "0.98rem", color: "var(--ink)" }}>{t.name}</div>
+                <div style={{ fontWeight: 700, fontSize: "0.98rem", color: "var(--ink)" }}>
+                  {t.name}
+                </div>
                 <div className="row between" style={{ alignItems: "baseline", marginTop: 2 }}>
-                  <div style={{ fontSize: "1.35rem", fontWeight: 800, color: isSelected ? "var(--brand)" : "var(--ink)" }}>
+                  <div
+                    style={{
+                      fontSize: "1.35rem",
+                      fontWeight: 800,
+                      color: isSelected ? "var(--brand)" : "var(--ink)",
+                    }}
+                  >
                     {usd(price)}
                   </div>
                   <div className="caption" style={{ color: "var(--ink-muted)" }}>
@@ -485,7 +534,10 @@ export function PricingCockpit({
       >
         {/* Fletes en Venezuela */}
         <div>
-          <div className="caption" style={{ fontWeight: 700, marginBottom: 8, color: "var(--ink)" }}>
+          <div
+            className="caption"
+            style={{ fontWeight: 700, marginBottom: 8, color: "var(--ink)" }}
+          >
             2. Logística y Fletes en Venezuela
           </div>
           <div className="stack" style={{ gap: 8 }}>
@@ -507,7 +559,10 @@ export function PricingCockpit({
                 Nacional ($6.70)
               </button>
             </div>
-            <label className="row" style={{ gap: 8, alignItems: "center", cursor: "pointer", marginTop: 4 }}>
+            <label
+              className="row"
+              style={{ gap: 8, alignItems: "center", cursor: "pointer", marginTop: 4 }}
+            >
               <input
                 type="checkbox"
                 checked={storeAbsorbsShipping}
@@ -527,7 +582,10 @@ export function PricingCockpit({
 
         {/* Absorción de Riesgos COD */}
         <div>
-          <div className="caption" style={{ fontWeight: 700, marginBottom: 8, color: "var(--ink)" }}>
+          <div
+            className="caption"
+            style={{ fontWeight: 700, marginBottom: 8, color: "var(--ink)" }}
+          >
             3. Absorción de Riesgos COD
           </div>
           <div className="stack" style={{ gap: 6 }}>
@@ -558,14 +616,20 @@ export function PricingCockpit({
               onChange={(e) => setCodReturnRate(Number(e.target.value))}
             />
             <span className="caption" style={{ color: "var(--ink-muted)" }}>
-              Flete retorno: $6.70 · Provisión: <strong style={{ color: "var(--ink)" }}>${economics.codRiskProvision} USD/pedido</strong>
+              Flete retorno: $6.70 · Provisión:{" "}
+              <strong style={{ color: "var(--ink)" }}>
+                ${economics.codRiskProvision} USD/pedido
+              </strong>
             </span>
           </div>
         </div>
 
         {/* Cupones de Descuento (5%) */}
         <div>
-          <div className="caption" style={{ fontWeight: 700, marginBottom: 8, color: "var(--ink)" }}>
+          <div
+            className="caption"
+            style={{ fontWeight: 700, marginBottom: 8, color: "var(--ink)" }}
+          >
             4. Cupones de Conversión (5%)
           </div>
           <div className="stack" style={{ gap: 8 }}>
@@ -629,11 +693,28 @@ export function PricingCockpit({
             gap: 4,
           }}
         >
-          <div className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.74rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          <div
+            className="caption"
+            style={{
+              color: "var(--ink-muted)",
+              fontSize: "0.74rem",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.04em",
+            }}
+          >
             Margen Bruto Real
           </div>
           <div className="row" style={{ alignItems: "baseline", gap: 6, margin: "4px 0" }}>
-            <span style={{ fontSize: "1.55rem", fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.02em", lineHeight: 1.1 }}>
+            <span
+              style={{
+                fontSize: "1.55rem",
+                fontWeight: 800,
+                color: "var(--ink)",
+                letterSpacing: "-0.02em",
+                lineHeight: 1.1,
+              }}
+            >
               {economics.realGrossMarginPct}%
             </span>
             <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--brand)" }}>
@@ -645,7 +726,11 @@ export function PricingCockpit({
           </span>
           <div style={{ marginTop: 6 }}>
             <ToneBadge tone={marginTone}>
-              {marginTone === "success" ? "🟢 Zona Verde (≥50%)" : marginTone === "attention" ? "🟡 Margen Ajustado" : "🔴 Crítico (<35%)"}
+              {marginTone === "success"
+                ? "🟢 Zona Verde (≥50%)"
+                : marginTone === "attention"
+                  ? "🟡 Margen Ajustado"
+                  : "🔴 Crítico (<35%)"}
             </ToneBadge>
           </div>
         </div>
@@ -663,10 +748,28 @@ export function PricingCockpit({
             gap: 4,
           }}
         >
-          <div className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.74rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          <div
+            className="caption"
+            style={{
+              color: "var(--ink-muted)",
+              fontSize: "0.74rem",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.04em",
+            }}
+          >
             Break-Even CPA (Meta / TikTok)
           </div>
-          <div style={{ fontSize: "1.55rem", fontWeight: 800, color: "var(--brand)", letterSpacing: "-0.02em", lineHeight: 1.1, margin: "4px 0" }}>
+          <div
+            style={{
+              fontSize: "1.55rem",
+              fontWeight: 800,
+              color: "var(--brand)",
+              letterSpacing: "-0.02em",
+              lineHeight: 1.1,
+              margin: "4px 0",
+            }}
+          >
             {usd(economics.breakEvenCpa)}
           </div>
           <span className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}>
@@ -687,10 +790,28 @@ export function PricingCockpit({
             gap: 4,
           }}
         >
-          <div className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.74rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          <div
+            className="caption"
+            style={{
+              color: "var(--ink-muted)",
+              fontSize: "0.74rem",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.04em",
+            }}
+          >
             Break-Even ROAS Mínimo
           </div>
-          <div style={{ fontSize: "1.55rem", fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.02em", lineHeight: 1.1, margin: "4px 0" }}>
+          <div
+            style={{
+              fontSize: "1.55rem",
+              fontWeight: 800,
+              color: "var(--ink)",
+              letterSpacing: "-0.02em",
+              lineHeight: 1.1,
+              margin: "4px 0",
+            }}
+          >
             {economics.breakEvenRoas}×
           </div>
           <span className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}>
@@ -711,11 +832,28 @@ export function PricingCockpit({
             gap: 4,
           }}
         >
-          <div className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.74rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          <div
+            className="caption"
+            style={{
+              color: "var(--ink-muted)",
+              fontSize: "0.74rem",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.04em",
+            }}
+          >
             Presupuesto Diario Sugerido
           </div>
           <div className="row" style={{ alignItems: "baseline", gap: 6, margin: "4px 0" }}>
-            <span style={{ fontSize: "1.55rem", fontWeight: 800, color: "var(--success)", letterSpacing: "-0.02em", lineHeight: 1.1 }}>
+            <span
+              style={{
+                fontSize: "1.55rem",
+                fontWeight: 800,
+                color: "var(--success)",
+                letterSpacing: "-0.02em",
+                lineHeight: 1.1,
+              }}
+            >
               ${economics.suggestedDailyAdSpend}
             </span>
             <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--ink-muted)" }}>
@@ -729,16 +867,41 @@ export function PricingCockpit({
       </div>
 
       {/* Desglose de Unit Economics & Proyección de Ganancias */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+          gap: 16,
+        }}
+      >
         {/* Tabla Cascada de Unit Economics */}
-        <section className="card" style={{ padding: 16, background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "var(--r-md)" }}>
-          <h3 style={{ margin: "0 0 12px", fontSize: "1rem", fontWeight: 700, color: "var(--ink)" }}>
+        <section
+          className="card"
+          style={{
+            padding: 16,
+            background: "var(--surface)",
+            border: "1px solid var(--line)",
+            borderRadius: "var(--r-md)",
+          }}
+        >
+          <h3
+            style={{ margin: "0 0 12px", fontSize: "1rem", fontWeight: 700, color: "var(--ink)" }}
+          >
             Cascada de Unit Economics por Pedido
           </h3>
-          <table style={{ width: "100%", fontSize: "0.88rem", borderCollapse: "collapse", color: "var(--ink)" }}>
+          <table
+            style={{
+              width: "100%",
+              fontSize: "0.88rem",
+              borderCollapse: "collapse",
+              color: "var(--ink)",
+            }}
+          >
             <tbody>
               <tr style={{ borderBottom: "1px solid var(--line)" }}>
-                <td style={{ padding: "8px 0", color: "var(--ink-muted)" }}>Precio de Venta Nominal</td>
+                <td style={{ padding: "8px 0", color: "var(--ink-muted)" }}>
+                  Precio de Venta Nominal
+                </td>
                 <td style={{ padding: "8px 0", textAlign: "right", fontWeight: 600 }}>
                   {usd(economics.nominalPrice)}
                 </td>
@@ -761,7 +924,9 @@ export function PricingCockpit({
                 <td style={{ padding: "8px 0" }}>
                   Costo de Producto (COGS: {activeTier.units} × ${activeTier.baseCostUnit})
                 </td>
-                <td style={{ padding: "8px 0", textAlign: "right" }}>- {usd(economics.totalCogs)}</td>
+                <td style={{ padding: "8px 0", textAlign: "right" }}>
+                  - {usd(economics.totalCogs)}
+                </td>
               </tr>
               <tr style={{ borderBottom: "1px solid var(--line)", color: "var(--ink-muted)" }}>
                 <td style={{ padding: "8px 0" }}>
@@ -769,16 +934,32 @@ export function PricingCockpit({
                   {!storeAbsorbsShipping ? " - cobrado a cliente" : ""})
                 </td>
                 <td style={{ padding: "8px 0", textAlign: "right" }}>
-                  {economics.effectiveShippingCost > 0 ? `- ${usd(economics.effectiveShippingCost)}` : "$ 0.00"}
+                  {economics.effectiveShippingCost > 0
+                    ? `- ${usd(economics.effectiveShippingCost)}`
+                    : "$ 0.00"}
                 </td>
               </tr>
               <tr style={{ borderBottom: "1px solid var(--line)", color: "var(--ink-muted)" }}>
-                <td style={{ padding: "8px 0" }}>Provisión Riesgo Retorno COD ({codReturnRate}%)</td>
-                <td style={{ padding: "8px 0", textAlign: "right" }}>- {usd(economics.codRiskProvision)}</td>
+                <td style={{ padding: "8px 0" }}>
+                  Provisión Riesgo Retorno COD ({codReturnRate}%)
+                </td>
+                <td style={{ padding: "8px 0", textAlign: "right" }}>
+                  - {usd(economics.codRiskProvision)}
+                </td>
               </tr>
-              <tr style={{ borderTop: "2px solid var(--line)", fontWeight: 800, fontSize: "0.95rem" }}>
-                <td style={{ padding: "10px 0", color: "var(--ink)" }}>Margen Bruto de Contribución</td>
-                <td style={{ padding: "10px 0", textAlign: "right", color: marginTone === "success" ? "var(--success)" : "var(--attention)" }}>
+              <tr
+                style={{ borderTop: "2px solid var(--line)", fontWeight: 800, fontSize: "0.95rem" }}
+              >
+                <td style={{ padding: "10px 0", color: "var(--ink)" }}>
+                  Margen Bruto de Contribución
+                </td>
+                <td
+                  style={{
+                    padding: "10px 0",
+                    textAlign: "right",
+                    color: marginTone === "success" ? "var(--success)" : "var(--attention)",
+                  }}
+                >
                   {usd(economics.realGrossMarginUsd)} ({economics.realGrossMarginPct}%)
                 </td>
               </tr>
@@ -787,32 +968,49 @@ export function PricingCockpit({
         </section>
 
         {/* Proyección de Utilidad con Pauta */}
-        <section className="card" style={{ padding: 16, background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "var(--r-md)" }}>
-          <h3 style={{ margin: "0 0 12px", fontSize: "1rem", fontWeight: 700, color: "var(--ink)" }}>
+        <section
+          className="card"
+          style={{
+            padding: 16,
+            background: "var(--surface)",
+            border: "1px solid var(--line)",
+            borderRadius: "var(--r-md)",
+          }}
+        >
+          <h3
+            style={{ margin: "0 0 12px", fontSize: "1rem", fontWeight: 700, color: "var(--ink)" }}
+          >
             Proyección de Utilidad Neta con Publicidad
           </h3>
           <div className="stack" style={{ gap: 12 }}>
             <div>
-              <div className="row between" style={{ fontSize: "0.85rem", marginBottom: 4, color: "var(--ink)" }}>
+              <div
+                className="row between"
+                style={{ fontSize: "0.85rem", marginBottom: 4, color: "var(--ink)" }}
+              >
                 <span>CPA Objetivo de Pauta (Meta/TikTok):</span>
                 <strong>{usd(targetCpa)}</strong>
               </div>
               <input
                 type="range"
-                min={2.00}
+                min={2.0}
                 max={Math.max(15, economics.breakEvenCpa)}
-                step={0.50}
+                step={0.5}
                 value={targetCpa}
                 style={{ accentColor: "var(--brand)", width: "100%" }}
                 onChange={(e) => setTargetCpa(Number(e.target.value))}
               />
               <span className="caption" style={{ color: "var(--ink-muted)" }}>
-                Ganancia neta limpia por pedido después de anuncios: <strong style={{ color: "var(--ink)" }}>${economics.netProfitPerOrder} USD</strong>
+                Ganancia neta limpia por pedido después de anuncios:{" "}
+                <strong style={{ color: "var(--ink)" }}>${economics.netProfitPerOrder} USD</strong>
               </span>
             </div>
 
             <div>
-              <div className="row between" style={{ fontSize: "0.85rem", marginBottom: 4, color: "var(--ink)" }}>
+              <div
+                className="row between"
+                style={{ fontSize: "0.85rem", marginBottom: 4, color: "var(--ink)" }}
+              >
                 <span>Volumen Diario Proyectado:</span>
                 <strong>{expectedOrdersPerDay} pedidos/día</strong>
               </div>
@@ -827,24 +1025,68 @@ export function PricingCockpit({
               />
               <span className="caption" style={{ color: "var(--ink-muted)" }}>
                 Efectivos despachados (-{codCancellationRate}% cancelados):{" "}
-                <strong style={{ color: "var(--ink)" }}>{(expectedOrdersPerDay * (1 - codCancellationRate / 100)).toFixed(1)} pedidos/día</strong>
+                <strong style={{ color: "var(--ink)" }}>
+                  {(expectedOrdersPerDay * (1 - codCancellationRate / 100)).toFixed(1)} pedidos/día
+                </strong>
               </span>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 4 }}>
-              <div style={{ background: "var(--surface-sunken)", border: "1px solid var(--line)", padding: 12, borderRadius: "var(--r-sm)" }}>
-                <div className="caption" style={{ color: "var(--ink-muted)" }}>Utilidad Diaria Neta</div>
-                <div style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--success)", margin: "2px 0" }}>
+              <div
+                style={{
+                  background: "var(--surface-sunken)",
+                  border: "1px solid var(--line)",
+                  padding: 12,
+                  borderRadius: "var(--r-sm)",
+                }}
+              >
+                <div className="caption" style={{ color: "var(--ink-muted)" }}>
+                  Utilidad Diaria Neta
+                </div>
+                <div
+                  style={{
+                    fontSize: "1.25rem",
+                    fontWeight: 800,
+                    color: "var(--success)",
+                    margin: "2px 0",
+                  }}
+                >
                   {usd(economics.dailyNetProfit)}
                 </div>
-                <span className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}>{vesFromUsd(economics.dailyNetProfit)}</span>
+                <span
+                  className="caption"
+                  style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}
+                >
+                  {vesFromUsd(economics.dailyNetProfit)}
+                </span>
               </div>
-              <div style={{ background: "var(--surface-sunken)", border: "1px solid var(--line)", padding: 12, borderRadius: "var(--r-sm)" }}>
-                <div className="caption" style={{ color: "var(--ink-muted)" }}>Utilidad Mensual Neta</div>
-                <div style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--brand)", margin: "2px 0" }}>
+              <div
+                style={{
+                  background: "var(--surface-sunken)",
+                  border: "1px solid var(--line)",
+                  padding: 12,
+                  borderRadius: "var(--r-sm)",
+                }}
+              >
+                <div className="caption" style={{ color: "var(--ink-muted)" }}>
+                  Utilidad Mensual Neta
+                </div>
+                <div
+                  style={{
+                    fontSize: "1.25rem",
+                    fontWeight: 800,
+                    color: "var(--brand)",
+                    margin: "2px 0",
+                  }}
+                >
                   {usd(economics.monthlyNetProfit)}
                 </div>
-                <span className="caption" style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}>{vesFromUsd(economics.monthlyNetProfit)}</span>
+                <span
+                  className="caption"
+                  style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}
+                >
+                  {vesFromUsd(economics.monthlyNetProfit)}
+                </span>
               </div>
             </div>
           </div>
@@ -867,7 +1109,17 @@ export function PricingCockpit({
             Recomendaciones Agénticas de Rentabilidad (Traxo Intelligence)
           </h3>
         </div>
-        <ul style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6, fontSize: "0.85rem", color: "var(--ink)" }}>
+        <ul
+          style={{
+            margin: 0,
+            paddingLeft: 20,
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            fontSize: "0.85rem",
+            color: "var(--ink)",
+          }}
+        >
           {advisorTips.map((tip, idx) => (
             <li key={idx} style={{ lineHeight: 1.45 }}>
               {tip}

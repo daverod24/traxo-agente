@@ -2,11 +2,11 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { createTraxoMcp, inProcessClient } from "@traxo/mcp-server";
 import type { Hono } from "hono";
 import { INTERNAL } from "./auth.ts";
+import { isLoopback } from "./security.ts";
 
 /**
-/**
  * Expone las herramientas de Traxo por MCP sobre HTTP en /mcp.
- * Modo FAIL-CLOSED: si TRAXO_MCP_TOKEN no está definido o es vacío, rechaza con 401 invariablemente.
+ * Si TRAXO_MCP_TOKEN está definido exige Bearer token. Sin token, solo responde en loopback (local).
  */
 export function mountMcp(
   app: Hono,
@@ -14,10 +14,20 @@ export function mountMcp(
   opts: { readOnly?: boolean } = {},
 ): void {
   app.all("/mcp", async (c) => {
-    // Fail-Closed: denegar si falta token en servidor o si la cabecera no coincide exactamente
-    if (!token || token.trim() === "" || c.req.header("authorization") !== `Bearer ${token}`) {
+    if (token !== undefined) {
+      if (token.trim() === "" || c.req.header("authorization") !== `Bearer ${token}`) {
+        return c.json(
+          {
+            error: "Acceso no autorizado: TRAXO_MCP_TOKEN no configurado o token Bearer inválido.",
+          },
+          401,
+        );
+      }
+    } else if (!isLoopback(c)) {
       return c.json(
-        { error: "Acceso no autorizado: TRAXO_MCP_TOKEN no configurado o token Bearer inválido." },
+        {
+          error: "Acceso no autorizado: TRAXO_MCP_TOKEN no configurado o token Bearer inválido.",
+        },
         401,
       );
     }

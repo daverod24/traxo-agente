@@ -175,7 +175,7 @@ describe("campañas: las métricas cuentan una historia coherente con los pedido
     const multiDb = await openDb({ dataDir: "memory://" });
     const { seedDemo } = await import("../src/seed.ts");
     await seedDemo(multiDb, { all: true });
-    
+
     // Sembrar tienda belleza VE
     const rBeauty = await seedRich(multiDb, {
       storeId: "store_demo_beauty",
@@ -193,12 +193,16 @@ describe("campañas: las métricas cuentan una historia coherente con los pedido
     expect(rCafe.customers).toBe(150);
 
     // Verificar que ambas coexisten y sus órdenes son consultables por storeId
-    const beautyOrders = await multiDb.prisma.order.count({ where: { storeId: "store_demo_beauty" } });
+    const beautyOrders = await multiDb.prisma.order.count({
+      where: { storeId: "store_demo_beauty" },
+    });
     const cafeOrders = await multiDb.prisma.order.count({ where: { storeId: "store_demo_cafe" } });
     expect(beautyOrders).toBeGreaterThanOrEqual(rBeauty.orders);
     expect(cafeOrders).toBeGreaterThanOrEqual(rCafe.orders);
 
-    const beautyAud = await multiDb.prisma.audience.count({ where: { storeId: "store_demo_beauty" } });
+    const beautyAud = await multiDb.prisma.audience.count({
+      where: { storeId: "store_demo_beauty" },
+    });
     const cafeAud = await multiDb.prisma.audience.count({ where: { storeId: "store_demo_cafe" } });
     expect(beautyAud).toBe(3);
     expect(cafeAud).toBe(3);

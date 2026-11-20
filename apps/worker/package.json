@@ -10,6 +10,7 @@
     "build": "echo '@traxo/worker ready'",
     "dev": "tsx watch src/main.ts",
     "start": "tsx src/main.ts",
+    "test": "vitest run",
     "mcp": "tsx src/mcp-stdio.ts"
   },
   "dependencies": {

@@ -16,9 +16,19 @@ import type { Context, Hono } from "hono";
 import { recordOutbound } from "./agent.ts";
 import { askClaude } from "./ai.ts";
 import { storeOf } from "./auth.ts";
+import { env } from "./env.ts";
 import { importStore, isImported } from "./importer.ts";
 import { isDemo } from "./mode.ts";
 import type { Runtime } from "./runtime.ts";
+import { generateServerHmacSignature, redactPii } from "./security.ts";
+import { generateAiDailyBrief } from "./services/ai-brief.ts";
+import { getClarityDeepLinks, getClarityMetrics } from "./services/clarity-client.ts";
+import { generateProductSchema, generateRobotsTxt } from "./services/dynamic-seo.ts";
+import { runFunnelReport, runRealtimeReport } from "./services/ga4-client.ts";
+import {
+  GenerateMarketingInputSchema,
+  generateMarketingCopy,
+} from "./services/marketing-generator.ts";
 
 type Json = Record<string, unknown>;
 const DAY = 86_400_000;
@@ -123,18 +133,21 @@ export function registerGrowthApi(app: Hono, rt: Runtime): void {
       });
     } catch (e: any) {
       console.error("Error en /api/store/status:", e);
-      return c.json({
-        ok: false,
-        error: e?.message || "Error al obtener estado de la tienda",
-        imported: false,
-        demo: isDemo(),
-        connected: rt.commerce.platform !== "mock",
-        products: 0,
-        customers: 0,
-        orders: 0,
-        platform: "mock",
-        profile: null,
-      }, 500);
+      return c.json(
+        {
+          ok: false,
+          error: e?.message || "Error al obtener estado de la tienda",
+          imported: false,
+          demo: isDemo(),
+          connected: rt.commerce.platform !== "mock",
+          products: 0,
+          customers: 0,
+          orders: 0,
+          platform: "mock",
+          profile: null,
+        },
+        500,
+      );
     }
   });
 
@@ -142,21 +155,29 @@ export function registerGrowthApi(app: Hono, rt: Runtime): void {
     try {
       // Con tu tienda real se importa esa. La tienda de ejemplo solo existe en modo demo.
       if (rt.commerce.platform === "mock" && !isDemo())
-        return c.json({
-          ok: false,
-          message:
-            "Todavía no hay una tienda conectada. Define SHOPIFY_*, TIENDANUBE_* o WOOCOMMERCE_* en tu .env (o corre /traxo:instalar en Claude) y reinicia.",
-        }, 400);
+        return c.json(
+          {
+            ok: false,
+            message:
+              "Todavía no hay una tienda conectada. Define SHOPIFY_*, TIENDANUBE_* o WOOCOMMERCE_* en tu .env (o corre /traxo:instalar en Claude) y reinicia.",
+          },
+          400,
+        );
       const storeId = await resolveValidStoreId(rt, sid(c));
       const adapter = rt.commerce.platform === "mock" ? new MockCommerce() : rt.commerce;
       const result = await importStore(rt, storeId, adapter);
       return c.json({ ok: true, storeId, ...result, platform: adapter.platform });
     } catch (e: any) {
       console.error("Error en /api/store/import:", e);
-      return c.json({
-        ok: false,
-        message: e?.message ? `Error al importar tienda: ${e.message}` : "Error interno al importar la tienda",
-      }, 500);
+      return c.json(
+        {
+          ok: false,
+          message: e?.message
+            ? `Error al importar tienda: ${e.message}`
+            : "Error interno al importar la tienda",
+        },
+        500,
+      );
     }
   });
 
@@ -184,48 +205,39 @@ export function registerGrowthApi(app: Hono, rt: Runtime): void {
     if (b.kind !== "seo" && b.kind !== "diseno")
       return c.json({ ok: false, message: "Elige SEO o diseño." }, 400);
 
-    const store = await db.prisma.store.findUnique({ where: { id: sid(c) } });
-    let targetUrl = b.url?.trim();
-    if (!targetUrl) {
-      const storeUrl = store?.url?.trim();
-      if (
-        storeUrl &&
-        !storeUrl.includes("apiv2backecom") &&
-        !storeUrl.includes("example") &&
-        !storeUrl.includes("localhost")
-      ) {
-        targetUrl = storeUrl.startsWith("http") ? storeUrl : `https://${storeUrl}`;
-      } else {
-        targetUrl = "https://davebeauty.daverod.tech";
-      }
-    }
-
     let report: Awaited<ReturnType<typeof auditUrl>>;
-    // Permitir auditoría en vivo por defecto para URLs públicas y seguras (desactivar solo si explícitamente TRAXO_AUDIT_LIVE === "0")
-    if (process.env.TRAXO_AUDIT_LIVE === "0") {
-      report = sampleAudit(b.kind, targetUrl);
-    } else {
-      try {
-        report = await auditUrl(b.kind, targetUrl);
-      } catch (e) {
-        if (e instanceof UnsafeUrlError) {
-          return c.json({ ok: false, message: e.message }, 400);
-        }
-        if (!b.url) {
-          console.warn(
-            `[Audit] No se pudo auditar en vivo ${targetUrl}: ${(e as Error).message}. Se usa informe de muestra.`,
-          );
-          report = sampleAudit(b.kind, targetUrl);
-        } else {
-          return c.json(
-            {
-              ok: false,
-              message: `No pude leer esa página: ${(e as Error).message}`,
-            },
-            400,
-          );
-        }
+    if (b.url) {
+      if (process.env.TRAXO_AUDIT_LIVE !== "1") {
+        return c.json(
+          {
+            ok: false,
+            message:
+              "Auditar URLs reales está desactivado en esta instalación. Actívalo con TRAXO_AUDIT_LIVE=1; mientras tanto puedes ver el informe de ejemplo.",
+          },
+          403,
+        );
       }
+      try {
+        report = await auditUrl(b.kind, b.url.trim());
+      } catch (e) {
+        return c.json(
+          {
+            ok: false,
+            message:
+              e instanceof UnsafeUrlError
+                ? e.message
+                : `No pude leer esa página: ${(e as Error).message}`,
+          },
+          400,
+        );
+      }
+    } else {
+      const store = await db.prisma.store.findUnique({ where: { id: sid(c) } });
+      const storeUrl = store?.url?.trim();
+      const sampleTarget = storeUrl?.startsWith("http")
+        ? storeUrl
+        : `https://${storeUrl ?? "tienda.example"}`;
+      report = sampleAudit(b.kind, sampleTarget);
     }
     const id = newId("aud");
     await db.prisma.storeAudit.create({
@@ -452,6 +464,227 @@ export function registerGrowthApi(app: Hono, rt: Runtime): void {
       { data: { storeId: sid(c) } },
     );
     return c.json({ ok: true, status: "PAUSED", externalId, simulated: true });
+  });
+
+  // ---------------- Motor de Generación de Marketing (IA + Fallback Determinista) ----------------
+  app.post("/api/marketing/generate", async (c) => {
+    try {
+      const storeId = await resolveValidStoreId(rt, sid(c));
+      const rawBody = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+      const parsed = GenerateMarketingInputSchema.safeParse(rawBody);
+      if (!parsed.success) {
+        return c.json(
+          {
+            ok: false,
+            error: "Parámetros de generación inválidos",
+            issues: parsed.error.issues,
+          },
+          400,
+        );
+      }
+
+      const input = parsed.data;
+      const product = await db.prisma.product.findFirst({
+        where: { id: input.productId, storeId },
+      });
+
+      if (!product) {
+        return c.json({ ok: false, error: "Producto no encontrado en la tienda actual" }, 404);
+      }
+
+      const result = await generateMarketingCopy({
+        storeId,
+        product: {
+          id: product.id,
+          title: product.title,
+          category: product.category,
+          price: product.price,
+          description: product.description,
+          keyIngredients: product.keyIngredients,
+          commonObjections: product.commonObjections,
+          packRules: product.packRules,
+        },
+        input,
+        prisma: db.prisma,
+      });
+
+      const generation = await db.prisma.marketingGeneration.create({
+        data: {
+          id: newId("mkt"),
+          storeId,
+          productId: product.id,
+          channel: input.channel,
+          angle: input.angle,
+          mode: input.mode,
+          parentGenerationId: input.parentGenerationId ?? null,
+          userInstruction: input.userInstruction ?? null,
+          outputJson: result.data,
+          provider: result.provider,
+          model: result.model,
+          latencyMs: result.latencyMs,
+          status: "generated",
+        },
+      });
+
+      return c.json({
+        ok: true,
+        generation,
+      });
+    } catch (err) {
+      console.error("Error en POST /api/marketing/generate:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      return c.json({ ok: false, error: message }, 500);
+    }
+  });
+
+  app.get("/api/marketing/generations", async (c) => {
+    try {
+      const storeId = await resolveValidStoreId(rt, sid(c));
+      const productId = c.req.query("productId");
+      const channel = c.req.query("channel");
+      const limit = Math.min(Number(c.req.query("limit") ?? 20), 100);
+
+      const where: { storeId: string; productId?: string; channel?: string } = {
+        storeId,
+      };
+      if (productId) where.productId = productId;
+      if (channel) where.channel = channel;
+
+      const generations = await db.prisma.marketingGeneration.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        include: {
+          product: {
+            select: { id: true, title: true, category: true, price: true, imageUrl: true },
+          },
+        },
+      });
+
+      return c.json({ ok: true, generations });
+    } catch (err) {
+      console.error("Error en GET /api/marketing/generations:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      return c.json({ ok: false, error: message }, 500);
+    }
+  });
+
+  app.get("/api/marketing/generations/:id", async (c) => {
+    try {
+      const storeId = await resolveValidStoreId(rt, sid(c));
+      const id = c.req.param("id");
+      const generation = await db.prisma.marketingGeneration.findUnique({
+        where: { id },
+        include: { product: true },
+      });
+
+      if (!generation || generation.storeId !== storeId) {
+        return c.json({ ok: false, error: "Generación no encontrada" }, 404);
+      }
+
+      return c.json({ ok: true, generation });
+    } catch (err) {
+      console.error("Error en GET /api/marketing/generations/:id:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      return c.json({ ok: false, error: message }, 500);
+    }
+  });
+
+  // ---------------- Despacho de Marketing hacia Webhook de n8n ----------------
+  app.post("/api/marketing/:id/dispatch-n8n", async (c) => {
+    try {
+      const storeId = await resolveValidStoreId(rt, sid(c));
+      const id = c.req.param("id");
+
+      const generation = await db.prisma.marketingGeneration.findUnique({
+        where: { id },
+        include: { product: true },
+      });
+
+      if (!generation || generation.storeId !== storeId) {
+        return c.json({ ok: false, error: "Generación de marketing no encontrada" }, 404);
+      }
+
+      const webhookUrl = env.N8N_OUTBOUND_WEBHOOK_URL;
+      if (!webhookUrl || webhookUrl.trim() === "") {
+        return c.json(
+          {
+            ok: false,
+            error: "N8N_OUTBOUND_WEBHOOK_URL no está configurada en el servidor",
+          },
+          400,
+        );
+      }
+
+      const secret = env.N8N_HMAC_SECRET ?? env.TRAXO_HMAC_SECRET ?? env.TRAXO_SESSION_SECRET;
+
+      const payload = {
+        event: "traxo.marketing.generation.dispatched",
+        generationId: generation.id,
+        storeId: generation.storeId,
+        channel: generation.channel,
+        angle: generation.angle,
+        mode: generation.mode,
+        product: {
+          id: generation.product.id,
+          title: generation.product.title,
+          price: generation.product.price,
+          category: generation.product.category,
+          imageUrl: generation.product.imageUrl,
+        },
+        output: generation.outputJson,
+        dispatchedAt: Date.now(),
+      };
+
+      const payloadString = JSON.stringify(payload);
+      const hmac = generateServerHmacSignature(secret, payloadString, payload.dispatchedAt);
+
+      const res = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Traxo-Signature": hmac.signature,
+          "X-Traxo-Timestamp": String(hmac.timestamp),
+          ...hmac.headers,
+        },
+        body: payloadString,
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
+        return c.json(
+          {
+            ok: false,
+            error: `Webhook n8n respondió con código de error ${res.status}`,
+            details: redactPii(errBody),
+          },
+          502,
+        );
+      }
+
+      const updated = await db.prisma.marketingGeneration.update({
+        where: { id: generation.id },
+        data: { status: "dispatched_n8n" },
+      });
+
+      return c.json({
+        ok: true,
+        status: "dispatched_n8n",
+        webhookStatus: res.status,
+        generation: updated,
+      });
+    } catch (err) {
+      console.error("Error en POST /api/marketing/:id/dispatch-n8n:", err);
+      return c.json(
+        {
+          ok: false,
+          error: "Fallo en la comunicación con el webhook de n8n",
+          details: redactPii(String(err)),
+        },
+        504,
+      );
+    }
   });
 
   // ---------------- Audiencias y mensajes a clientes ----------------
@@ -946,6 +1179,84 @@ export function registerGrowthApi(app: Hono, rt: Runtime): void {
         inTransit: carriers.reduce((s, x) => s + x.codInTransit, 0),
       },
       note: "«Recaudado» son entregas con contraentrega; cuándo consigna cada transportadora depende de su contrato y no se conoce desde aquí (N/A).",
+    });
+  });
+
+  // ---------------- Analítica en Vivo (Pulso en Vivo GA4 & Clarity) ----------------
+  app.get("/api/analytics/realtime", async (c) => {
+    try {
+      const storeId = await resolveValidStoreId(rt, sid(c));
+      const force = c.req.query("refresh") === "true" || c.req.query("force") === "true";
+      const data = await runRealtimeReport(storeId, db.prisma, force);
+      const clarity = getClarityDeepLinks();
+      return c.json({ ok: true, ...data, clarity });
+    } catch (err) {
+      console.error("Error en GET /api/analytics/realtime:", err);
+      return c.json({ ok: false, error: String(err) }, 500);
+    }
+  });
+
+  app.get("/api/analytics/funnel", async (c) => {
+    try {
+      const storeId = await resolveValidStoreId(rt, sid(c));
+      const days = Number(c.req.query("days")) || 30;
+      const force = c.req.query("refresh") === "true" || c.req.query("force") === "true";
+      const data = await runFunnelReport(storeId, db.prisma, days, force);
+      return c.json({ ok: true, ...data });
+    } catch (err) {
+      console.error("Error en GET /api/analytics/funnel:", err);
+      return c.json({ ok: false, error: String(err) }, 500);
+    }
+  });
+
+  app.get("/api/analytics/brief", async (c) => {
+    try {
+      const storeId = await resolveValidStoreId(rt, sid(c));
+      const force = c.req.query("refresh") === "true" || c.req.query("force") === "true";
+      const brief = await generateAiDailyBrief(storeId, db.prisma, force);
+      return c.json({ ok: true, ...brief });
+    } catch (err) {
+      console.error("Error en GET /api/analytics/brief:", err);
+      return c.json({ ok: false, error: String(err) }, 500);
+    }
+  });
+
+  app.get("/api/analytics/clarity", async (c) => {
+    try {
+      const storeId = await resolveValidStoreId(rt, sid(c));
+      const force = c.req.query("refresh") === "true" || c.req.query("force") === "true";
+      const metrics = await getClarityMetrics(storeId, db.prisma, force);
+      return c.json({ ok: true, ...metrics });
+    } catch (err) {
+      console.error("Error en GET /api/analytics/clarity:", err);
+      return c.json({ ok: false, error: String(err) }, 500);
+    }
+  });
+
+  // ---------------- SEO Dinámico & AEO (Schema.org @graph & robots.txt) ----------------
+  app.get("/api/seo/schema/:slug", async (c) => {
+    try {
+      const slug = c.req.param("slug");
+      const storeId = await resolveValidStoreId(rt, c.req.query("storeId") || sid(c));
+      const schema = await generateProductSchema(storeId, slug, db.prisma);
+      if (!schema) {
+        return c.json({ ok: false, error: "Producto o funnel no encontrado", slug }, 404);
+      }
+      return c.json(schema, 200, {
+        "Content-Type": "application/ld+json",
+        "Cache-Control": "public, max-age=3600, s-maxage=86400",
+      });
+    } catch (err) {
+      console.error("Error en GET /api/seo/schema/:slug:", err);
+      return c.json({ ok: false, error: String(err) }, 500);
+    }
+  });
+
+  app.get("/api/seo/robots.txt", (c) => {
+    const robots = generateRobotsTxt();
+    return c.text(robots, 200, {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "public, max-age=86400",
     });
   });
 

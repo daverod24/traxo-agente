@@ -181,8 +181,10 @@ export function Pipeline({
   const nOrd = (st: string[]) => orders.filter((o) => st.includes(o.status)).length;
 
   const porRevisar = Math.max(pending, nOrd(["pending", "received", "on-hold", "on_hold"]));
-  const conGuia = nOrd(["confirmed", "processing", "packed"]) + nShip(["created", "pickup_scheduled"]);
-  const enCamino = nOrd(["shipped", "in_transit"]) + nShip(["picked_up", "in_transit", "out_for_delivery"]);
+  const conGuia =
+    nOrd(["confirmed", "processing", "packed"]) + nShip(["created", "pickup_scheduled"]);
+  const enCamino =
+    nOrd(["shipped", "in_transit"]) + nShip(["picked_up", "in_transit", "out_for_delivery"]);
   const novedad = nShip(["incident", "returning"]);
   const entregados = Math.max(nOrd(["delivered"]), nShip(["delivered"]));
   const cancelados = nOrd(["cancelled", "rejected", "refunded"]);
@@ -206,7 +208,10 @@ export function Pipeline({
       </div>
       <ol className="pipe" style={{ listStyle: "none", margin: 0, padding: 0 }}>
         {stages.map((s) => (
-          <li key={s.key} className={`st ${s.warn ? "warn" : s.n > 0 ? "on" : ""} ${s.isMuted ? "muted-stage" : ""}`}>
+          <li
+            key={s.key}
+            className={`st ${s.warn ? "warn" : s.n > 0 ? "on" : ""} ${s.isMuted ? "muted-stage" : ""}`}
+          >
             <span className="dot">
               <Icon name={s.icon as any} size={16} />
             </span>

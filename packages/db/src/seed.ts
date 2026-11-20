@@ -45,11 +45,12 @@ export async function seedSingleStore(db: Db, spec: StoreSeedSpec): Promise<Seed
   });
 
   for (const p of spec.products) {
+    const prodId = spec.id === DEMO_STORE.id ? p.id : `${spec.id}_${p.id}`;
     await prisma.product.upsert({
-      where: { id: `${spec.id}_${p.id}` },
+      where: { id: prodId },
       update: {},
       create: {
-        id: `${spec.id}_${p.id}`,
+        id: prodId,
         storeId: spec.id,
         externalId: p.externalId,
         title: p.title,
@@ -80,11 +81,12 @@ export async function seedSingleStore(db: Db, spec: StoreSeedSpec): Promise<Seed
   }
 
   for (const o of spec.orders) {
+    const orderId = spec.id === DEMO_STORE.id ? o.id : `${spec.id}_${o.id}`;
     await prisma.order.upsert({
       where: { storeId_externalId: { storeId: spec.id, externalId: o.externalId } },
       update: {},
       create: {
-        id: `${spec.id}_${o.id}`,
+        id: orderId,
         storeId: spec.id,
         externalId: o.externalId,
         number: o.number,

@@ -1,9 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { type Db, openDb, saveOrder } from "@traxo/db";
 import { buildDemoOrder, MockCommerce } from "@traxo/commerce";
-import { createRuntime, type Runtime } from "../src/runtime.ts";
-import { approve, reject } from "../src/approvals.ts";
+import { type Db, openDb, saveOrder } from "@traxo/db";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.ts";
+import { approve, reject } from "../src/approvals.ts";
+import { createRuntime, type Runtime } from "../src/runtime.ts";
 
 let db: Db;
 let rt: Runtime;

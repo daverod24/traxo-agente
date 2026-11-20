@@ -182,9 +182,24 @@ describe("L2-A2: WooCommerce Adapter & VE Support", () => {
     ];
 
     const mockVariations = [
-      { id: 46, sku: "DB-WELL-NAD-60-1", price: "29.99", attributes: [{ name: "Paquete", option: "Individual" }] },
-      { id: 47, sku: "DB-WELL-NAD-60-2", price: "51.99", attributes: [{ name: "Paquete", option: "Dúo (2x)" }] },
-      { id: 48, sku: "DB-WELL-NAD-60-3", price: "69.99", attributes: [{ name: "Paquete", option: "Trío (3x)" }] },
+      {
+        id: 46,
+        sku: "DB-WELL-NAD-60-1",
+        price: "29.99",
+        attributes: [{ name: "Paquete", option: "Individual" }],
+      },
+      {
+        id: 47,
+        sku: "DB-WELL-NAD-60-2",
+        price: "51.99",
+        attributes: [{ name: "Paquete", option: "Dúo (2x)" }],
+      },
+      {
+        id: 48,
+        sku: "DB-WELL-NAD-60-3",
+        price: "69.99",
+        attributes: [{ name: "Paquete", option: "Trío (3x)" }],
+      },
     ];
 
     const mockFetch = vi.fn(async (url: string | URL | Request) => {

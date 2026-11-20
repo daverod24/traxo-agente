@@ -27,7 +27,8 @@ const pct = (a: number, b: number): number => (b === 0 ? 0 : Math.round((a / b) 
 export const isVeContext = (url: string, html = ""): boolean => {
   if ((process.env.MARKET ?? "").toUpperCase() === "VE") return true;
   if (/davebeauty|\.ve\b|venezuela|cafeespecialidad/i.test(url)) return true;
-  if (/pago\s*m[oó]vil|bcv|tasa\s*oficial|bol[ií]vares|caracas|valencia|maracaibo/i.test(html)) return true;
+  if (/pago\s*m[oó]vil|bcv|tasa\s*oficial|bol[ií]vares|caracas|valencia|maracaibo/i.test(html))
+    return true;
   return false;
 };
 
@@ -145,7 +146,7 @@ export function seoChecks(
       "URL canónica",
       canonicalHref ? (canonicalHref.startsWith("http") ? "pass" : "warn") : "warn",
       "medio",
-      canonicalHref ? `Canónica: ${canonicalHref}` : "No se encontró <link rel=\"canonical\">",
+      canonicalHref ? `Canónica: ${canonicalHref}` : 'No se encontró <link rel="canonical">',
       'Añade <link rel="canonical" href="..."> absoluta para evitar contenido duplicado.',
     ),
   );
@@ -307,12 +308,12 @@ export function seoChecks(
       hasProduct
         ? undefined
         : hasOrg
-          ? (isVe
-              ? "En fichas de producto, añade schema Product con precios en USD o Bs."
-              : "En fichas de producto, añade schema Product con offers.")
-          : (isVe
-              ? "Añade Organization o Product con ofertas (precio USD o Bs. BCV, disponibilidad)."
-              : "Añade Product con offers (precio, moneda COP, disponibilidad)."),
+          ? isVe
+            ? "En fichas de producto, añade schema Product con precios en USD o Bs."
+            : "En fichas de producto, añade schema Product con offers."
+          : isVe
+            ? "Añade Organization o Product con ofertas (precio USD o Bs. BCV, disponibilidad)."
+            : "Añade Product con offers (precio, moneda COP, disponibilidad).",
     ),
   );
 
@@ -353,11 +354,7 @@ export function seoChecks(
       "schema_org",
       gSchema,
       "Entidad Organization y disambiguación (sameAs)",
-      orgEntity
-        ? "pass"
-        : hasProduct
-          ? "na"
-          : "fail",
+      orgEntity ? "pass" : hasProduct ? "na" : "fail",
       "medio",
       orgEntity
         ? hasSameAs
@@ -473,13 +470,7 @@ export function seoChecks(
       "bluf",
       gAeo,
       "Extractabilidad BLUF (Bottom Line Up Front)",
-      blufEvaluated === 0
-        ? "na"
-        : blufRatio >= 0.65
-          ? "pass"
-          : blufRatio >= 0.35
-            ? "warn"
-            : "fail",
+      blufEvaluated === 0 ? "na" : blufRatio >= 0.65 ? "pass" : blufRatio >= 0.35 ? "warn" : "fail",
       "alto",
       blufEvaluated === 0
         ? "Sin secciones H2/H3 con párrafos de contenido para evaluar BLUF"
@@ -500,11 +491,7 @@ export function seoChecks(
       "paa_questions",
       gAeo,
       "Preguntas Conversacionales (People Also Ask)",
-      h2h3.length === 0
-        ? "na"
-        : paaQuestions.length >= 2
-          ? "pass"
-          : "warn",
+      h2h3.length === 0 ? "na" : paaQuestions.length >= 2 ? "pass" : "warn",
       "medio",
       h2h3.length === 0
         ? "Sin encabezados H2/H3 para evaluar formato de preguntas"
@@ -513,7 +500,7 @@ export function seoChecks(
           : `${h2h3.length} encabezados H2/H3 evaluados; ninguno usa formato interrogativo conversacional`,
       h2h3.length === 0 || paaQuestions.length >= 2
         ? undefined
-        : 'Reformula al menos 2–3 encabezados H2/H3 como preguntas naturales que los usuarios hacen en Google o ChatGPT (ej. «¿Cómo funciona la compra asistida?», «¿Qué métodos de pago aceptan?»).',
+        : "Reformula al menos 2–3 encabezados H2/H3 como preguntas naturales que los usuarios hacen en Google o ChatGPT (ej. «¿Cómo funciona la compra asistida?», «¿Qué métodos de pago aceptan?»).",
     ),
   );
 
@@ -543,11 +530,7 @@ export function seoChecks(
       "ai_crawlers",
       gAeo,
       "Rastreadores de IA en robots.txt (AEO/GEO)",
-      !hasRobots
-        ? "na"
-        : blockedBots.length === 0
-          ? "pass"
-          : "warn",
+      !hasRobots ? "na" : blockedBots.length === 0 ? "pass" : "warn",
       "alto",
       !hasRobots
         ? "Sin robots.txt para evaluar rastreadores de IA"
@@ -636,9 +619,7 @@ export function seoChecks(
     mk(
       "trust_payments",
       gConfianza,
-      isVe
-        ? "Métodos de pago locales (Pago Móvil, Zelle, BCV)"
-        : "Métodos de pago transparentes",
+      isVe ? "Métodos de pago locales (Pago Móvil, Zelle, BCV)" : "Métodos de pago transparentes",
       passPayments ? "pass" : localPayments.length > 0 || hasCoPayments ? "warn" : "fail",
       "alto",
       isVe

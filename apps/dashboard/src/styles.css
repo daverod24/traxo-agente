@@ -446,9 +446,10 @@ p {
   letter-spacing: 0;
 }
 .kpi.hero {
-  background: radial-gradient(circle at 15% 20%, rgba(16, 185, 129, 0.12), transparent 70%),
-              linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%),
-              var(--surface);
+  background:
+    radial-gradient(circle at 15% 20%, rgba(16, 185, 129, 0.12), transparent 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%),
+    var(--surface);
   color: var(--ink);
   border: 1px solid rgba(16, 185, 129, 0.28);
 }
@@ -471,21 +472,24 @@ p {
 }
 .kpi.amber-card {
   border-color: rgba(245, 158, 11, 0.25);
-  background: radial-gradient(circle at top right, rgba(245, 158, 11, 0.08), transparent 70%), var(--surface);
+  background:
+    radial-gradient(circle at top right, rgba(245, 158, 11, 0.08), transparent 70%), var(--surface);
 }
 .kpi.amber-card .label {
   color: #f59e0b;
 }
 .kpi.blue-card {
   border-color: rgba(59, 130, 246, 0.25);
-  background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 70%), var(--surface);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 70%), var(--surface);
 }
 .kpi.blue-card .label {
   color: #60a5fa;
 }
 .kpi.rose-card {
   border-color: rgba(244, 63, 94, 0.25);
-  background: radial-gradient(circle at top right, rgba(244, 63, 94, 0.08), transparent 70%), var(--surface);
+  background:
+    radial-gradient(circle at top right, rgba(244, 63, 94, 0.08), transparent 70%), var(--surface);
 }
 .kpi.rose-card .label {
   color: #fb7185;

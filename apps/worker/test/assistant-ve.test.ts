@@ -57,7 +57,9 @@ describe("asistente conversacional venezolanizado (Fase 8)", () => {
     const s = await snapshot(db, "store_demo_beauty");
     const reply = answer(s, "¿Cómo van los pagos móviles por conciliar?");
     expect(reply.sources).toContain("pagos");
-    expect(reply.links).toEqual(expect.arrayContaining([expect.objectContaining({ view: "aprobaciones" })]));
+    expect(reply.links).toEqual(
+      expect.arrayContaining([expect.objectContaining({ view: "aprobaciones" })]),
+    );
     if (s.approvals.some((a) => /pago m[oó]vil|zelle|usdt/i.test(a.title))) {
       expect(reply.answer).toMatch(/pagos venezolanos esperando conciliación/);
       expect(reply.answer).toMatch(/processing/);
@@ -124,7 +126,11 @@ describe("asistente conversacional venezolanizado (Fase 8)", () => {
       headers: { cookie, "x-store-id": "store_demo_beauty" },
     });
     expect(res.status).toBe(200);
-    const data = (await res.json()) as { suggestions: string[]; bcvRate?: number; currency?: string };
+    const data = (await res.json()) as {
+      suggestions: string[];
+      bcvRate?: number;
+      currency?: string;
+    };
     expect(data.bcvRate).toBe(880.0);
     expect(data.currency).toBe("USD/VES");
     expect(data.suggestions).toContain("¿Cuál es la tasa oficial BCV hoy?");

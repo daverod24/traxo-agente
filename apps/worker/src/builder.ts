@@ -2,8 +2,11 @@ import { randomUUID } from "node:crypto";
 import {
   buildGutenbergPattern,
   buildHeadlessAstroPackage,
-  buildShopifyTheme,
+  buildUniversalFunnel,
+  computePackLadder,
   defaultDesign,
+  generateStandaloneAstroLanding,
+  generateStandaloneHtmlLanding,
   lintTheme,
   previewHtml,
   SECTION_CATALOG,
@@ -21,7 +24,7 @@ import { BUILT_PAGES, checkEmbeddable } from "./built-pages.ts";
 import { isDemo } from "./mode.ts";
 import type { Runtime } from "./runtime.ts";
 
-const PLATFORMS = ["shopify", "tiendanube", "woocommerce", "otra"] as const;
+const PLATFORMS = ["astro", "woocommerce", "shopify", "tiendanube", "otra"] as const;
 const STATUSES = ["borrador", "generado", "en-github", "subido"] as const;
 
 const slug = (s: string): string =>
@@ -33,10 +36,14 @@ const slug = (s: string): string =>
     .replace(/^-|-$/g, "")
     .slice(0, 40) || "tienda";
 
-/** El tema real existe para Shopify y para WooCommerce / Astro Headless (Gutenberg + tokens). */
+/** El tema real existe como paquete Universal Headless (Astro + Gutenberg + Standalone Landing). */
 export function filesFor(platform: string, d: StoreDesign): Record<string, string> {
-  if (platform === "shopify") return buildShopifyTheme(d);
-  if (platform === "woocommerce" || platform === "astro") {
+  if (
+    platform === "astro" ||
+    platform === "headless" ||
+    platform === "woocommerce" ||
+    platform === "shopify"
+  ) {
     return buildHeadlessAstroPackage(d);
   }
   return {
@@ -214,6 +221,56 @@ export function registerBuilderApi(app: Hono, rt: Runtime): void {
         design: design as object,
       },
     });
+
+    // Sincronizar persistencia canónica en tabla Funnel de PostgreSQL/Prisma
+    try {
+      let primaryProduct = products[0];
+      if (!primaryProduct) {
+        primaryProduct = await db.prisma.product.create({
+          data: {
+            id: `prod_${randomUUID().slice(0, 12)}`,
+            storeId: sid(c),
+            externalId: `ext_${randomUUID().slice(0, 8)}`,
+            title: design.brand,
+            price: 2499,
+            category: "general",
+          },
+        });
+      }
+      const funnelSlug = slug(design.brand) + "-" + row.id.slice(-6);
+      const funnelPayload = buildUniversalFunnel({
+        id: `fnl_${row.id}`,
+        slug: funnelSlug,
+        productId: primaryProduct.id,
+        design,
+        bcvRate: Number(process.env.TRAXO_BCV_RATE) || 880.0,
+        published: false,
+      });
+
+      await db.prisma.funnel.upsert({
+        where: { storeId_slug: { storeId: sid(c), slug: funnelSlug } },
+        update: {
+          title: design.brand,
+          productId: primaryProduct.id,
+          sectionsJson: funnelPayload.sections as object,
+          tokensJson: funnelPayload.tokens as object,
+          updatedAt: new Date(),
+        },
+        create: {
+          id: `fnl_${randomUUID().slice(0, 12)}`,
+          storeId: sid(c),
+          slug: funnelSlug,
+          title: design.brand,
+          productId: primaryProduct.id,
+          sectionsJson: funnelPayload.sections as object,
+          tokensJson: funnelPayload.tokens as object,
+          published: false,
+        },
+      });
+    } catch (err) {
+      console.warn("Aviso al sincronizar Funnel en Prisma:", err);
+    }
+
     return c.json({ ok: true, project: view(row) });
   });
 
@@ -251,12 +308,48 @@ export function registerBuilderApi(app: Hono, rt: Runtime): void {
         updatedAt: new Date(),
       },
     });
+
+    // Sincronizar actualización en Funnel
+    try {
+      const funnelSlug = slug(design.brand) + "-" + row.id.slice(-6);
+      const existingFunnel = await db.prisma.funnel.findFirst({
+        where: { storeId: sid(c), slug: funnelSlug },
+      });
+      if (existingFunnel) {
+        const funnelPayload = buildUniversalFunnel({
+          id: existingFunnel.id,
+          slug: funnelSlug,
+          productId: existingFunnel.productId,
+          design,
+          bcvRate: Number(process.env.TRAXO_BCV_RATE) || 880.0,
+          published: existingFunnel.published,
+        });
+        await db.prisma.funnel.update({
+          where: { id: existingFunnel.id },
+          data: {
+            title: design.brand,
+            sectionsJson: funnelPayload.sections as object,
+            tokensJson: funnelPayload.tokens as object,
+            updatedAt: new Date(),
+          },
+        });
+      }
+    } catch (err) {
+      console.warn("Aviso al actualizar Funnel en Prisma:", err);
+    }
+
     return c.json({ ok: true, project: view(row) });
   });
 
   app.delete("/api/builder/:id", async (c) => {
     const r = await find(c);
     if (!r) return notFound(c);
+    try {
+      const funnelSlug = slug((r.design as StoreDesign).brand) + "-" + r.id.slice(-6);
+      await db.prisma.funnel.deleteMany({ where: { storeId: sid(c), slug: funnelSlug } });
+    } catch {
+      // Ignorar si no existía el registro de funnel
+    }
     await db.prisma.siteProject.delete({ where: { id: r.id } });
     return c.json({ ok: true });
   });
@@ -417,5 +510,173 @@ export function registerBuilderApi(app: Hono, rt: Runtime): void {
         500,
       );
     }
+  });
+
+  // =========================================================================
+  // UNIVERSAL DUAL-MODE BUILDER: Headless Live API & Exportadores Autónomos
+  // =========================================================================
+
+  /**
+   * Endpoint público de consumo Headless para Astro/Next (ej. Davebeauty).
+   * No requiere autenticación por sesión/cookies.
+   */
+  app.get("/api/public/funnels/:slug", async (c) => {
+    const slugParam = c.req.param("slug");
+    const funnel = await db.prisma.funnel.findFirst({
+      where: { slug: slugParam },
+      include: { product: true },
+    });
+
+    if (!funnel) {
+      return c.json({ ok: false, message: "Funnel no encontrado", slug: slugParam }, 404);
+    }
+
+    const bcvRate = Number(process.env.TRAXO_BCV_RATE) || 880.0;
+    const basePrice = funnel.product
+      ? funnel.product.price > 1000
+        ? funnel.product.price / 100
+        : funnel.product.price
+      : 24.99;
+
+    const contactData = (funnel.tokensJson as { contact?: { whatsapp?: string } })?.contact;
+    const packsLadder = computePackLadder({
+      productTitle: funnel.product?.title ?? funnel.title,
+      basePriceUsd: basePrice,
+      bcvRate,
+      whatsappNumber: contactData?.whatsapp,
+    });
+
+    return c.json({
+      ok: true,
+      funnel: {
+        id: funnel.id,
+        slug: funnel.slug,
+        title: funnel.title,
+        published: funnel.published,
+        productId: funnel.productId,
+        tokens: funnel.tokensJson,
+        sections: funnel.sectionsJson,
+        product: funnel.product
+          ? {
+              id: funnel.product.id,
+              title: funnel.product.title,
+              price: funnel.product.price,
+              imageUrl: funnel.product.imageUrl,
+              category: funnel.product.category,
+              description: funnel.product.description,
+            }
+          : null,
+        packsLadder,
+        updatedAt: funnel.updatedAt.toISOString(),
+      },
+    });
+  });
+
+  /**
+   * Publica el diseño en la API Headless universal (/api/public/funnels/:slug).
+   */
+  app.post("/api/builder/:id/publish-headless", async (c) => {
+    const r = await find(c);
+    if (!r) return notFound(c);
+    const design = r.design as StoreDesign;
+    const funnelSlug = slug(design.brand) + "-" + r.id.slice(-6);
+
+    let funnel = await db.prisma.funnel.findFirst({
+      where: { storeId: sid(c), slug: funnelSlug },
+    });
+
+    if (!funnel) {
+      // Si no existía, asegurar producto y crear
+      const products = await db.prisma.product.findMany({ where: { storeId: sid(c) }, take: 1 });
+      let primaryProduct = products[0];
+      if (!primaryProduct) {
+        primaryProduct = await db.prisma.product.create({
+          data: {
+            id: `prod_${randomUUID().slice(0, 12)}`,
+            storeId: sid(c),
+            externalId: `ext_${randomUUID().slice(0, 8)}`,
+            title: design.brand,
+            price: 2499,
+            category: "general",
+          },
+        });
+      }
+      const funnelPayload = buildUniversalFunnel({
+        id: `fnl_${r.id}`,
+        slug: funnelSlug,
+        productId: primaryProduct.id,
+        design,
+        bcvRate: Number(process.env.TRAXO_BCV_RATE) || 880.0,
+        published: true,
+      });
+
+      funnel = await db.prisma.funnel.create({
+        data: {
+          id: `fnl_${randomUUID().slice(0, 12)}`,
+          storeId: sid(c),
+          slug: funnelSlug,
+          title: design.brand,
+          productId: primaryProduct.id,
+          sectionsJson: funnelPayload.sections as object,
+          tokensJson: funnelPayload.tokens as object,
+          published: true,
+        },
+      });
+    } else {
+      funnel = await db.prisma.funnel.update({
+        where: { id: funnel.id },
+        data: { published: true, updatedAt: new Date() },
+      });
+    }
+
+    await db.prisma.siteProject.update({
+      where: { id: r.id },
+      data: { status: "subido", updatedAt: new Date() },
+    });
+
+    return c.json({
+      ok: true,
+      published: true,
+      slug: funnelSlug,
+      publicApiUrl: `/api/public/funnels/${funnelSlug}`,
+      message: `Funnel publicado con éxito. Consúmelo vía GET /api/public/funnels/${funnelSlug}`,
+    });
+  });
+
+  /**
+   * Exporta componente limpio .astro listo para producción.
+   */
+  app.get("/api/builder/:id/export-astro", async (c) => {
+    const r = await find(c);
+    if (!r) return notFound(c);
+    const design = r.design as StoreDesign;
+    const bcvRate = Number(process.env.TRAXO_BCV_RATE) || 880.0;
+    const fileSlug = slug(design.brand);
+    const astroContent = generateStandaloneAstroLanding(design, { bcvRate, slug: fileSlug });
+
+    c.header("Content-Type", "text/plain; charset=utf-8");
+    c.header("Content-Disposition", `attachment; filename="${fileSlug}-landing.astro"`);
+    return c.text(astroContent);
+  });
+
+  /**
+   * Exporta landing HTML/CSS autónoma single-file con checkout directo a WhatsApp y analítica.
+   */
+  app.get("/api/builder/:id/export-html", async (c) => {
+    const r = await find(c);
+    if (!r) return notFound(c);
+    const design = r.design as StoreDesign;
+    const bcvRate = Number(process.env.TRAXO_BCV_RATE) || 880.0;
+    const fileSlug = slug(design.brand);
+    const htmlContent = generateStandaloneHtmlLanding(design, {
+      bcvRate,
+      slug: fileSlug,
+      ga4PropertyId: process.env.GA4_PROPERTY_ID,
+      clarityProjectId: process.env.CLARITY_PROJECT_ID,
+    });
+
+    c.header("Content-Type", "text/html; charset=utf-8");
+    c.header("Content-Disposition", `attachment; filename="${fileSlug}-landing.html"`);
+    return c.html(htmlContent);
   });
 }

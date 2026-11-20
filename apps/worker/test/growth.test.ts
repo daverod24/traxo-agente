@@ -238,7 +238,11 @@ describe("audiencias, mensajes y datos del cliente", () => {
   it("exportar y borrar datos de un cliente (Ley 1581)", async () => {
     await importStore();
     const cu = await db.prisma.customer.findFirstOrThrow({
-      where: { storeId: { notIn: [rt.storeId, "store_demo_beauty", "store_demo_cafe", "store_demo", "store_main"] } },
+      where: {
+        storeId: {
+          notIn: [rt.storeId, "store_demo_beauty", "store_demo_cafe", "store_demo", "store_main"],
+        },
+      },
       include: { orders: true },
     });
     const exp = (

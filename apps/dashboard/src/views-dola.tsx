@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useResource } from "./api.ts";
 import { DEFAULT_BCV_RATE, usd, vesFromUsd } from "./format.ts";
 import type { Product } from "./types.ts";
-import { Button, Icon, Tabs, ToneBadge, type Tone } from "./ui.tsx";
+import { Button, Icon, Tabs, type Tone, ToneBadge } from "./ui.tsx";
 import type { Ctx } from "./views.tsx";
 
 export type MarketingAngle =
@@ -107,12 +107,10 @@ export const DAVEBEAUTY_KITS: DolaCreativeKit[] = [
         "¿Sientes pesadez e inflamación después de cada comida o te enfermas con cualquier cambio de clima en Venezuela?",
       solution:
         "Este es el secreto mejor guardado: cápsulas blandas de Aceite de Orégano salvaje con Semilla Negra. Tienen 6.000 mg de concentración botánica pura, pero en softgels que NO saben a nada ni arden al tragar.",
-      demo:
-        "Te tomas una cápsula con agua al día y dile adiós a la hinchazón estomacal; apoya la digestión, combate bacterias y te blinda las defensas al 100%.",
+      demo: "Te tomas una cápsula con agua al día y dile adiós a la hinchazón estomacal; apoya la digestión, combate bacterias y te blinda las defensas al 100%.",
       offer:
         "100% original americano en Davebeauty por solo $23 USD o su equivalente oficial en Bolívares a tasa oficial BCV. Puedes pagar cómodo con Pago Móvil o Zelle.",
-      cta:
-        "Tenemos delivery en Caracas y envíos rápidos por MRW, Zoom y Tealca a toda Venezuela. Toca el botón y escríbenos al WhatsApp antes de que se agoten.",
+      cta: "Tenemos delivery en Caracas y envíos rápidos por MRW, Zoom y Tealca a toda Venezuela. Toca el botón y escríbenos al WhatsApp antes de que se agoten.",
     },
     copyMeta: `🌿 ¿Sabías que el Aceite de Orégano y la Semilla Negra forman el escudo antibacteriano y digestivo más potente de la naturaleza? 🛡️✨
 
@@ -133,7 +131,12 @@ Si sufres de hinchazón después de comer, pesadez estomacal o defensas bajas, e
     audiencesVe: {
       target:
         "Hombres y mujeres de 25 a 55 años interesados en bienestar, salud digestiva, fitoterapia y medicina preventiva.",
-      interests: ["Suplementos dietéticos", "Salud digestiva", "Vida saludable", "Nutrición holística"],
+      interests: [
+        "Suplementos dietéticos",
+        "Salud digestiva",
+        "Vida saludable",
+        "Nutrición holística",
+      ],
       locations:
         "Caracas (delivery prioritario) + Grandes ciudades (Valencia, Maracaibo, Barquisimeto, Maracay, Lechería).",
     },
@@ -156,12 +159,10 @@ Si sufres de hinchazón después de comer, pesadez estomacal o defensas bajas, e
         "A partir de los 30 la piel pierde calcio y elasticidad. Y las cremas pesadas en el calor de Venezuela solo te ponen la cara grasosa y arruinan el maquillaje.",
       solution:
         "Este es el famoso Calcium Volume Multi Balm de Dr. Melaxin, K-Beauty 100% original de Corea del Sur. Contiene bio-calcio dérmico y péptidos voluminizadores en un stick ultra portátil.",
-      demo:
-        "Te lo pasas en 3 segundos por el cuello, patas de gallo y pómulos, incluso sobre el maquillaje. Rellena visualmente las líneas y te da ese efecto 'Glass Skin' coreano sin residuo pegajoso.",
+      demo: "Te lo pasas en 3 segundos por el cuello, patas de gallo y pómulos, incluso sobre el maquillaje. Rellena visualmente las líneas y te da ese efecto 'Glass Skin' coreano sin residuo pegajoso.",
       offer:
         "En Davebeauty lo tienes por solo $22 USD o en Bolívares al cambio oficial BCV. Pagas seguro con Pago Móvil, Zelle o USDT.",
-      cta:
-        "Envío exprés en Caracas y a toda Venezuela por Tealca, Zoom y MRW. Toca el botón y pide el tuyo al WhatsApp.",
+      cta: "Envío exprés en Caracas y a toda Venezuela por Tealca, Zoom y MRW. Toca el botón y pide el tuyo al WhatsApp.",
     },
     copyMeta: `✨ ¿Líneas de expresión en cuello, frente o contorno de ojos? Conoce el secreto de belleza coreano que está revolucionando el skincare en Venezuela 🇰🇷💆‍♀️
 
@@ -206,12 +207,10 @@ El Dr. Melaxin Calcium Volume Multi Balm aporta bio-calcio concentrado y péptid
         "El agua pesada, los tintes y el estrés debilitan la raíz hasta que el cabello se vuelve finito, quebradizo y sin vida.",
       solution:
         "Este es el shampoo Deserticola de Botalab RIMAN, biotecnología capilar coreana de lujo. Utiliza una microalga del desierto capaz de regenerarse en condiciones extremas, combinada con biotina vegetal.",
-      demo:
-        "Desde la primera semana notas cómo la caída se frena en seco y el cabello recupera ese brillo espejo, suavidad y grosor de salón de belleza en Seúl.",
+      demo: "Desde la primera semana notas cómo la caída se frena en seco y el cabello recupera ese brillo espejo, suavidad y grosor de salón de belleza en Seúl.",
       offer:
         "Tratamiento de lujo disponible en Davebeauty a $55 USD o su equivalente oficial en Bolívares BCV. Aceptamos Pago Móvil, Zelle y USDT.",
-      cta:
-        "Entregas coordinadas en Caracas y envíos por Zoom, Tealca y MRW a toda Venezuela. Escríbenos al WhatsApp y dale vida a tu cabello.",
+      cta: "Entregas coordinadas en Caracas y envíos por Zoom, Tealca y MRW a toda Venezuela. Escríbenos al WhatsApp y dale vida a tu cabello.",
     },
     copyMeta: `💇‍♀️ ¿Cabello débil, quebradizo o con caída constante? Descubre el poder de las microalgas Deserticola de RIMAN Korea 🇰🇷🌿
 
@@ -256,12 +255,10 @@ El shampoo terapéutico Botalab Deserticola Water Treatment combina biotecnolog�
         "En Venezuela el sol mancha la piel todo el año, pero la mayoría de protectores son pesados, grasosos y arruinan tu maquillaje.",
       solution:
         "Este es el Aqua Protection Sunscreen SPF 50+ de RIMAN Incellderm. Es el protector solar número 1 de Corea porque está formulado con agua pura de Centella Asiática de la isla de Jeju.",
-      demo:
-        "¡Miren esto! Desaparece en 3 segundos, cero capa blanca, no arde en los ojos y deja ese glow coreano hermoso como si no tuvieras nada puesto.",
+      demo: "¡Miren esto! Desaparece en 3 segundos, cero capa blanca, no arde en los ojos y deja ese glow coreano hermoso como si no tuvieras nada puesto.",
       offer:
         "Disponible en Davebeauty original de Corea por $55 USD o en Bolívares a tasa oficial BCV. Aceptamos Pago Móvil, Zelle y USDT.",
-      cta:
-        "Envíos a toda Venezuela por MRW, Zoom y Tealca o entrega en Caracas. ¡Pide el tuyo por WhatsApp antes de que se agote la reserva!",
+      cta: "Envíos a toda Venezuela por MRW, Zoom y Tealca o entrega en Caracas. ¡Pide el tuyo por WhatsApp antes de que se agote la reserva!",
     },
     copyMeta: `☀️ ¿Buscas un protector solar que de verdad quieras usar todos los días? Te presentamos el secreto del glow coreano: INCELLDERM Aqua Protection SPF 50+ PA++++ 🇰🇷💧
 
@@ -449,17 +446,37 @@ ${seed.promoCode ? `🎁 Con tu cupón *${promoCodeTag}* te queda con 5% de desc
 
   // 6. ESTRATEGIA Y SEGMENTACIÓN VENEZUELA
   const audiencesVe = {
-    target: audience || (product.category.includes("K-Beauty") || product.category.includes("Skincare")
-      ? "Mujeres de 25 a 55 años interesadas en skincare coreano, antiedad, cuidado facial y productos importados originales."
-      : product.category.includes("Capilar")
-        ? "Hombres y mujeres de 22 a 55 años con caída del cabello, cabello fino o dañado por decoloración y químicos."
-        : "Hombres y mujeres de 25 a 60 años enfocados en salud digestiva, bienestar holístico, medicina preventiva y fitoterapia."),
+    target:
+      audience ||
+      (product.category.includes("K-Beauty") || product.category.includes("Skincare")
+        ? "Mujeres de 25 a 55 años interesadas en skincare coreano, antiedad, cuidado facial y productos importados originales."
+        : product.category.includes("Capilar")
+          ? "Hombres y mujeres de 22 a 55 años con caída del cabello, cabello fino o dañado por decoloración y químicos."
+          : "Hombres y mujeres de 25 a 60 años enfocados en salud digestiva, bienestar holístico, medicina preventiva y fitoterapia."),
     interests:
       product.category.includes("K-Beauty") || product.category.includes("Skincare")
-        ? ["Cosmética coreana", "Cuidado de la piel", "Antienvejecimiento", "Rutina facial", "Belleza"]
+        ? [
+            "Cosmética coreana",
+            "Cuidado de la piel",
+            "Antienvejecimiento",
+            "Rutina facial",
+            "Belleza",
+          ]
         : product.category.includes("Capilar")
-          ? ["Pérdida de cabello", "Salón de belleza", "Cuidado capilar", "Shampoo orgánico", "Estilo de vida"]
-          : ["Suplementos dietéticos", "Salud digestiva", "Vida saludable", "Nutrición holística", "Medicina natural"],
+          ? [
+              "Pérdida de cabello",
+              "Salón de belleza",
+              "Cuidado capilar",
+              "Shampoo orgánico",
+              "Estilo de vida",
+            ]
+          : [
+              "Suplementos dietéticos",
+              "Salud digestiva",
+              "Vida saludable",
+              "Nutrición holística",
+              "Medicina natural",
+            ],
     locations:
       "Caracas (prioridad entrega express en Chacao, Baruta, El Hatillo, Libertador) + Grandes ciudades (Valencia, Maracaibo, Lechería, Barquisimeto, San Cristóbal, Porlamar).",
     budgetNote: `$ 5.00 a $ 20.00 USD / día (Aproximadamente ${vesFromUsd(10, DEFAULT_BCV_RATE)} a tasa oficial BCV referencial). Empieza con $5 USD/día para testear los primeros 3 días.`,
@@ -497,7 +514,9 @@ export function CreativosDola({ ctx }: { ctx: Ctx }) {
   const { data: storeProducts } = useResource<Product[]>("/api/products", ctx.tick);
 
   // Estados de Selección de Producto
-  const [productMode, setProductMode] = useState<"bestsellers" | "catalogo" | "custom">("bestsellers");
+  const [productMode, setProductMode] = useState<"bestsellers" | "catalogo" | "custom">(
+    "bestsellers",
+  );
   const [selectedBestsellerId, setSelectedBestsellerId] = useState<string>("oregano");
   const [selectedCatalogId, setSelectedCatalogId] = useState<string>("");
 
@@ -635,7 +654,8 @@ export function CreativosDola({ ctx }: { ctx: Ctx }) {
     return {
       ...baseCreativeKit,
       prompts: {
-        main: n8nOverrides.imagePrompt || n8nOverrides.prompts?.main || baseCreativeKit.prompts.main,
+        main:
+          n8nOverrides.imagePrompt || n8nOverrides.prompts?.main || baseCreativeKit.prompts.main,
         vertical:
           n8nOverrides.imagePromptVertical ||
           n8nOverrides.prompts?.vertical ||
@@ -646,9 +666,12 @@ export function CreativosDola({ ctx }: { ctx: Ctx }) {
         ...(n8nOverrides.ugcScript || {}),
       },
       copies: {
-        metaAds: n8nOverrides.copyMeta || n8nOverrides.copies?.metaAds || baseCreativeKit.copies.metaAds,
+        metaAds:
+          n8nOverrides.copyMeta || n8nOverrides.copies?.metaAds || baseCreativeKit.copies.metaAds,
         tiktokAds:
-          n8nOverrides.copyTiktok || n8nOverrides.copies?.tiktokAds || baseCreativeKit.copies.tiktokAds,
+          n8nOverrides.copyTiktok ||
+          n8nOverrides.copies?.tiktokAds ||
+          baseCreativeKit.copies.tiktokAds,
         whatsappClosing:
           n8nOverrides.whatsappClosing ||
           n8nOverrides.copies?.whatsappClosing ||
@@ -681,7 +704,8 @@ export function CreativosDola({ ctx }: { ctx: Ctx }) {
         angle: marketingAngle,
         angleTitle: MARKETING_ANGLES[marketingAngle].title,
         targetAudience:
-          seedParams.targetAudience || "Público general en Venezuela (Caracas, Valencia, Maracaibo)",
+          seedParams.targetAudience ||
+          "Público general en Venezuela (Caracas, Valencia, Maracaibo)",
         seedKeywords: seedParams.keywords || "",
         objectionToOvercome: seedParams.objection || "",
         offerDiscount: seedParams.promoCode
@@ -710,7 +734,10 @@ export function CreativosDola({ ctx }: { ctx: Ctx }) {
   // Disparar Webhook hacia n8n
   const triggerN8nWebhook = async (isTestPing = false) => {
     if (!n8nWebhookUrl.trim()) {
-      setN8nStatusMsg({ tone: "critical", text: "Por favor ingresa una URL válida para el webhook de n8n." });
+      setN8nStatusMsg({
+        tone: "critical",
+        text: "Por favor ingresa una URL válida para el webhook de n8n.",
+      });
       return;
     }
 
@@ -862,7 +889,10 @@ Audio: "${u.cta}"`;
           padding: "20px 24px",
         }}
       >
-        <div className="row between" style={{ alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+        <div
+          className="row between"
+          style={{ alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}
+        >
           <div style={{ flex: 1, minWidth: 280 }}>
             <div className="row" style={{ gap: 8, alignItems: "center", marginBottom: 6 }}>
               <ToneBadge tone="success">100% GRATIS · MODO HÍBRIDO LOCAL & N8N</ToneBadge>
@@ -873,9 +903,10 @@ Audio: "${u.cta}"`;
             </h2>
             <p className="muted" style={{ margin: 0, fontSize: "0.92rem", lineHeight: 1.5 }}>
               Genera instantáneamente prompts de estudio para <strong>Dola AI</strong>, guiones UGC
-              con tiempos exactos para CapCut, copys de alta conversión para Meta Ads y dispara payloads
-              a tu <strong>n8n Webhook</strong> para automatizar Midjourney, Claude o Meta Ads API.
-              Bimoneda nativa limpia (USD y Bolívares a tasa oficial BCV), Pago Móvil y Zelle.
+              con tiempos exactos para CapCut, copys de alta conversión para Meta Ads y dispara
+              payloads a tu <strong>n8n Webhook</strong> para automatizar Midjourney, Claude o Meta
+              Ads API. Bimoneda nativa limpia (USD y Bolívares a tasa oficial BCV), Pago Móvil y
+              Zelle.
             </p>
           </div>
           <div className="row" style={{ gap: 10, alignSelf: "center", flexWrap: "wrap" }}>
@@ -909,7 +940,10 @@ Audio: "${u.cta}"`;
                 padding: "16px 20px",
               }}
             >
-              <div className="row between" style={{ alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
+              <div
+                className="row between"
+                style={{ alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 10 }}
+              >
                 <div className="row" style={{ gap: 8, alignItems: "center" }}>
                   <span style={{ color: "var(--brand)" }}>
                     <Icon name="bolt" size={20} />
@@ -923,11 +957,14 @@ Audio: "${u.cta}"`;
                 </ToneBadge>
               </div>
 
-              <p className="caption" style={{ margin: "0 0 14px", color: "var(--ink-muted)", lineHeight: 1.45 }}>
-                En vez de acoplar directamente APIs externas (Fal.ai, Midjourney, Higgsfield), Traxo envía el
-                payload estructurado a tu servidor n8n para que tus workflows se encarguen de la orquestación.
-                Los resultados locales se muestran de inmediato, y si n8n responde con creativos generados por IA,
-                la pantalla se actualiza automáticamente.
+              <p
+                className="caption"
+                style={{ margin: "0 0 14px", color: "var(--ink-muted)", lineHeight: 1.45 }}
+              >
+                En vez de acoplar directamente APIs externas (Fal.ai, Midjourney, Higgsfield), Traxo
+                envía el payload estructurado a tu servidor n8n para que tus workflows se encarguen
+                de la orquestación. Los resultados locales se muestran de inmediato, y si n8n
+                responde con creativos generados por IA, la pantalla se actualiza automáticamente.
               </p>
 
               <div
@@ -939,7 +976,15 @@ Audio: "${u.cta}"`;
                 }}
               >
                 <div>
-                  <label className="caption" style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}>
+                  <label
+                    className="caption"
+                    style={{
+                      fontWeight: 600,
+                      color: "var(--ink)",
+                      display: "block",
+                      marginBottom: 4,
+                    }}
+                  >
                     URL del Webhook de n8n (Production / Test)
                   </label>
                   <input
@@ -952,7 +997,15 @@ Audio: "${u.cta}"`;
                 </div>
 
                 <div>
-                  <label className="caption" style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}>
+                  <label
+                    className="caption"
+                    style={{
+                      fontWeight: 600,
+                      color: "var(--ink)",
+                      display: "block",
+                      marginBottom: 4,
+                    }}
+                  >
                     Header / Token de Autenticación (Opcional Bearer)
                   </label>
                   <input
@@ -972,7 +1025,10 @@ Audio: "${u.cta}"`;
                 </div>
               )}
 
-              <div className="row between" style={{ alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+              <div
+                className="row between"
+                style={{ alignItems: "center", flexWrap: "wrap", gap: 10 }}
+              >
                 <div className="row" style={{ gap: 8 }}>
                   <Button
                     variant="agent"
@@ -1074,8 +1130,8 @@ Audio: "${u.cta}"`;
               1
             </span>
             <span className="caption" style={{ lineHeight: 1.4, color: "var(--ink-muted)" }}>
-              <strong style={{ color: "var(--ink)" }}>Elige producto y ángulo:</strong> Selecciona un
-              bestseller o ingresa tu semilla con ingredientes y objeciones.
+              <strong style={{ color: "var(--ink)" }}>Elige producto y ángulo:</strong> Selecciona
+              un bestseller o ingresa tu semilla con ingredientes y objeciones.
             </span>
           </div>
           <div className="row" style={{ gap: 10, alignItems: "flex-start" }}>
@@ -1097,8 +1153,8 @@ Audio: "${u.cta}"`;
               2
             </span>
             <span className="caption" style={{ lineHeight: 1.4, color: "var(--ink-muted)" }}>
-              <strong style={{ color: "var(--ink)" }}>Pégalo en Dola o dispara n8n:</strong> Genera fotos de
-              estudio 8K o deja que tus workflows automatizados produzcan variaciones.
+              <strong style={{ color: "var(--ink)" }}>Pégalo en Dola o dispara n8n:</strong> Genera
+              fotos de estudio 8K o deja que tus workflows automatizados produzcan variaciones.
             </span>
           </div>
           <div className="row" style={{ gap: 10, alignItems: "flex-start" }}>
@@ -1120,8 +1176,8 @@ Audio: "${u.cta}"`;
               3
             </span>
             <span className="caption" style={{ lineHeight: 1.4, color: "var(--ink-muted)" }}>
-              <strong style={{ color: "var(--ink)" }}>Pasa a CapCut o Meta Ads:</strong> Graba el guión UGC con
-              los tiempos sugeridos y cierra clientes por WhatsApp en Bs./USD.
+              <strong style={{ color: "var(--ink)" }}>Pasa a CapCut o Meta Ads:</strong> Graba el
+              guión UGC con los tiempos sugeridos y cierra clientes por WhatsApp en Bs./USD.
             </span>
           </div>
         </div>
@@ -1129,13 +1185,17 @@ Audio: "${u.cta}"`;
 
       {/* 1. SELECCIÓN DE PRODUCTO / SEMILLA */}
       <section className="card" style={{ padding: "18px 20px" }}>
-        <div className="row between" style={{ alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+        <div
+          className="row between"
+          style={{ alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}
+        >
           <div>
             <h3 style={{ margin: 0, fontSize: "1.05rem", color: "var(--ink)" }}>
               1. Selecciona el Producto o Semilla del Catálogo
             </h3>
             <p className="caption" style={{ margin: "2px 0 0", color: "var(--ink-muted)" }}>
-              Escoge entre los 4 bestsellers confirmados de Davebeauty, los productos sincronizados de tu tienda o escribe una semilla libre.
+              Escoge entre los 4 bestsellers confirmados de Davebeauty, los productos sincronizados
+              de tu tienda o escribe una semilla libre.
             </p>
           </div>
           <div className="row" style={{ gap: 8 }}>
@@ -1204,7 +1264,10 @@ Audio: "${u.cta}"`;
                     transition: "all 0.15s ease",
                   }}
                 >
-                  <div className="row between" style={{ alignItems: "flex-start", marginBottom: 6 }}>
+                  <div
+                    className="row between"
+                    style={{ alignItems: "flex-start", marginBottom: 6 }}
+                  >
                     <span
                       className={`badge ${isSelected ? "tone-agent" : "tone-neutral"}`}
                       style={{ fontSize: "0.75rem", padding: "2px 6px" }}
@@ -1220,10 +1283,20 @@ Audio: "${u.cta}"`;
                       </div>
                     </div>
                   </div>
-                  <h4 style={{ margin: "6px 0 4px", fontSize: "0.95rem", lineHeight: 1.3, color: "var(--ink)" }}>
+                  <h4
+                    style={{
+                      margin: "6px 0 4px",
+                      fontSize: "0.95rem",
+                      lineHeight: 1.3,
+                      color: "var(--ink)",
+                    }}
+                  >
                     {p.name}
                   </h4>
-                  <p className="caption" style={{ margin: 0, color: "var(--ink-muted)", fontSize: "0.78rem" }}>
+                  <p
+                    className="caption"
+                    style={{ margin: 0, color: "var(--ink-muted)", fontSize: "0.78rem" }}
+                  >
                     {p.subtitle}
                   </p>
                   <div style={{ marginTop: 8, fontSize: "0.75rem", color: "var(--ink-muted)" }}>
@@ -1266,7 +1339,9 @@ Audio: "${u.cta}"`;
             >
               <div className="row between" style={{ alignItems: "center" }}>
                 <div>
-                  <strong style={{ fontSize: "0.95rem", color: "var(--ink)" }}>{currentProduct.name}</strong>
+                  <strong style={{ fontSize: "0.95rem", color: "var(--ink)" }}>
+                    {currentProduct.name}
+                  </strong>
                   <p className="caption" style={{ margin: "2px 0 0", color: "var(--ink-muted)" }}>
                     {currentProduct.subtitle}
                   </p>
@@ -1298,7 +1373,10 @@ Audio: "${u.cta}"`;
             }}
           >
             <div>
-              <label className="caption" style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}>
+              <label
+                className="caption"
+                style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}
+              >
                 Nombre del Producto *
               </label>
               <input
@@ -1314,7 +1392,10 @@ Audio: "${u.cta}"`;
             </div>
 
             <div>
-              <label className="caption" style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}>
+              <label
+                className="caption"
+                style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}
+              >
                 Categoría
               </label>
               <select
@@ -1336,7 +1417,10 @@ Audio: "${u.cta}"`;
             </div>
 
             <div>
-              <label className="caption" style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}>
+              <label
+                className="caption"
+                style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}
+              >
                 Precio en USD ($) *
               </label>
               <input
@@ -1354,7 +1438,10 @@ Audio: "${u.cta}"`;
             </div>
 
             <div>
-              <label className="caption" style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}>
+              <label
+                className="caption"
+                style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}
+              >
                 Origen / Marca
               </label>
               <input
@@ -1370,7 +1457,10 @@ Audio: "${u.cta}"`;
             </div>
 
             <div style={{ gridColumn: "1 / -1" }}>
-              <label className="caption" style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}>
+              <label
+                className="caption"
+                style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}
+              >
                 Ingredientes Activos o Beneficio Clave *
               </label>
               <input
@@ -1396,7 +1486,8 @@ Audio: "${u.cta}"`;
               2. Selecciona el Ángulo de Marketing
             </h3>
             <p className="caption" style={{ margin: "2px 0 0", color: "var(--ink-muted)" }}>
-              El ángulo psicológico reformula los ganchos de retención (Hook), los prompts visuales de Dola AI y los copys de venta.
+              El ángulo psicológico reformula los ganchos de retención (Hook), los prompts visuales
+              de Dola AI y los copys de venta.
             </p>
           </div>
           <Button variant="ghost" icon="refresh" sm onClick={handleNextAngle}>
@@ -1436,15 +1527,28 @@ Audio: "${u.cta}"`;
                   <div className="row between" style={{ marginBottom: 6 }}>
                     <ToneBadge tone={ang.tone}>{ang.badge}</ToneBadge>
                     {isSelected && (
-                      <span className="caption mono" style={{ color: "var(--brand)", fontWeight: 700 }}>
+                      <span
+                        className="caption mono"
+                        style={{ color: "var(--brand)", fontWeight: 700 }}
+                      >
                         ACTIVO
                       </span>
                     )}
                   </div>
-                  <strong style={{ fontSize: "0.92rem", color: "var(--ink)", display: "block", marginBottom: 6 }}>
+                  <strong
+                    style={{
+                      fontSize: "0.92rem",
+                      color: "var(--ink)",
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  >
                     {ang.title}
                   </strong>
-                  <p className="caption" style={{ margin: 0, color: "var(--ink-muted)", lineHeight: 1.4 }}>
+                  <p
+                    className="caption"
+                    style={{ margin: 0, color: "var(--ink-muted)", lineHeight: 1.4 }}
+                  >
                     {ang.summary}
                   </p>
                 </div>
@@ -1462,7 +1566,8 @@ Audio: "${u.cta}"`;
               3. Semilla & Especificaciones del Anuncio (Opcional)
             </h3>
             <p className="caption" style={{ margin: "2px 0 0", color: "var(--ink-muted)" }}>
-              Ajusta palabras clave, objeciones específicas o cupones de descuento para afinar la puntería publicitaria.
+              Ajusta palabras clave, objeciones específicas o cupones de descuento para afinar la
+              puntería publicitaria.
             </p>
           </div>
           <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
@@ -1500,7 +1605,10 @@ Audio: "${u.cta}"`;
           }}
         >
           <div>
-            <label className="caption" style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}>
+            <label
+              className="caption"
+              style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}
+            >
               Foco / Dolor Específico (Keywords)
             </label>
             <input
@@ -1516,7 +1624,10 @@ Audio: "${u.cta}"`;
           </div>
 
           <div>
-            <label className="caption" style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}>
+            <label
+              className="caption"
+              style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}
+            >
               Público Objetivo Específico
             </label>
             <input
@@ -1532,7 +1643,10 @@ Audio: "${u.cta}"`;
           </div>
 
           <div>
-            <label className="caption" style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}>
+            <label
+              className="caption"
+              style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}
+            >
               Objeción Principal a Derribar
             </label>
             <select
@@ -1545,15 +1659,24 @@ Audio: "${u.cta}"`;
               }}
             >
               <option value="¿Cobran a tasa oficial BCV?">¿Cobran a tasa oficial BCV?</option>
-              <option value="¿Es 100% original importado o réplica?">¿Es 100% original importado o réplica?</option>
-              <option value="¿Llega seguro a mi estado por MRW o Zoom?">¿Llega seguro a mi estado por MRW o Zoom?</option>
-              <option value="¿No me dejará la cara grasosa ni pesada?">¿No me dejará la cara grasosa ni pesada?</option>
+              <option value="¿Es 100% original importado o réplica?">
+                ¿Es 100% original importado o réplica?
+              </option>
+              <option value="¿Llega seguro a mi estado por MRW o Zoom?">
+                ¿Llega seguro a mi estado por MRW o Zoom?
+              </option>
+              <option value="¿No me dejará la cara grasosa ni pesada?">
+                ¿No me dejará la cara grasosa ni pesada?
+              </option>
               <option value="¿Realmente funciona rápido?">¿Realmente funciona rápido?</option>
             </select>
           </div>
 
           <div>
-            <label className="caption" style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}>
+            <label
+              className="caption"
+              style={{ fontWeight: 600, color: "var(--ink)", display: "block", marginBottom: 4 }}
+            >
               Cupón de Descuento
             </label>
             <input
@@ -1570,7 +1693,10 @@ Audio: "${u.cta}"`;
         </div>
 
         {/* Configuración de Objetivo de Campaña */}
-        <div className="row between" style={{ gap: 16, alignItems: "center", flexWrap: "wrap", paddingTop: 4 }}>
+        <div
+          className="row between"
+          style={{ gap: 16, alignItems: "center", flexWrap: "wrap", paddingTop: 4 }}
+        >
           <div className="row" style={{ gap: 10, alignItems: "center" }}>
             <label className="caption" style={{ fontWeight: 600, color: "var(--ink)" }}>
               Objetivo del Creativo:
@@ -1589,7 +1715,10 @@ Audio: "${u.cta}"`;
 
           <div className="row" style={{ gap: 8 }}>
             <span className="caption" style={{ color: "var(--ink-muted)" }}>
-              Producto activo: <strong style={{ color: "var(--ink)" }}>{currentProduct.name}</strong> ({usd(currentProduct.priceUsd)} / {vesFromUsd(currentProduct.priceUsd, DEFAULT_BCV_RATE)})
+              Producto activo:{" "}
+              <strong style={{ color: "var(--ink)" }}>{currentProduct.name}</strong> (
+              {usd(currentProduct.priceUsd)} /{" "}
+              {vesFromUsd(currentProduct.priceUsd, DEFAULT_BCV_RATE)})
             </span>
           </div>
         </div>
@@ -1617,7 +1746,9 @@ Audio: "${u.cta}"`;
                 Prompt de Fotografía Comercial para Dola AI
               </h3>
               <p className="caption" style={{ margin: "4px 0 0", color: "var(--ink-muted)" }}>
-                Adaptado al ángulo <strong>{MARKETING_ANGLES[marketingAngle].title}</strong>. Formulado para generar fotos comerciales con iluminación de lujo y empaque hiperrealista en Dola.
+                Adaptado al ángulo <strong>{MARKETING_ANGLES[marketingAngle].title}</strong>.
+                Formulado para generar fotos comerciales con iluminación de lujo y empaque
+                hiperrealista en Dola.
               </p>
             </div>
             <div className="row" style={{ gap: 8 }}>
@@ -1716,9 +1847,21 @@ Audio: "${u.cta}"`;
             <div className="caption" style={{ lineHeight: 1.5, color: "var(--ink)" }}>
               <strong style={{ color: "var(--ink)" }}>Consejos de Oro para Dola AI:</strong>
               <ul style={{ margin: "4px 0 0", paddingLeft: 16 }}>
-                <li>Puedes escribirle en español a Dola: <em>"Crea una versión con fondo de mármol blanco y luz cálida de atardecer"</em>.</li>
-                <li>Si el texto del producto se deforma, pídele a Dola: <em>"Mantén el envase minimalista y el etiquetado ultra nítido sin distorsiones"</em>.</li>
-                <li>Para anuncios de TikTok y Stories, descarga la imagen vertical 9:16 o añade subtítulos encima en CapCut.</li>
+                <li>
+                  Puedes escribirle en español a Dola:{" "}
+                  <em>"Crea una versión con fondo de mármol blanco y luz cálida de atardecer"</em>.
+                </li>
+                <li>
+                  Si el texto del producto se deforma, pídele a Dola:{" "}
+                  <em>
+                    "Mantén el envase minimalista y el etiquetado ultra nítido sin distorsiones"
+                  </em>
+                  .
+                </li>
+                <li>
+                  Para anuncios de TikTok y Stories, descarga la imagen vertical 9:16 o añade
+                  subtítulos encima en CapCut.
+                </li>
               </ul>
             </div>
           </div>
@@ -1734,7 +1877,8 @@ Audio: "${u.cta}"`;
                 Guión UGC de Video TikTok / Reels (0 a 30s)
               </h3>
               <p className="caption" style={{ margin: "4px 0 0", color: "var(--ink-muted)" }}>
-                Estructura de alta retención dividida en 6 tarjetas sin bordes agresivos, con tiempos exactos y badges tonales.
+                Estructura de alta retención dividida en 6 tarjetas sin bordes agresivos, con
+                tiempos exactos y badges tonales.
               </p>
             </div>
             <div className="row" style={{ gap: 8 }}>
@@ -1776,7 +1920,8 @@ Audio: "${u.cta}"`;
                 "{creativeKit.ugcScript.hook}"
               </p>
               <div className="caption" style={{ marginTop: 6, color: "var(--ink-muted)" }}>
-                🎥 <strong>Cámara:</strong> Creador/a en primer plano con rostro de sorpresa o fastidio, sosteniendo el producto frente al lente.
+                🎥 <strong>Cámara:</strong> Creador/a en primer plano con rostro de sorpresa o
+                fastidio, sosteniendo el producto frente al lente.
               </div>
             </div>
 
@@ -1804,7 +1949,8 @@ Audio: "${u.cta}"`;
                 "{creativeKit.ugcScript.problem}"
               </p>
               <div className="caption" style={{ marginTop: 6, color: "var(--ink-muted)" }}>
-                🎥 <strong>Cámara:</strong> B-roll rápido mostrando el dolor o la molestia (hinchazón, calor, maquillaje derretido o cabello débil).
+                🎥 <strong>Cámara:</strong> B-roll rápido mostrando el dolor o la molestia
+                (hinchazón, calor, maquillaje derretido o cabello débil).
               </div>
             </div>
 
@@ -1818,7 +1964,9 @@ Audio: "${u.cta}"`;
               }}
             >
               <div className="row between" style={{ marginBottom: 6 }}>
-                <ToneBadge tone="success">8 - 15s · Presentación de la Solución ({currentProduct.origin})</ToneBadge>
+                <ToneBadge tone="success">
+                  8 - 15s · Presentación de la Solución ({currentProduct.origin})
+                </ToneBadge>
                 <Button
                   variant="ghost"
                   sm
@@ -1832,7 +1980,8 @@ Audio: "${u.cta}"`;
                 "{creativeKit.ugcScript.solution}"
               </p>
               <div className="caption" style={{ marginTop: 6, color: "var(--ink-muted)" }}>
-                🎥 <strong>Cámara:</strong> Destapar el producto, mostrar la etiqueta nítida y los ingredientes activos principales.
+                🎥 <strong>Cámara:</strong> Destapar el producto, mostrar la etiqueta nítida y los
+                ingredientes activos principales.
               </div>
             </div>
 
@@ -1860,7 +2009,8 @@ Audio: "${u.cta}"`;
                 "{creativeKit.ugcScript.demo}"
               </p>
               <div className="caption" style={{ marginTop: 6, color: "var(--ink-muted)" }}>
-                🎥 <strong>Cámara:</strong> Aplicación real en piel/cabello o toma de cápsula con agua. Mostrar absorción inmediata sin residuos.
+                🎥 <strong>Cámara:</strong> Aplicación real en piel/cabello o toma de cápsula con
+                agua. Mostrar absorción inmediata sin residuos.
               </div>
             </div>
 
@@ -1888,7 +2038,8 @@ Audio: "${u.cta}"`;
                 "{creativeKit.ugcScript.offer}"
               </p>
               <div className="caption" style={{ marginTop: 6, color: "var(--ink-muted)" }}>
-                🎥 <strong>Texto dinámico en pantalla:</strong> "{usd(currentProduct.priceUsd)} (o en Bs. a tasa BCV) · Pago Móvil / Zelle".
+                🎥 <strong>Texto dinámico en pantalla:</strong> "{usd(currentProduct.priceUsd)} (o
+                en Bs. a tasa BCV) · Pago Móvil / Zelle".
               </div>
             </div>
 
@@ -1902,7 +2053,9 @@ Audio: "${u.cta}"`;
               }}
             >
               <div className="row between" style={{ marginBottom: 6 }}>
-                <ToneBadge tone="neutral">26 - 30s · Cierre Directo a WhatsApp & Delivery</ToneBadge>
+                <ToneBadge tone="neutral">
+                  26 - 30s · Cierre Directo a WhatsApp & Delivery
+                </ToneBadge>
                 <Button
                   variant="ghost"
                   sm
@@ -1916,7 +2069,8 @@ Audio: "${u.cta}"`;
                 "{creativeKit.ugcScript.cta}"
               </p>
               <div className="caption" style={{ marginTop: 6, color: "var(--ink-muted)" }}>
-                🎥 <strong>Cámara:</strong> Creador/a señalando hacia abajo o al sticker de WhatsApp con sonrisa de confianza.
+                🎥 <strong>Cámara:</strong> Creador/a señalando hacia abajo o al sticker de WhatsApp
+                con sonrisa de confianza.
               </div>
             </div>
           </div>
@@ -1935,7 +2089,9 @@ Audio: "${u.cta}"`;
             }}
           >
             <span className="caption" style={{ color: "var(--ink-muted)" }}>
-              🎬 <strong>Edición rápida en CapCut:</strong> Usa la herramienta 'Subtítulos automáticos' con plantilla amarilla/blanca, cortes de salto cada 1.5s y música en tendencia al 12% de volumen.
+              🎬 <strong>Edición rápida en CapCut:</strong> Usa la herramienta 'Subtítulos
+              automáticos' con plantilla amarilla/blanca, cortes de salto cada 1.5s y música en
+              tendencia al 12% de volumen.
             </span>
             <Button
               variant="agent"
@@ -1951,12 +2107,20 @@ Audio: "${u.cta}"`;
 
       {/* PESTAÑA 3: COPYS PARA ANUNCIOS (Meta, TikTok y WhatsApp) */}
       {tabMode === "copys" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(310px, 1fr))", gap: 16 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(310px, 1fr))",
+            gap: 16,
+          }}
+        >
           {/* Copy Meta Ads */}
           <section className="card stack" style={{ gap: 12 }}>
             <div className="row between" style={{ alignItems: "center" }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: "1rem", color: "var(--ink)" }}>Meta Ads (Instagram / Facebook)</h3>
+                <h3 style={{ margin: 0, fontSize: "1rem", color: "var(--ink)" }}>
+                  Meta Ads (Instagram / Facebook)
+                </h3>
                 <span className="caption" style={{ color: "var(--ink-muted)" }}>
                   Formato persuasivo largo con viñetas, emojis y oferta bimoneda
                 </span>
@@ -1993,7 +2157,9 @@ Audio: "${u.cta}"`;
           <section className="card stack" style={{ gap: 12 }}>
             <div className="row between" style={{ alignItems: "center" }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: "1rem", color: "var(--ink)" }}>TikTok Ads / Reels Cortos</h3>
+                <h3 style={{ margin: 0, fontSize: "1rem", color: "var(--ink)" }}>
+                  TikTok Ads / Reels Cortos
+                </h3>
                 <span className="caption" style={{ color: "var(--ink-muted)" }}>
                   Ágil, dinámico y con hashtags de alta conversión en Venezuela
                 </span>
@@ -2030,7 +2196,9 @@ Audio: "${u.cta}"`;
           <section className="card stack" style={{ gap: 12 }}>
             <div className="row between" style={{ alignItems: "center" }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: "1rem", color: "var(--ink)" }}>Cierre Rápido en WhatsApp</h3>
+                <h3 style={{ margin: 0, fontSize: "1rem", color: "var(--ink)" }}>
+                  Cierre Rápido en WhatsApp
+                </h3>
                 <span className="caption" style={{ color: "var(--ink-muted)" }}>
                   Listo para que el agente confirme pedido y pago en 1 minuto
                 </span>
@@ -2073,7 +2241,8 @@ Audio: "${u.cta}"`;
               Estrategia Publicitaria y Segmentación en Venezuela para {currentProduct.name}
             </h3>
             <p className="caption" style={{ margin: "4px 0 0", color: "var(--ink-muted)" }}>
-              Recomendaciones operativas para lanzar campañas en Meta Ads Manager y TikTok Ads con pagos en Bolívares y USD.
+              Recomendaciones operativas para lanzar campañas en Meta Ads Manager y TikTok Ads con
+              pagos en Bolívares y USD.
             </p>
           </div>
 
@@ -2097,7 +2266,9 @@ Audio: "${u.cta}"`;
                 <span style={{ color: "var(--brand)" }}>
                   <Icon name="coin" size={18} />
                 </span>
-                <strong style={{ fontSize: "0.9rem", color: "var(--ink)" }}>Presupuesto Diario Sugerido</strong>
+                <strong style={{ fontSize: "0.9rem", color: "var(--ink)" }}>
+                  Presupuesto Diario Sugerido
+                </strong>
               </div>
               <div style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--brand)" }}>
                 $ 5.00 a $ 20.00 USD / día
@@ -2120,13 +2291,17 @@ Audio: "${u.cta}"`;
                 <span style={{ color: "var(--brand)" }}>
                   <Icon name="users" size={18} />
                 </span>
-                <strong style={{ fontSize: "0.9rem", color: "var(--ink)" }}>Audiencia & Segmentación</strong>
+                <strong style={{ fontSize: "0.9rem", color: "var(--ink)" }}>
+                  Audiencia & Segmentación
+                </strong>
               </div>
               <p style={{ margin: 0, fontSize: "0.85rem", lineHeight: 1.4, color: "var(--ink)" }}>
                 {creativeKit.audiencesVe.target}
               </p>
               <div style={{ marginTop: 6 }}>
-                <span className="caption" style={{ fontWeight: 600, color: "var(--ink)" }}>Intereses en Ads Manager: </span>
+                <span className="caption" style={{ fontWeight: 600, color: "var(--ink)" }}>
+                  Intereses en Ads Manager:{" "}
+                </span>
                 <span className="caption" style={{ color: "var(--ink-muted)" }}>
                   {creativeKit.audiencesVe.interests.join(", ")}
                 </span>
@@ -2146,12 +2321,21 @@ Audio: "${u.cta}"`;
                 <span style={{ color: "var(--brand)" }}>
                   <Icon name="truck" size={18} />
                 </span>
-                <strong style={{ fontSize: "0.9rem", color: "var(--ink)" }}>Logística y Despacho</strong>
+                <strong style={{ fontSize: "0.9rem", color: "var(--ink)" }}>
+                  Logística y Despacho
+                </strong>
               </div>
               <p style={{ margin: 0, fontSize: "0.85rem", lineHeight: 1.4, color: "var(--ink)" }}>
                 <strong>Caracas:</strong> Delivery express coordinado (mismo día o 24h).
               </p>
-              <p style={{ margin: "4px 0 0", fontSize: "0.85rem", lineHeight: 1.4, color: "var(--ink)" }}>
+              <p
+                style={{
+                  margin: "4px 0 0",
+                  fontSize: "0.85rem",
+                  lineHeight: 1.4,
+                  color: "var(--ink)",
+                }}
+              >
                 <strong>Interior:</strong> MRW, Zoom o Tealca con guía y seguro activo.
               </p>
             </div>
@@ -2169,13 +2353,31 @@ Audio: "${u.cta}"`;
                 <span style={{ color: "var(--brand)" }}>
                   <Icon name="bank" size={18} />
                 </span>
-                <strong style={{ fontSize: "0.9rem", color: "var(--ink)" }}>Pasarelas Bimoneda</strong>
+                <strong style={{ fontSize: "0.9rem", color: "var(--ink)" }}>
+                  Pasarelas Bimoneda
+                </strong>
               </div>
-              <ul style={{ margin: "4px 0 0", paddingLeft: 16, fontSize: "0.85rem", lineHeight: 1.5, color: "var(--ink)" }}>
-                <li><strong>Pago Móvil:</strong> En Bolívares (VES) a tasa oficial BCV.</li>
-                <li><strong>Zelle:</strong> En USD directo sin comisión.</li>
-                <li><strong>USDT / Cripto:</strong> Binance Pay sin fee de red.</li>
-                <li><strong>Transferencias:</strong> Banesco, Mercantil, BDV.</li>
+              <ul
+                style={{
+                  margin: "4px 0 0",
+                  paddingLeft: 16,
+                  fontSize: "0.85rem",
+                  lineHeight: 1.5,
+                  color: "var(--ink)",
+                }}
+              >
+                <li>
+                  <strong>Pago Móvil:</strong> En Bolívares (VES) a tasa oficial BCV.
+                </li>
+                <li>
+                  <strong>Zelle:</strong> En USD directo sin comisión.
+                </li>
+                <li>
+                  <strong>USDT / Cripto:</strong> Binance Pay sin fee de red.
+                </li>
+                <li>
+                  <strong>Transferencias:</strong> Banesco, Mercantil, BDV.
+                </li>
               </ul>
             </div>
           </div>
@@ -2189,10 +2391,15 @@ Audio: "${u.cta}"`;
               padding: "14px 16px",
             }}
           >
-            <strong style={{ fontSize: "0.9rem", color: "var(--ink)", display: "block", marginBottom: 4 }}>
+            <strong
+              style={{ fontSize: "0.9rem", color: "var(--ink)", display: "block", marginBottom: 4 }}
+            >
               🛡️ Argumentario contra la objeción: "{seedParams.objection}"
             </strong>
-            <p className="caption" style={{ margin: 0, color: "var(--ink-muted)", lineHeight: 1.5 }}>
+            <p
+              className="caption"
+              style={{ margin: 0, color: "var(--ink-muted)", lineHeight: 1.5 }}
+            >
               {creativeKit.audiencesVe.objectionHandling}
             </p>
           </div>
@@ -2215,7 +2422,8 @@ Audio: "${u.cta}"`;
                 ¿Listo para crear la campaña en Meta o TikTok?
               </strong>
               <p className="caption" style={{ margin: "2px 0 0", color: "var(--ink-muted)" }}>
-                Pega tus prompts en Dola.com para generar los visuales, o dispara el webhook de n8n para automatizar toda la producción publicitaria.
+                Pega tus prompts en Dola.com para generar los visuales, o dispara el webhook de n8n
+                para automatizar toda la producción publicitaria.
               </p>
             </div>
             <div className="row" style={{ gap: 8 }}>
