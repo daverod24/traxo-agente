@@ -13,7 +13,7 @@ export class MockCommerce implements CommerceAdapter {
   private orders = new Map<string, Order>();
 
   constructor(seedHistory = true) {
-    if (seedHistory) for (const o of demoHistory()) this.orders.set(o.id, o);
+    if (seedHistory) for (const o of demoHistory(this.storeId)) this.orders.set(o.id, o);
   }
 
   async listProducts(): Promise<Product[]> {

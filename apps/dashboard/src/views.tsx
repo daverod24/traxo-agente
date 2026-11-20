@@ -259,7 +259,7 @@ function DemoGuide({
 }
 
 /* ============================== INICIO ============================== */
-const CANONICAL_PRODUCT_IMAGES: Record<string, string> = {
+export const CANONICAL_PRODUCT_IMAGES: Record<string, string> = {
   "17": "https://davebeauty.daverod.tech/images/products/aceite-de-oregano-semilla-negra/premium-v1.webp",
   "21": "https://davebeauty.daverod.tech/images/products/dr-melaxin-calcium-volume-multi-balm/premium-v1.webp",
   "13": "https://cdn.rimanbuild.com/Botalab/EX/DeserticolaShampoo/TL_DeserticolaShampoo_DFLT.png",
@@ -269,6 +269,32 @@ const CANONICAL_PRODUCT_IMAGES: Record<string, string> = {
   "55": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/196/17827922041000704956.jpg",
   "59": "https://davebeauty.daverod.tech/images/products/aceite-magico-reafirmante/luxury-v1-1200.webp",
 };
+
+export function getProductImage(p: {
+  id?: string;
+  externalId?: string | null;
+  title: string;
+  imageUrl?: string | null;
+}): string | undefined {
+  if (p.imageUrl && p.imageUrl.startsWith("http")) return p.imageUrl;
+  if (p.externalId && CANONICAL_PRODUCT_IMAGES[p.externalId]) return CANONICAL_PRODUCT_IMAGES[p.externalId];
+  const t = p.title.toLowerCase();
+  if (t.includes("orégano") || t.includes("oregano"))
+    return "https://davebeauty.daverod.tech/images/products/aceite-de-oregano-semilla-negra/premium-v1.webp";
+  if (t.includes("melaxin"))
+    return "https://davebeauty.daverod.tech/images/products/dr-melaxin-calcium-volume-multi-balm/premium-v1.webp";
+  if (t.includes("botalab") || t.includes("deserticola"))
+    return "https://cdn.rimanbuild.com/Botalab/EX/DeserticolaShampoo/TL_DeserticolaShampoo_DFLT.png";
+  if (t.includes("incellderm") || t.includes("aqua"))
+    return "https://cdn.rimanbuild.com/Incellderm/EX/DailyAquaBB/TL_DailyAquaBB_DFLT.png";
+  if (t.includes("medicube"))
+    return "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/93/17698802731000454694.webp";
+  if (t.includes("reafirmante") || t.includes("lifting") || t.includes("mágico") || t.includes("magic"))
+    return "https://davebeauty.daverod.tech/images/products/aceite-magico-reafirmante/luxury-v1-1200.webp";
+  if (t.includes("nicotinamide") || t.includes("resveratrol") || t.includes("nad"))
+    return "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/196/17827922041000704956.jpg";
+  return undefined;
+}
 
 export function Inicio({
   ctx,
@@ -484,7 +510,7 @@ export function Inicio({
             }}
           >
             {products.slice(0, 4).map((p) => {
-              const displayImg = p.imageUrl || CANONICAL_PRODUCT_IMAGES[p.externalId || ""];
+              const displayImg = getProductImage(p);
               return (
                 <div
                   key={p.id}

@@ -1189,7 +1189,13 @@ export function registerGrowthApi(app: Hono, rt: Runtime): void {
       const force = c.req.query("refresh") === "true" || c.req.query("force") === "true";
       const data = await runRealtimeReport(storeId, db.prisma, force);
       const clarity = getClarityDeepLinks();
-      return c.json({ ok: true, ...data, clarity });
+      return c.json({
+        ok: true,
+        ...data,
+        mostViewedProduct: data.topProduct,
+        topChannel: data.topSource.name,
+        clarity,
+      });
     } catch (err) {
       console.error("Error en GET /api/analytics/realtime:", err);
       return c.json({ ok: false, error: String(err) }, 500);

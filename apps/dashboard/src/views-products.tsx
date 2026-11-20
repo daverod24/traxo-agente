@@ -5,7 +5,7 @@ import { EmptyState, Sheet } from "./components.tsx";
 import { plural, usd, vesFromUsd } from "./format.ts";
 import type { Product, StoreStatus } from "./types.ts";
 import { Button, Icon, KpiCard, ToneBadge } from "./ui.tsx";
-import type { Ctx } from "./views.tsx";
+import { type Ctx, getProductImage } from "./views.tsx";
 import { PricingCockpit } from "./views-pricing-cockpit.tsx";
 
 export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
@@ -293,19 +293,7 @@ export function CatalogoProductos({ ctx }: { ctx: Ctx }) {
           }}
         >
           {filtered.map((p) => {
-            const displayImg =
-              p.imageUrl ||
-              {
-                "17": "https://davebeauty.daverod.tech/images/products/aceite-de-oregano-semilla-negra/premium-v1.webp",
-                "21": "https://davebeauty.daverod.tech/images/products/dr-melaxin-calcium-volume-multi-balm/premium-v1.webp",
-                "13": "https://cdn.rimanbuild.com/Botalab/EX/DeserticolaShampoo/TL_DeserticolaShampoo_DFLT.png",
-                "9": "https://cdn.rimanbuild.com/Incellderm/EX/DailyAquaBB/TL_DailyAquaBB_DFLT.png",
-                "50": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/167/17783019261000614740.webp",
-                "45": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/93/17698802731000454694.webp",
-                "55": "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/196/17827922041000704956.jpg",
-                "59": "https://davebeauty.daverod.tech/images/products/aceite-magico-reafirmante/luxury-v1-1200.webp",
-              }[p.externalId || ""] ||
-              null;
+            const displayImg = getProductImage(p);
 
             return (
               <div

@@ -513,14 +513,33 @@ export function seoChecks(
   if (hasRobots && robots?.body) {
     const rBody = robots.body;
     for (const bot of targetAiBots) {
-      const botPattern = new RegExp(
-        `User-agent:\\s*${bot}[\\s\\S]*?Disallow:\\s*\\/(?=[\\r\\n]|$)`,
-        "i",
+      // Buscar la sección específica para este bot hasta el siguiente User-agent o fin de archivo
+      const botSectionMatch = rBody.match(
+        new RegExp(`User-agent:\\s*${bot}[\\s\\S]*?(?=(?:User-agent:|$))`, "i"),
       );
-      if (botPattern.test(rBody)) {
-        blockedBots.push(bot);
+      if (botSectionMatch) {
+        const section = botSectionMatch[0];
+        // Bloqueado solo si tiene Disallow: / y NO tiene Allow: / (usar \b para evitar que Disallow coincida con Allow)
+        if (
+          /Disallow:\s*\/(?=[\r\n]|$)/i.test(section) &&
+          !/\bAllow:\s*\/(?=[\r\n]|$)/i.test(section)
+        ) {
+          blockedBots.push(bot);
+        } else {
+          allowedBots.push(bot);
+        }
       } else {
-        allowedBots.push(bot);
+        // Sin sección específica: comprobar si User-agent: * bloquea todo
+        const wildcardSection = rBody.match(/User-agent:\s*\*[\s\S]*?(?=(?:User-agent:|$))/i);
+        if (
+          wildcardSection &&
+          /Disallow:\s*\/(?=[\r\n]|$)/i.test(wildcardSection[0]) &&
+          !/\bAllow:\s*\/(?=[\r\n]|$)/i.test(wildcardSection[0])
+        ) {
+          blockedBots.push(bot);
+        } else {
+          allowedBots.push(bot);
+        }
       }
     }
   }
@@ -605,6 +624,8 @@ export function seoChecks(
   const hasPagoMovil = /pago\s*m[oó]vil|pagomovil/i.test(plain);
   const hasZelle = /zelle/i.test(plain);
   const hasBcv = /bcv|tasa\s*oficial|bol[ií]vares|bs\b/i.test(plain);
+  const hasUsdt = /usdt|binance/i.test(plain);
+  const hasTransferencia = /transferencia|bancrecer|banesco|mercantil/i.test(plain);
   const hasCoPayments =
     /(contraentrega|contra\s*entrega|pago\s*seguro|tarjeta|pse|transferencia|bancolombia)/i.test(
       plain,
@@ -613,26 +634,28 @@ export function seoChecks(
   if (hasPagoMovil) localPayments.push("Pago Móvil");
   if (hasZelle) localPayments.push("Zelle");
   if (hasBcv) localPayments.push("Tasa BCV / Bs.");
+  if (hasUsdt) localPayments.push("USDT");
+  if (hasTransferencia) localPayments.push("Transferencia");
 
   const passPayments = isVe ? localPayments.length >= 2 : hasCoPayments;
   out.push(
     mk(
       "trust_payments",
       gConfianza,
-      isVe ? "Métodos de pago locales (Pago Móvil, Zelle, BCV)" : "Métodos de pago transparentes",
+      isVe ? "Métodos de pago locales (Pago Móvil, Zelle, BCV, USDT, Transferencia)" : "Métodos de pago transparentes",
       passPayments ? "pass" : localPayments.length > 0 || hasCoPayments ? "warn" : "fail",
       "alto",
       isVe
         ? localPayments.length > 0
           ? `Métodos detectados en texto: ${localPayments.join(", ")}`
-          : "No se encontraron menciones a Pago Móvil, Zelle o bolívares a tasa oficial BCV"
+          : "No se encontraron menciones a Pago Móvil, Zelle, USDT, Transferencia o bolívares a tasa oficial BCV"
         : hasCoPayments
           ? "Métodos de pago a la vista (contraentrega / pagos seguros)"
           : "No se encontraron métodos de pago claros",
       passPayments
         ? undefined
         : isVe
-          ? "Muestra claramente en la página los métodos de pago aceptados: Pago Móvil, Zelle y bolívares calculados a la tasa oficial BCV."
+          ? "Muestra claramente en la página los métodos de pago aceptados: Pago Móvil, Zelle, USDT, Transferencia bancaria y bolívares calculados a la tasa oficial BCV."
           : "Muestra claramente los métodos de pago (contraentrega, PSE o tarjetas).",
     ),
   );

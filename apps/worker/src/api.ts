@@ -18,6 +18,8 @@ import { handleInbound } from "./inbound.ts";
 import { isDemo } from "./mode.ts";
 import { isMockCommerce, type Runtime } from "./runtime.ts";
 import { advanceDemoShipment, pollTracking, reportIncident } from "./tracking.ts";
+import { cleanDummyOrders } from "./orders-cleanup.ts";
+import { env } from "./env.ts";
 
 /**
  * Si TRAXO_API_TOKEN está definido, /api/* exige `Authorization: Bearer <token>` o `?token=<token>` (el feed SSE no puede mandar headers).
@@ -134,6 +136,170 @@ export function registerApi(app: Hono, rt: Runtime): void {
       include: { shipments: { include: { events: { orderBy: { at: "asc" } } } }, quotes: true },
     });
     return c.json(rows);
+  });
+
+  app.post("/api/orders/clean-dummy", async (c) => {
+    const storeId = sid(c);
+    const result = await cleanDummyOrders(db, storeId);
+    return c.json(result);
+  });
+
+  app.post("/api/ai/test-connection", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as {
+      provider?: "gemini" | "groq" | "nvidia" | "xai" | "openrouter";
+      apiKey?: string;
+    };
+    const provider = body.provider ?? "gemini";
+    const apiKey =
+      body.apiKey?.trim() ||
+      (provider === "gemini"
+        ? env.GEMINI_API_KEY
+        : provider === "groq"
+          ? process.env.GROQ_API_KEY
+          : provider === "nvidia"
+            ? process.env.NVIDIA_API_KEY
+            : provider === "xai"
+              ? env.XAI_API_KEY
+              : env.OPENROUTER_API_KEY);
+
+    if (!apiKey) {
+      return c.json({
+        ok: false,
+        provider,
+        message: `Falta configurar la API Key para ${provider.toUpperCase()} en .env o en Dokploy`,
+      });
+    }
+
+    try {
+      if (provider === "gemini") {
+        const model = env.GEMINI_MODEL ?? "gemini-2.5-flash";
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: "ping" }] }],
+            generationConfig: { maxOutputTokens: 5 },
+          }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (res.ok) {
+          return c.json({
+            ok: true,
+            provider: "gemini",
+            model,
+            message: `Conexión exitosa con Google AI Studio (${model})`,
+          });
+        }
+        const errText = await res.text().catch(() => "");
+        return c.json({
+          ok: false,
+          provider: "gemini",
+          message: `Error Gemini (HTTP ${res.status}): ${errText.slice(0, 100)}`,
+        });
+      }
+
+      if (provider === "groq") {
+        const model = "llama-3.3-70b-versatile";
+        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: "user", content: "ping" }],
+            max_tokens: 5,
+          }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (res.ok) {
+          return c.json({
+            ok: true,
+            provider: "groq",
+            model,
+            message: `Conexión exitosa con Groq Cloud (${model})`,
+          });
+        }
+        return c.json({
+          ok: false,
+          provider: "groq",
+          message: `Error HTTP ${res.status} al conectar con Groq`,
+        });
+      }
+
+      if (provider === "xai") {
+        const model = env.XAI_MODEL ?? "grok-2-mini";
+        const res = await fetch("https://api.x.ai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: "user", content: "ping" }],
+            max_tokens: 5,
+          }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (res.ok) {
+          return c.json({
+            ok: true,
+            provider: "xai",
+            model,
+            message: `Conexión exitosa con xAI (${model})`,
+          });
+        }
+        return c.json({
+          ok: false,
+          provider: "xai",
+          message: `Error HTTP ${res.status} al conectar con xAI`,
+        });
+      }
+
+      if (provider === "nvidia") {
+        const model = "meta/llama-3.3-70b-instruct";
+        const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: "user", content: "ping" }],
+            max_tokens: 5,
+          }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (res.ok) {
+          return c.json({
+            ok: true,
+            provider: "nvidia",
+            model,
+            message: `Conexión exitosa con NVIDIA NIM (${model})`,
+          });
+        }
+        return c.json({
+          ok: false,
+          provider: "nvidia",
+          message: `Error HTTP ${res.status} al conectar con NVIDIA NIM`,
+        });
+      }
+
+      return c.json({ ok: false, provider, message: "Proveedor no soportado" });
+    } catch (e: any) {
+      return c.json({
+        ok: false,
+        provider,
+        message: `Fallo al probar conexión: ${e?.message || String(e)}`,
+      });
+    }
   });
 
   app.get("/api/approvals", async (c) =>

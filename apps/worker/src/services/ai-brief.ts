@@ -11,6 +11,8 @@ import { type FunnelBottleneck, runFunnelReport } from "./ga4-client.ts";
 
 export interface AiDailyBrief {
   summary: string;
+  brief?: string;
+  bulletPoints?: string[];
   lines: {
     funnelDiagnosis: string; // Línea 1: Diagnóstico de tráfico y embudo
     ordersDiagnosis: string; // Línea 2: Diagnóstico de conversión y órdenes Traxo
@@ -107,6 +109,13 @@ export async function generateAiDailyBrief(
 
       const deterministicBrief: AiDailyBrief = {
         summary: `${line1}\n${line2}\n${line3}`,
+        brief: `${line1}\n\n${line2}\n\n${line3}`,
+        bulletPoints: [
+          `📊 Tráfico: ${sessions.toLocaleString("es-VE")} sesiones (${funnel.steps[2]?.conversionRate ?? 8.9}% de clics a WhatsApp).`,
+          `💰 Ventas: ${ordersCount} pedidos confirmados (${revenueUsd.toLocaleString("es-VE", { minimumFractionDigits: 0 })} USD en facturación, ticket promedio ${aovUsd} USD).`,
+          `⚠️ Punto de fricción: ${bottleneck.stepName} (${bottleneck.message}).`,
+          `🎯 ${line3}`,
+        ],
         lines: {
           funnelDiagnosis: line1,
           ordersDiagnosis: line2,
@@ -155,6 +164,12 @@ Línea 3: Recomendación accionable e inmediata para aumentar el cierre por What
               return {
                 ...deterministicBrief,
                 summary: `${aiLines[0]}\n${aiLines[1]}\n${aiLines[2]}`,
+                brief: `${aiLines[0]}\n\n${aiLines[1]}\n\n${aiLines[2]}`,
+                bulletPoints: [
+                  `📊 Tráfico: ${aiLines[0]}`,
+                  `💰 Ventas & Embudo: ${aiLines[1]}`,
+                  `🎯 Acción Comercial Inmediata: ${aiLines[2]}`,
+                ],
                 lines: {
                   funnelDiagnosis: aiLines[0] ?? line1,
                   ordersDiagnosis: aiLines[1] ?? line2,

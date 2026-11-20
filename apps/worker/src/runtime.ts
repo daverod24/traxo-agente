@@ -1,5 +1,5 @@
 import { carriersFromEnv, type MockCarrierProvider } from "@traxo/carriers";
-import { type CommerceAdapter, commerceFromEnv, MockCommerce } from "@traxo/commerce";
+import { type CommerceAdapter, commerceFromEnv, DEMO_STORE, MockCommerce } from "@traxo/commerce";
 import { EventBus, StoreSettingsSchema } from "@traxo/core";
 import {
   type Db,
@@ -16,6 +16,7 @@ import { paymentsFromEnv } from "@traxo/payments";
 import type { AgentDeps } from "./agent.ts";
 import { isDemo } from "./mode.ts";
 import { attachUsage } from "./usage.ts";
+import { cleanDummyOrders } from "./orders-cleanup.ts";
 
 export type Runtime = AgentDeps & {
   /** Restaura los datos de ejemplo de la tienda demo (solo cuando hay semilla rica). */
@@ -94,6 +95,12 @@ export async function createRuntime(
     ((await db.prisma.store.findFirst({ orderBy: { createdAt: "asc" } })) as NonNullable<
       Awaited<ReturnType<Db["prisma"]["store"]["findFirst"]>>
     >);
+
+  // Si hay más de 5 pedidos, limpiamos a los 5 pedidos limpios solicitados (en tiendas Davebeauty / producción)
+  const initialOrderCount = await db.prisma.order.count({ where: { storeId: store.id } });
+  if (!opts.rich && store.id !== DEMO_STORE.id && initialOrderCount > 5) {
+    await cleanDummyOrders(db, store.id);
+  }
 
   const bus = new EventBus();
   await loadOrderStoreIndex(db);

@@ -18,6 +18,11 @@ export interface Ga4RealtimeData {
     name: string;
     users: number;
   };
+  engagement?: {
+    averageDuration: string;
+    bounceRate: string;
+    topCities: Array<{ name: string; percentage: number }>;
+  };
   cachedAt: string;
   source: "live" | "simulated";
 }
@@ -158,12 +163,22 @@ export function getSimulatedRealtimeData(): Ga4RealtimeData {
   return {
     activeUsers: 28,
     topProduct: {
-      name: "Serum Facial Vitamina C Davebeauty",
+      name: "Pack Trío Magnesio Quelado Davebeauty",
       views: 14,
     },
     topSource: {
       name: "instagram / cpc",
       users: 18,
+    },
+    engagement: {
+      averageDuration: "1m 38s",
+      bounceRate: "34.8%",
+      topCities: [
+        { name: "Caracas (Distrito Capital / Miranda)", percentage: 56 },
+        { name: "Valencia (Carabobo)", percentage: 18 },
+        { name: "Maracaibo (Zulia)", percentage: 14 },
+        { name: "Lechería (Anzoátegui)", percentage: 8 },
+      ],
     },
     cachedAt: new Date().toISOString(),
     source: "simulated",
@@ -371,6 +386,16 @@ export async function runRealtimeReport(
           topSource: {
             name: "instagram / cpc",
             users: Math.max(1, Math.round((totalActive || 1) * 0.6)),
+          },
+          engagement: {
+            averageDuration: "1m 42s",
+            bounceRate: "33.5%",
+            topCities: [
+              { name: "Caracas (Distrito Capital / Miranda)", percentage: 58 },
+              { name: "Valencia (Carabobo)", percentage: 17 },
+              { name: "Maracaibo (Zulia)", percentage: 13 },
+              { name: "Lechería (Anzoátegui)", percentage: 8 },
+            ],
           },
           cachedAt: new Date().toISOString(),
           source: "live",

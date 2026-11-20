@@ -519,11 +519,17 @@ export type MarketingGeneration = {
 export type AnalyticsRealtimeResp = {
   ok: boolean;
   activeUsers: number;
+  source?: "live" | "simulated";
   mostViewedProduct: {
     name: string;
     views: number;
   };
   topChannel: string;
+  engagement?: {
+    averageDuration: string;
+    bounceRate: string;
+    topCities: Array<{ name: string; percentage: number }>;
+  };
   trafficSources?: Array<{ source: string; users: number }>;
   clarity?: {
     deepLink: string;

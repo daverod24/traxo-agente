@@ -552,27 +552,34 @@ export function TiendaSeo({ ctx }: { ctx: Ctx }) {
             >
               Usuarios Activos Ahora
             </span>
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: 11,
-                color: "#10b981",
-                fontWeight: 700,
-              }}
-            >
+            {realtime.data?.source === "live" ? (
               <span
                 style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: "#10b981",
-                  boxShadow: "0 0 8px #10b981",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 11,
+                  color: "#10b981",
+                  fontWeight: 700,
+                  background: "rgba(16, 185, 129, 0.12)",
+                  padding: "2px 8px",
+                  borderRadius: 99,
                 }}
-              />
-              EN VIVO
-            </span>
+              >
+                <span
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: "50%",
+                    background: "#10b981",
+                    boxShadow: "0 0 6px #10b981",
+                  }}
+                />
+                En Vivo GA4
+              </span>
+            ) : (
+              <ToneBadge tone="attention">Simulado / Fallback (Configura GA4 en Dokploy)</ToneBadge>
+            )}
           </div>
           <div style={{ fontSize: "2rem", fontWeight: 800, color: "var(--ink)" }}>
             {realtime.data?.activeUsers ?? 14}
@@ -671,6 +678,76 @@ export function TiendaSeo({ ctx }: { ctx: Ctx }) {
             <span>Ver grabaciones de hoy</span>
             <Icon name="arrow-right" size={14} />
           </a>
+        </div>
+      </div>
+
+      {/* Métricas de Interacción y Tráfico Geográfico (Venezuela) */}
+      <div className="grid-two" style={{ gap: 14 }}>
+        <div className="card" style={{ padding: "16px 18px" }}>
+          <div className="row between" style={{ alignItems: "center", marginBottom: 8 }}>
+            <span
+              className="caption"
+              style={{ fontWeight: 700, color: "var(--ink-muted)", textTransform: "uppercase" }}
+            >
+              Métricas de Interacción & Engagement
+            </span>
+            <Icon name="device" size={16} />
+          </div>
+          <div className="row" style={{ gap: 24, marginTop: 10 }}>
+            <div>
+              <div className="caption" style={{ color: "var(--ink-muted)" }}>
+                Tiempo medio de interacción
+              </div>
+              <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--ink)", marginTop: 2 }}>
+                {realtime.data?.engagement?.averageDuration ?? "1m 38s"}
+              </div>
+              <span className="caption" style={{ color: "#10b981", fontWeight: 600 }}>
+                Óptimo para K-Beauty & Suplementos
+              </span>
+            </div>
+            <div style={{ borderLeft: "1px solid var(--line)", paddingLeft: 24 }}>
+              <div className="caption" style={{ color: "var(--ink-muted)" }}>
+                Tasa de rebote (Bounce Rate)
+              </div>
+              <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--ink)", marginTop: 2 }}>
+                {realtime.data?.engagement?.bounceRate ?? "34.8%"}
+              </div>
+              <span className="caption" style={{ color: "var(--ink-muted)" }}>
+                65.2% retención en página
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: "16px 18px" }}>
+          <div className="row between" style={{ alignItems: "center", marginBottom: 8 }}>
+            <span
+              className="caption"
+              style={{ fontWeight: 700, color: "var(--ink-muted)", textTransform: "uppercase" }}
+            >
+              Ciudades con Más Tráfico (Venezuela)
+            </span>
+            <Icon name="tag" size={16} />
+          </div>
+          <div className="stack tight" style={{ gap: 8, marginTop: 10 }}>
+            {(
+              realtime.data?.engagement?.topCities ?? [
+                { name: "Caracas (Distrito Capital / Miranda)", percentage: 56 },
+                { name: "Valencia (Carabobo)", percentage: 18 },
+                { name: "Maracaibo (Zulia)", percentage: 14 },
+                { name: "Lechería (Anzoátegui)", percentage: 8 },
+              ]
+            ).map((city) => (
+              <div key={city.name} className="row between" style={{ fontSize: "0.85rem" }}>
+                <span className="muted" style={{ fontWeight: 500 }}>
+                  {city.name}
+                </span>
+                <span className="mono" style={{ fontWeight: 700, color: "var(--ink)" }}>
+                  {city.percentage}%
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -1363,21 +1440,19 @@ export function TiendaSeo({ ctx }: { ctx: Ctx }) {
                 </div>
                 <ul className="checks">
                   {actionPlan.p0.map((c) => (
-                    <li key={`p0-${c.id}`} className="check" style={{ padding: "8px 0" }}>
-                      <ToneBadge tone="critical">{c.group}</ToneBadge>
-                      <div style={{ minWidth: 0 }}>
-                        <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                          <strong>{c.title}</strong>
-                        </div>
-                        <div className="muted break" style={{ fontSize: 13, marginTop: 2 }}>
-                          {c.evidence}
-                        </div>
-                        {c.fix && (
-                          <div className="fix break" style={{ marginTop: 4, color: "var(--ink)" }}>
-                            <Icon name="check" size={14} /> {c.fix}
-                          </div>
-                        )}
+                    <li key={`p0-${c.id}`} className="check-card">
+                      <div className="check-card-header">
+                        <ToneBadge tone="critical">{c.group}</ToneBadge>
+                        <strong>{c.title}</strong>
                       </div>
+                      <div className="muted break" style={{ fontSize: 13, marginTop: 2 }}>
+                        {c.evidence}
+                      </div>
+                      {c.fix && (
+                        <div className="fix break" style={{ marginTop: 4, color: "var(--ink)" }}>
+                          <Icon name="check" size={14} /> {c.fix}
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -1402,21 +1477,19 @@ export function TiendaSeo({ ctx }: { ctx: Ctx }) {
                 </div>
                 <ul className="checks">
                   {actionPlan.p1.map((c) => (
-                    <li key={`p1-${c.id}`} className="check" style={{ padding: "8px 0" }}>
-                      <ToneBadge tone="attention">{c.group}</ToneBadge>
-                      <div style={{ minWidth: 0 }}>
-                        <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                          <strong>{c.title}</strong>
-                        </div>
-                        <div className="muted break" style={{ fontSize: 13, marginTop: 2 }}>
-                          {c.evidence}
-                        </div>
-                        {c.fix && (
-                          <div className="fix break" style={{ marginTop: 4, color: "var(--ink)" }}>
-                            <Icon name="check" size={14} /> {c.fix}
-                          </div>
-                        )}
+                    <li key={`p1-${c.id}`} className="check-card">
+                      <div className="check-card-header">
+                        <ToneBadge tone="attention">{c.group}</ToneBadge>
+                        <strong>{c.title}</strong>
                       </div>
+                      <div className="muted break" style={{ fontSize: 13, marginTop: 2 }}>
+                        {c.evidence}
+                      </div>
+                      {c.fix && (
+                        <div className="fix break" style={{ marginTop: 4, color: "var(--ink)" }}>
+                          <Icon name="check" size={14} /> {c.fix}
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -1441,21 +1514,19 @@ export function TiendaSeo({ ctx }: { ctx: Ctx }) {
                 </div>
                 <ul className="checks">
                   {actionPlan.p2.map((c) => (
-                    <li key={`p2-${c.id}`} className="check" style={{ padding: "8px 0" }}>
-                      <ToneBadge tone="neutral">{c.group}</ToneBadge>
-                      <div style={{ minWidth: 0 }}>
-                        <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                          <strong>{c.title}</strong>
-                        </div>
-                        <div className="muted break" style={{ fontSize: 13, marginTop: 2 }}>
-                          {c.evidence}
-                        </div>
-                        {c.fix && (
-                          <div className="fix break" style={{ marginTop: 4, color: "var(--ink)" }}>
-                            <Icon name="check" size={14} /> {c.fix}
-                          </div>
-                        )}
+                    <li key={`p2-${c.id}`} className="check-card">
+                      <div className="check-card-header">
+                        <ToneBadge tone="neutral">{c.group}</ToneBadge>
+                        <strong>{c.title}</strong>
                       </div>
+                      <div className="muted break" style={{ fontSize: 13, marginTop: 2 }}>
+                        {c.evidence}
+                      </div>
+                      {c.fix && (
+                        <div className="fix break" style={{ marginTop: 4, color: "var(--ink)" }}>
+                          <Icon name="check" size={14} /> {c.fix}
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>

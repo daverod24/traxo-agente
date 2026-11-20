@@ -287,6 +287,21 @@ p {
   top: 0;
   height: 100vh;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+.sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
 }
 .logo {
   display: flex;
@@ -2277,18 +2292,37 @@ p {
   display: grid;
 }
 .check {
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   padding: 12px 0;
   border-bottom: 1px solid var(--line);
-  align-items: start;
+  align-items: stretch;
 }
 .check:last-child {
   border-bottom: 0;
 }
 .check .badge {
-  justify-self: start;
+  align-self: flex-start;
+}
+.check-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.check-card:last-child {
+  margin-bottom: 0;
+}
+.check-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 .fix {
   display: flex;

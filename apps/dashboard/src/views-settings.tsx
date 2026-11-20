@@ -278,6 +278,55 @@ export function Ajustes({ ctx }: { ctx: Ctx }) {
   const [f, setF] = useState<Settings>();
   const [saving, setSaving] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [aiKeys, setAiKeys] = useState<{
+    gemini?: string;
+    groq?: string;
+    nvidia?: string;
+    xai?: string;
+  }>({});
+  const [aiTestStatus, setAiTestStatus] = useState<
+    Record<string, { loading?: boolean; ok?: boolean; message?: string }>
+  >({});
+  const [cleaningOrders, setCleaningOrders] = useState(false);
+
+  const testAi = async (provider: "gemini" | "groq" | "nvidia" | "xai") => {
+    setAiTestStatus((prev) => ({ ...prev, [provider]: { loading: true } }));
+    try {
+      const res = await post<{ ok: boolean; message: string; model?: string }>(
+        "/api/ai/test-connection",
+        {
+          provider,
+          apiKey: aiKeys[provider],
+        },
+      );
+      setAiTestStatus((prev) => ({
+        ...prev,
+        [provider]: { loading: false, ok: res.ok, message: res.message },
+      }));
+      ctx.toast(res.ok ? `Conectado: ${res.message}` : `Error: ${res.message}`);
+    } catch (e: any) {
+      setAiTestStatus((prev) => ({
+        ...prev,
+        [provider]: { loading: false, ok: false, message: e?.message || "Fallo de conexión" },
+      }));
+      ctx.toast("Error al probar conexión con IA");
+    }
+  };
+
+  const cleanOrders = async () => {
+    setCleaningOrders(true);
+    try {
+      const res = await post<{ ok: boolean; remaining: number; message: string }>(
+        "/api/orders/clean-dummy",
+      );
+      ctx.toast(res.message);
+      ctx.refresh();
+    } catch {
+      ctx.toast("Error al limpiar pedidos de prueba");
+    } finally {
+      setCleaningOrders(false);
+    }
+  };
   useEffect(() => {
     if (state && !f) setF(state.settings);
   }, [state, f]);
@@ -362,16 +411,16 @@ export function Ajustes({ ctx }: { ctx: Ctx }) {
             <input
               className="input"
               type="number"
-              min={5000}
-              step={5000}
-              value={f.maxAutoShipmentCost}
+              min={5}
+              step={5}
+              value={f.maxAutoShipmentCost > 500 ? 60 : f.maxAutoShipmentCost}
               onChange={(e) =>
-                setF({ ...f, maxAutoShipmentCost: Math.max(5000, Number(e.target.value)) })
+                setF({ ...f, maxAutoShipmentCost: Math.max(5, Number(e.target.value)) })
               }
               disabled={f.autonomy === 0}
             />
             <span className="caption">
-              Hoy: {cop(f.maxAutoShipmentCost)}. Sobre ese valor te pido aprobación.
+              Hoy: ${(f.maxAutoShipmentCost > 500 ? 60 : f.maxAutoShipmentCost).toFixed(2)} USD. Sobre ese valor te pido aprobación.
             </span>
           </label>
         </section>
@@ -575,6 +624,226 @@ export function Ajustes({ ctx }: { ctx: Ctx }) {
         </div>
       </section>
 
+      {/* Proveedores de Inteligencia Artificial & LLM */}
+      <section className="card stack" aria-labelledby="ai-h">
+        <div className="row between" style={{ alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <div className="row" style={{ gap: 8, alignItems: "center" }}>
+              <Icon name="spark" size={18} />
+              <h2 id="ai-h">Proveedores de Inteligencia Artificial & LLM</h2>
+            </div>
+            <p className="muted" style={{ margin: "4px 0 0" }}>
+              Cascada de inferencia nativa para generación de copys, briefs ejecutivos y diagnósticos sin SDKs pesados.
+            </p>
+          </div>
+          <ToneBadge tone="agent">Gemini 2.5 + Groq + NVIDIA NIM + xAI</ToneBadge>
+        </div>
+
+        <div className="grid-two" style={{ gap: 16 }}>
+          {/* Gemini */}
+          <div className="card compact stack" style={{ background: "var(--surface-sunken)" }}>
+            <div className="row between">
+              <strong>Google Gemini (Gemini 2.5 Flash)</strong>
+              <span className="caption">Inferencia Principal · Latencia ultrabaja</span>
+            </div>
+            <div className="row" style={{ gap: 8 }}>
+              <input
+                className="input mono"
+                type="password"
+                placeholder="AIzaSy... (o define GEMINI_API_KEY en Dokploy)"
+                value={aiKeys.gemini ?? ""}
+                onChange={(e) => setAiKeys({ ...aiKeys, gemini: e.target.value })}
+                style={{ flex: 1 }}
+              />
+              <Button
+                sm
+                variant="agent"
+                disabled={aiTestStatus.gemini?.loading}
+                onClick={() => testAi("gemini")}
+              >
+                {aiTestStatus.gemini?.loading ? "Probando…" : "Probar Conexión"}
+              </Button>
+            </div>
+            {aiTestStatus.gemini?.message && (
+              <span
+                className="caption"
+                style={{ color: aiTestStatus.gemini.ok ? "var(--success)" : "var(--critical)" }}
+              >
+                {aiTestStatus.gemini.message}
+              </span>
+            )}
+          </div>
+
+          {/* Groq */}
+          <div className="card compact stack" style={{ background: "var(--surface-sunken)" }}>
+            <div className="row between">
+              <strong>Groq Cloud (Llama 3.3 70B Versatile)</strong>
+              <span className="caption">Respaldo LPU · Inferencia hiper-veloz</span>
+            </div>
+            <div className="row" style={{ gap: 8 }}>
+              <input
+                className="input mono"
+                type="password"
+                placeholder="gsk_... (o define GROQ_API_KEY en Dokploy)"
+                value={aiKeys.groq ?? ""}
+                onChange={(e) => setAiKeys({ ...aiKeys, groq: e.target.value })}
+                style={{ flex: 1 }}
+              />
+              <Button
+                sm
+                variant="agent"
+                disabled={aiTestStatus.groq?.loading}
+                onClick={() => testAi("groq")}
+              >
+                {aiTestStatus.groq?.loading ? "Probando…" : "Probar Conexión"}
+              </Button>
+            </div>
+            {aiTestStatus.groq?.message && (
+              <span
+                className="caption"
+                style={{ color: aiTestStatus.groq.ok ? "var(--success)" : "var(--critical)" }}
+              >
+                {aiTestStatus.groq.message}
+              </span>
+            )}
+          </div>
+
+          {/* xAI */}
+          <div className="card compact stack" style={{ background: "var(--surface-sunken)" }}>
+            <div className="row between">
+              <strong>xAI (Grok-2 Mini)</strong>
+              <span className="caption">Cascada de Respaldo Alternativo</span>
+            </div>
+            <div className="row" style={{ gap: 8 }}>
+              <input
+                className="input mono"
+                type="password"
+                placeholder="xai-... (o define XAI_API_KEY en Dokploy)"
+                value={aiKeys.xai ?? ""}
+                onChange={(e) => setAiKeys({ ...aiKeys, xai: e.target.value })}
+                style={{ flex: 1 }}
+              />
+              <Button
+                sm
+                variant="agent"
+                disabled={aiTestStatus.xai?.loading}
+                onClick={() => testAi("xai")}
+              >
+                {aiTestStatus.xai?.loading ? "Probando…" : "Probar Conexión"}
+              </Button>
+            </div>
+            {aiTestStatus.xai?.message && (
+              <span
+                className="caption"
+                style={{ color: aiTestStatus.xai.ok ? "var(--success)" : "var(--critical)" }}
+              >
+                {aiTestStatus.xai.message}
+              </span>
+            )}
+          </div>
+
+          {/* NVIDIA NIM */}
+          <div className="card compact stack" style={{ background: "var(--surface-sunken)" }}>
+            <div className="row between">
+              <strong>NVIDIA NIM (Llama 3.3 70B Instruct)</strong>
+              <span className="caption">Inferencia GPU Enterprise</span>
+            </div>
+            <div className="row" style={{ gap: 8 }}>
+              <input
+                className="input mono"
+                type="password"
+                placeholder="nvapi-... (o define NVIDIA_API_KEY en Dokploy)"
+                value={aiKeys.nvidia ?? ""}
+                onChange={(e) => setAiKeys({ ...aiKeys, nvidia: e.target.value })}
+                style={{ flex: 1 }}
+              />
+              <Button
+                sm
+                variant="agent"
+                disabled={aiTestStatus.nvidia?.loading}
+                onClick={() => testAi("nvidia")}
+              >
+                {aiTestStatus.nvidia?.loading ? "Probando…" : "Probar Conexión"}
+              </Button>
+            </div>
+            {aiTestStatus.nvidia?.message && (
+              <span
+                className="caption"
+                style={{ color: aiTestStatus.nvidia.ok ? "var(--success)" : "var(--critical)" }}
+              >
+                {aiTestStatus.nvidia.message}
+              </span>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Helper Card Dokploy Environment Variables */}
+      <section className="card stack" aria-labelledby="dokploy-env-h">
+        <div className="row between" style={{ alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <div className="row" style={{ gap: 8, alignItems: "center" }}>
+            <Icon name="spark" size={18} />
+            <h2 id="dokploy-env-h">Variables de Entorno para Dokploy (.env)</h2>
+          </div>
+          <Button
+            sm
+            onClick={() => {
+              const envText = `GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.3-70b-versatile
+XAI_API_KEY=
+XAI_MODEL=grok-2-mini
+NVIDIA_API_KEY=
+GA4_PROPERTY_ID=
+GA4_SERVICE_ACCOUNT_B64=
+WOOCOMMERCE_URL=https://davebeauty.daverod.tech
+WOOCOMMERCE_KEY=
+WOOCOMMERCE_SECRET=
+TRAXO_BCV_RATE=880.0`;
+              navigator.clipboard.writeText(envText);
+              ctx.toast("Plantilla de variables copiada al portapapeles");
+            }}
+          >
+            Copiar plantilla .env
+          </Button>
+        </div>
+        <p className="muted" style={{ margin: "4px 0 0" }}>
+          Pega estas variables en la pestaña <strong>Environment</strong> de tu aplicación en Dokploy para activar todos los servicios en vivo:
+        </p>
+        <pre
+          className="mono"
+          style={{
+            background: "var(--surface-sunken)",
+            padding: 12,
+            borderRadius: 8,
+            border: "1px solid var(--line)",
+            fontSize: "0.82rem",
+            overflowX: "auto",
+            margin: 0,
+            lineHeight: 1.6,
+          }}
+        >
+{`# Inferencia IA en Cascada (Recomendado)
+GEMINI_API_KEY=AIzaSy...
+GEMINI_MODEL=gemini-2.5-flash
+GROQ_API_KEY=gsk_...
+GROQ_MODEL=llama-3.3-70b-versatile
+XAI_API_KEY=xai-...
+NVIDIA_API_KEY=nvapi-...
+
+# Google Analytics 4 (Data API)
+GA4_PROPERTY_ID=123456789
+GA4_SERVICE_ACCOUNT_B64=ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudC...
+
+# WooCommerce HPOS & Tienda Headless
+WOOCOMMERCE_URL=https://davebeauty.daverod.tech
+WOOCOMMERCE_KEY=ck_...
+WOOCOMMERCE_SECRET=cs_...
+TRAXO_BCV_RATE=880.0`}
+        </pre>
+      </section>
+
       <div className="two eq">
         <section className="card stack" aria-labelledby="pv-h">
           <h2 id="pv-h">Datos y privacidad (Ley 1581)</h2>
@@ -628,6 +897,21 @@ export function Ajustes({ ctx }: { ctx: Ctx }) {
               )}
             </div>
           )}
+          <div className="stack tight" style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--line)" }}>
+            <div className="row" style={{ alignItems: "center", gap: 10 }}>
+              <Button
+                variant="agent"
+                icon="trash"
+                onClick={cleanOrders}
+                disabled={cleaningOrders}
+              >
+                {cleaningOrders ? "Limpiando pedidos…" : "Limpiar Pedidos de Prueba (Restaurar 5)"}
+              </Button>
+            </div>
+            <span className="caption">
+              Elimina pedidos ficticios y restablece estrictamente los 5 pedidos realistas (#82, #81, #80, #79, #74).
+            </span>
+          </div>
         </section>
       </div>
       {!state && <EmptyState title="Cargando" />}
