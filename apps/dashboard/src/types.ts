@@ -532,22 +532,30 @@ export type AnalyticsRealtimeResp = {
 };
 
 export type AnalyticsFunnelStep = {
-  step: string;
-  label: string;
+  id?: string;
+  step?: string;
+  name?: string;
+  label?: string;
   count: number;
-  conversionFromPrevious: number;
-  conversionFromFirst: number;
+  conversionRate?: number;
+  dropoffRate?: number;
+  status?: string;
+  conversionFromPrevious?: number;
+  conversionFromFirst?: number;
 };
 
 export type AnalyticsFunnelResp = {
   ok: boolean;
   periodDays: number;
   steps: AnalyticsFunnelStep[];
-  bottleneck: {
-    step: string;
-    severity: "critical" | "warning" | "good";
-    description: string;
-    recommendation: string;
+  bottleneck?: {
+    step?: string;
+    stepId?: string;
+    stepName?: string;
+    severity?: "critical" | "warning" | "good" | "rojo" | "amarillo" | "verde";
+    description?: string;
+    message?: string;
+    recommendation?: string;
   };
 };
 

@@ -710,86 +710,111 @@ export function TiendaSeo({ ctx }: { ctx: Ctx }) {
             marginBottom: 20,
           }}
         >
-          {(
-            funnel.data?.steps ?? [
-              {
-                step: "sessions",
-                label: "1. Sesiones",
-                count: 1240,
-                conversionFromPrevious: 100,
-                conversionFromFirst: 100,
-              },
-              {
-                step: "product_views",
-                label: "2. Vistas de Producto",
-                count: 820,
-                conversionFromPrevious: 66.1,
-                conversionFromFirst: 66.1,
-              },
-              {
-                step: "whatsapp_clicks",
-                label: "3. Clics WhatsApp",
-                count: 185,
-                conversionFromPrevious: 22.5,
-                conversionFromFirst: 14.9,
-              },
-              {
-                step: "orders",
-                label: "4. Órdenes Confirmadas",
-                count: 52,
-                conversionFromPrevious: 28.1,
-                conversionFromFirst: 4.19,
-              },
-            ]
-          ).map((s, idx) => (
-            <div
-              key={s.step}
-              style={{
-                padding: "14px 16px",
-                background: "var(--surface-sunken)",
-                border: "1px solid var(--line)",
-                borderRadius: 10,
-                position: "relative",
-              }}
-            >
-              <div className="caption" style={{ fontWeight: 700, color: "var(--ink-muted)" }}>
-                {s.label}
-              </div>
-              <div
-                style={{
-                  fontSize: "1.6rem",
-                  fontWeight: 800,
-                  color: "var(--ink)",
-                  margin: "4px 0",
-                }}
-              >
-                {s.count.toLocaleString("es-VE")}
-              </div>
-              <div
-                className="row between"
-                style={{ fontSize: "0.75rem", color: "var(--ink-muted)" }}
-              >
-                <span>
-                  Paso ant: <strong>{s.conversionFromPrevious.toFixed(1)}%</strong>
-                </span>
-                <span>
-                  Global: <strong>{s.conversionFromFirst.toFixed(1)}%</strong>
-                </span>
-              </div>
-            </div>
-          ))}
+          {(() => {
+            const rawSteps =
+              funnel.data?.steps && funnel.data.steps.length > 0
+                ? funnel.data.steps
+                : [
+                    {
+                      id: "sessions",
+                      name: "1. Sesiones",
+                      count: 1240,
+                      conversionRate: 100,
+                    },
+                    {
+                      id: "product_views",
+                      name: "2. Vistas de Producto",
+                      count: 820,
+                      conversionRate: 66.1,
+                    },
+                    {
+                      id: "whatsapp_clicks",
+                      name: "3. Clics WhatsApp",
+                      count: 185,
+                      conversionRate: 22.5,
+                    },
+                    {
+                      id: "orders",
+                      name: "4. Órdenes Confirmadas",
+                      count: 52,
+                      conversionRate: 28.1,
+                    },
+                  ];
+            const baseCount = rawSteps[0]?.count || 1;
+            return rawSteps.map((s, idx) => {
+              const stepKey = s.id ?? s.step ?? `step-${idx}`;
+              const label = s.name ?? s.label ?? s.step ?? `Paso ${idx + 1}`;
+              const convPrev =
+                typeof s.conversionRate === "number"
+                  ? s.conversionRate
+                  : typeof s.conversionFromPrevious === "number"
+                    ? s.conversionFromPrevious
+                    : 100;
+              const convGlobal =
+                typeof s.conversionFromFirst === "number"
+                  ? s.conversionFromFirst
+                  : Math.round(((s.count || 0) / baseCount) * 1000) / 10;
+
+              return (
+                <div
+                  key={stepKey}
+                  style={{
+                    padding: "14px 16px",
+                    background: "var(--surface-sunken)",
+                    border: "1px solid var(--line)",
+                    borderRadius: 10,
+                    position: "relative",
+                  }}
+                >
+                  <div className="caption" style={{ fontWeight: 700, color: "var(--ink-muted)" }}>
+                    {label}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "1.6rem",
+                      fontWeight: 800,
+                      color: "var(--ink)",
+                      margin: "4px 0",
+                    }}
+                  >
+                    {(s.count || 0).toLocaleString("es-VE")}
+                  </div>
+                  <div
+                    className="row between"
+                    style={{ fontSize: "0.75rem", color: "var(--ink-muted)" }}
+                  >
+                    <span>
+                      Paso ant: <strong>{Number(convPrev).toFixed(1)}%</strong>
+                    </span>
+                    <span>
+                      Global: <strong>{Number(convGlobal).toFixed(1)}%</strong>
+                    </span>
+                  </div>
+                </div>
+              );
+            });
+          })()}
         </div>
 
         {/* Diagnóstico Semáforo de Cuello de Botella */}
         {(() => {
-          const bottleneck = funnel.data?.bottleneck ?? {
-            step: "Clics WhatsApp -> Órdenes",
-            severity: "warning",
-            description:
-              "El 71.9% de los usuarios que hacen clic a WhatsApp no concretan la compra.",
-            recommendation:
-              "Configurar un mensaje de bienvenida inmediato que confirme la tasa oficial BCV y la disponibilidad para entrega hoy.",
-          };
+          const rawBn = funnel.data?.bottleneck;
+          const stepTitle = rawBn?.stepName ?? rawBn?.step ?? "Clics WhatsApp -> Órdenes";
+          const rawSev = (rawBn?.severity || "amarillo").toLowerCase();
+          const normalizedSev =
+            rawSev === "rojo" || rawSev === "critical"
+              ? "critical"
+              : rawSev === "verde" || rawSev === "good"
+                ? "good"
+                : "warning";
+          const desc =
+            rawBn?.message ??
+            rawBn?.description ??
+            "El 71.9% de los usuarios que hacen clic a WhatsApp no concretan la compra.";
+          const rec =
+            rawBn?.recommendation ??
+            "Configurar un mensaje de bienvenida inmediato que confirme la tasa oficial BCV y la disponibilidad para entrega hoy.";
+
           const severityColors = {
             critical: {
               bg: "rgba(239, 68, 68, 0.08)",
@@ -810,7 +835,7 @@ export function TiendaSeo({ ctx }: { ctx: Ctx }) {
               label: "Embudo Saludable",
             },
           };
-          const conf = severityColors[bottleneck.severity] ?? severityColors.warning;
+          const conf = severityColors[normalizedSev] ?? severityColors.warning;
 
           return (
             <div
@@ -830,7 +855,7 @@ export function TiendaSeo({ ctx }: { ctx: Ctx }) {
                     textTransform: "uppercase",
                   }}
                 >
-                  Semáforo de Conversión: {conf.label} en {bottleneck.step}
+                  Semáforo de Conversión: {conf.label} en {stepTitle}
                 </span>
               </div>
               <p
@@ -841,10 +866,10 @@ export function TiendaSeo({ ctx }: { ctx: Ctx }) {
                   color: "var(--ink)",
                 }}
               >
-                {bottleneck.description}
+                {desc}
               </p>
               <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--ink-muted)" }}>
-                <strong>Acción prescrita:</strong> {bottleneck.recommendation}
+                <strong>Acción prescrita:</strong> {rec}
               </p>
             </div>
           );

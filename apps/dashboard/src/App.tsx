@@ -376,7 +376,15 @@ function Shell({
     setView(v);
     setMore(false);
     setSel(undefined);
-    location.hash = v;
+    try {
+      window.location.hash = v;
+    } catch {
+      try {
+        window.history.pushState(null, "", `#${v}`);
+      } catch {
+        /* ignore */
+      }
+    }
     main.current?.focus({ preventScroll: true });
     window.scrollTo({ top: 0 });
   }, []);

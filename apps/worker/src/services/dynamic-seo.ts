@@ -222,6 +222,85 @@ async function resolveProductInfo(
 
   // 4. Catálogo demo / respaldo estándar si coincide con Davebeauty o Magnesio
   if (
+    normSlug.includes("oregano") ||
+    normSlug === "aceite-de-oregano-silvestre" ||
+    normSlug === "238" ||
+    normSlug === "prod_oregano"
+  ) {
+    return {
+      id: "prod_oregano",
+      sku: "238",
+      title: "Aceite de Orégano Silvestre + Semilla Negra 6.000 mg",
+      description:
+        "Fórmula herbal sinérgica con alto carvacrol y timoquinona para inmunidad y salud digestiva.",
+      imageUrl: "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/238/oregano-black-seed.webp",
+      priceUsd: 25,
+      storeName: env.TRAXO_STORE_NAME || "Davebeauty",
+      storeUrl: env.TRAXO_STORE_URL || "https://davebeauty.com",
+    };
+  }
+
+  if (
+    normSlug.includes("magic") ||
+    normSlug === "magic-oil" ||
+    normSlug === "aceite-reafirmante" ||
+    normSlug === "239" ||
+    normSlug === "prod_magic_oil"
+  ) {
+    return {
+      id: "prod_magic_oil",
+      sku: "239",
+      title: "Aceite Reafirmante Corporal West Month Magic Body Oil 100 ml",
+      description:
+        "Aceite corporal botánico reafirmante para elasticidad cutánea e hidratación profunda.",
+      imageUrl: "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/239/magic-body-oil.webp",
+      priceUsd: 25,
+      storeName: env.TRAXO_STORE_NAME || "Davebeauty",
+      storeUrl: env.TRAXO_STORE_URL || "https://davebeauty.com",
+    };
+  }
+
+  if (
+    normSlug.includes("nad") ||
+    normSlug.includes("resveratrol") ||
+    normSlug === "nad-resveratrol" ||
+    normSlug === "240" ||
+    normSlug === "prod_nad"
+  ) {
+    return {
+      id: "prod_nad",
+      sku: "240",
+      title: "Nicotinamide Riboside + Resveratrol 900 mg (NAD+ Booster)",
+      description:
+        "Fórmula celular avanzada para vitalidad, función mitocondrial y longevidad celular.",
+      imageUrl: "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/240/nad-resveratrol.webp",
+      priceUsd: 30,
+      storeName: env.TRAXO_STORE_NAME || "Davebeauty",
+      storeUrl: env.TRAXO_STORE_URL || "https://davebeauty.com",
+    };
+  }
+
+  if (
+    normSlug.includes("medicube") ||
+    normSlug.includes("pdrn") ||
+    normSlug === "medicube-pdrn" ||
+    normSlug === "241" ||
+    normSlug === "prod_medicube"
+  ) {
+    return {
+      id: "prod_medicube",
+      sku: "241",
+      title: "Medicube Crema Cápsula Salmón ADN PDRN 55 ml",
+      description:
+        "Crema coreana en cápsulas con ADN de salmón PDRN para regeneración dérmica y efecto glass skin.",
+      imageUrl: "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/241/medicube-pdrn.webp",
+      priceUsd: 27,
+      storeName: env.TRAXO_STORE_NAME || "Davebeauty",
+      storeUrl: env.TRAXO_STORE_URL || "https://davebeauty.com",
+    };
+  }
+
+  if (
     normSlug.includes("magnesio") ||
     normSlug.includes("serum") ||
     normSlug === "254" ||
