@@ -13,6 +13,12 @@ export type ProductWebhookEvent = {
   product?: Product;
 };
 
+export type StockUpdateInput = {
+  manageStock?: boolean;
+  stockQuantity?: number | null;
+  stockStatus?: "instock" | "outofstock" | "onbackorder";
+};
+
 /** Todo lo que Traxo necesita de una tienda. Un adapter por plataforma; el agente no sabe cuál es. */
 export interface CommerceAdapter {
   readonly platform: Platform;
@@ -26,6 +32,14 @@ export interface CommerceAdapter {
   addNote(orderId: string, note: string): Promise<void>;
   /** Actualiza el estado del pedido en la plataforma (ej: 'processing' al conciliar pago). */
   updateOrderStatus?(orderId: string, status: string, note?: string): Promise<void>;
+  /** Actualiza el stock de un producto en la plataforma. */
+  updateProductStock?(productId: string, stock: StockUpdateInput): Promise<void>;
+  /** Actualiza el stock de una variación de producto en la plataforma. */
+  updateVariationStock?(
+    productId: string,
+    variationId: string,
+    stock: StockUpdateInput,
+  ): Promise<void>;
   /** Verifica la firma del webhook con el cuerpo CRUDO. */
   verifyWebhook(headers: Record<string, string | undefined>, rawBody: string): boolean;
   /** Convierte el payload de la plataforma en un Order de Traxo (o undefined si el tema no es de pedido nuevo). */

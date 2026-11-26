@@ -219,6 +219,9 @@ export const FulfillmentEventSchema = z.object({
 });
 export type FulfillmentEvent = z.infer<typeof FulfillmentEventSchema>;
 
+export const StockStatusSchema = z.enum(["instock", "outofstock", "onbackorder"]);
+export type StockStatus = z.infer<typeof StockStatusSchema>;
+
 export const ProductSchema = z.object({
   id: z.string(),
   externalId: z.string(),
@@ -229,6 +232,10 @@ export const ProductSchema = z.object({
   imageUrl: z.string().optional(),
   description: z.string().optional(),
   sku: z.string().optional(),
+  manageStock: z.boolean().optional(),
+  stockQuantity: z.number().int().nullable().optional(),
+  stockStatus: StockStatusSchema.optional(),
+  dropiProductId: z.string().nullable().optional(),
   variations: z.array(z.record(z.string(), z.unknown())).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });

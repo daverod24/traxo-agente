@@ -1,4 +1,10 @@
-import { buildDemoOrder, classifyOrderAnomaly, DEMO_PRODUCTS } from "@traxo/commerce";
+import {
+  buildDemoOrder,
+  classifyOrderAnomaly,
+  computePackStocks,
+  DEMO_PRODUCTS,
+  fetchDropiProductStock,
+} from "@traxo/commerce";
 import {
   type AgentEvent,
   CampaignDraftInputSchema,
@@ -8,7 +14,14 @@ import {
   StoreSettingsSchema,
   validateCopy,
 } from "@traxo/core";
-import { getSettings, recentEvents, saveOrder, setSettings, storeNameOf } from "@traxo/db";
+import {
+  getSettings,
+  recentEvents,
+  saveOrder,
+  setSettings,
+  storeNameOf,
+  updateProductStockInDb,
+} from "@traxo/db";
 import type { Context, Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { findOrder, handleNewOrder, quoteOrder, recordMessage, shipOrder } from "./agent.ts";
@@ -761,7 +774,7 @@ export function registerApi(app: Hono, rt: Runtime): void {
           const meta = catalogMeta[p.externalId] ?? CANONICAL_DAVEBEAUTY[p.externalId] ?? {};
           const canonical = CANONICAL_DAVEBEAUTY[p.externalId];
           const sku = meta.sku || canonical?.sku || null;
-          const dropiId = meta.dropiId || canonical?.dropiId || null;
+          const dropiId = p.dropiProductId || meta.dropiId || canonical?.dropiId || null;
           const packs =
             meta.packs && (meta.packs.duo || meta.packs.trio)
               ? meta.packs
@@ -785,6 +798,10 @@ export function registerApi(app: Hono, rt: Runtime): void {
             weightGrams: p.weightGrams,
             sku,
             dropiId,
+            dropiProductId: dropiId,
+            manageStock: p.manageStock ?? false,
+            stockQuantity: p.stockQuantity ?? null,
+            stockStatus: p.stockStatus ?? "instock",
             packs,
           };
         })
@@ -819,6 +836,172 @@ export function registerApi(app: Hono, rt: Runtime): void {
       customers: result.customers,
       orders: result.orders,
       message: `Catálogo sincronizado: ${result.products} nuevos, ${result.updatedProducts ?? 0} actualizados (Total: ${allProducts.length}).`,
+    });
+  });
+
+  app.post("/api/products/stock-sync", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as {
+      storeSlug?: string;
+      productId?: string;
+      dropiId?: string;
+      physicalStock?: number;
+    };
+
+    let storeId = sid(c);
+    if (body.storeSlug && body.storeSlug.trim()) {
+      const slug = body.storeSlug.trim();
+      const matchedStore = await db.prisma.store.findFirst({
+        where: {
+          OR: [{ id: slug }, { name: { equals: slug, mode: "insensitive" } }],
+        },
+        select: { id: true },
+      });
+      if (matchedStore) storeId = matchedStore.id;
+    }
+
+    const storeRow = await db.prisma.store.findUnique({
+      where: { id: storeId },
+      select: { profile: true },
+    });
+    const catalogMeta =
+      ((storeRow?.profile as Record<string, unknown> | null)?.catalogMeta as Record<
+        string,
+        {
+          dropiId?: string;
+          variations?: Array<{ id: number | string; sku?: string; name?: string }>;
+        }
+      >) ?? {};
+
+    let product = null;
+    if (body.productId) {
+      product = await db.prisma.product.findFirst({
+        where: {
+          storeId,
+          OR: [{ id: body.productId }, { externalId: body.productId }],
+        },
+      });
+    } else if (body.dropiId) {
+      const targetDropiId = String(body.dropiId).trim();
+      product = await db.prisma.product.findFirst({
+        where: { storeId, dropiProductId: targetDropiId },
+      });
+      if (!product) {
+        const extMatch = Object.entries(catalogMeta).find(
+          ([, m]) => String(m?.dropiId ?? "") === targetDropiId,
+        )?.[0];
+        if (extMatch) {
+          product = await db.prisma.product.findFirst({
+            where: { storeId, externalId: extMatch },
+          });
+        }
+      }
+    }
+
+    if (!product) {
+      return c.json({ ok: false, message: "Producto no encontrado en esta tienda." }, 404);
+    }
+
+    const resolvedDropiId =
+      (body.dropiId ? String(body.dropiId).trim() : undefined) ??
+      product.dropiProductId ??
+      catalogMeta[product.externalId]?.dropiId ??
+      null;
+
+    let physicalStock: number;
+    if (typeof body.physicalStock === "number" && Number.isFinite(body.physicalStock)) {
+      physicalStock = Math.max(0, Math.floor(body.physicalStock));
+    } else {
+      if (!resolvedDropiId) {
+        return c.json(
+          {
+            ok: false,
+            configured: Boolean(env.DROPI_API_KEY),
+            reason: "Producto sin dropiProductId ni physicalStock",
+          },
+          400,
+        );
+      }
+      const dropiRes = await fetchDropiProductStock(resolvedDropiId, {
+        apiUrl: env.DROPI_API_URL,
+        apiKey: env.DROPI_API_KEY,
+      });
+      if (!dropiRes.ok) {
+        return c.json(
+          {
+            ok: false,
+            configured: dropiRes.configured,
+            reason: dropiRes.reason,
+          },
+          dropiRes.configured ? 502 : 400,
+        );
+      }
+      physicalStock = dropiRes.physicalStock;
+    }
+
+    const variations = catalogMeta[product.externalId]?.variations ?? [];
+    const resolveVarPackQty = (v: { sku?: string; name?: string }): number => {
+      const vSku = (v.sku || "").toLowerCase();
+      const vName = (v.name || "").toLowerCase();
+      if (vSku.endsWith("-3") || vName.includes("trío") || vName.includes("trio") || vName.includes("kit")) {
+        return 3;
+      }
+      if (vSku.endsWith("-2") || vName.includes("dúo") || vName.includes("duo")) {
+        return 2;
+      }
+      return 1;
+    };
+
+    const packQtys =
+      variations.length > 0
+        ? Array.from(new Set([1, 2, 3, ...variations.map(resolveVarPackQty)]))
+        : [1, 2, 3];
+
+    const computed = computePackStocks(physicalStock, packQtys);
+
+    await updateProductStockInDb(db, product.id, {
+      manageStock: true,
+      stockQuantity: computed.parentStockQuantity,
+      stockStatus: computed.parentStockStatus,
+      ...(resolvedDropiId ? { dropiProductId: resolvedDropiId } : {}),
+    });
+
+    const adapter = rt.commerceMap[storeId] ?? rt.commerce;
+    let wooSynced = false;
+    let variationsSynced = 0;
+
+    if (adapter?.updateProductStock) {
+      await adapter.updateProductStock(product.externalId, {
+        manageStock: true,
+        stockQuantity: computed.parentStockQuantity,
+        stockStatus: computed.parentStockStatus,
+      });
+      wooSynced = true;
+
+      if (adapter.updateVariationStock && variations.length > 0) {
+        for (const v of variations) {
+          const qty = resolveVarPackQty(v);
+          const entry = computed.packs[qty];
+          if (!entry) continue;
+          await adapter.updateVariationStock(product.externalId, String(v.id), {
+            manageStock: true,
+            stockQuantity: entry.stockQuantity,
+            stockStatus: entry.stockStatus,
+          });
+          variationsSynced++;
+        }
+      }
+    }
+
+    return c.json({
+      ok: true,
+      productId: product.id,
+      externalId: product.externalId,
+      dropiProductId: resolvedDropiId,
+      physicalStock: computed.physicalStock,
+      stockStatus: computed.parentStockStatus,
+      packs: computed.packs,
+      wooSynced,
+      variationsSynced,
     });
   });
 

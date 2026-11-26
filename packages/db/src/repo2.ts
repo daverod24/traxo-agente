@@ -231,3 +231,24 @@ export async function storeNameOf(
   storeNames.set(storeId, name);
   return name;
 }
+
+export async function updateProductStockInDb(
+  db: Db,
+  productId: string,
+  stock: {
+    manageStock?: boolean;
+    stockQuantity?: number | null;
+    stockStatus?: "instock" | "outofstock" | "onbackorder";
+    dropiProductId?: string | null;
+  },
+) {
+  return db.prisma.product.update({
+    where: { id: productId },
+    data: {
+      ...(stock.manageStock !== undefined ? { manageStock: stock.manageStock } : {}),
+      ...(stock.stockQuantity !== undefined ? { stockQuantity: stock.stockQuantity } : {}),
+      ...(stock.stockStatus !== undefined ? { stockStatus: stock.stockStatus } : {}),
+      ...(stock.dropiProductId !== undefined ? { dropiProductId: stock.dropiProductId } : {}),
+    },
+  });
+}

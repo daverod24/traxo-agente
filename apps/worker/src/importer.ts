@@ -128,6 +128,9 @@ export async function importStore(
         };
       }
 
+      const resolvedDropiId =
+        p.dropiProductId ?? (p.metadata?.dropiId as string | undefined) ?? null;
+
       const found = await db.prisma.product.findFirst({
         where: { storeId, externalId: p.externalId },
       });
@@ -139,6 +142,10 @@ export async function importStore(
           weightGrams?: number;
           imageUrl?: string | null;
           description?: string | null;
+          manageStock?: boolean | null;
+          stockQuantity?: number | null;
+          stockStatus?: string | null;
+          dropiProductId?: string | null;
         } = {};
 
         if (p.title && found.title !== p.title) updateData.title = p.title;
@@ -151,6 +158,14 @@ export async function importStore(
         if (targetImg && found.imageUrl !== targetImg) updateData.imageUrl = targetImg;
         if (p.description !== undefined && found.description !== (p.description ?? null))
           updateData.description = p.description ?? null;
+        if (p.manageStock !== undefined && found.manageStock !== p.manageStock)
+          updateData.manageStock = p.manageStock;
+        if (p.stockQuantity !== undefined && found.stockQuantity !== p.stockQuantity)
+          updateData.stockQuantity = p.stockQuantity;
+        if (p.stockStatus !== undefined && found.stockStatus !== p.stockStatus)
+          updateData.stockStatus = p.stockStatus;
+        if (resolvedDropiId !== null && found.dropiProductId !== resolvedDropiId)
+          updateData.dropiProductId = resolvedDropiId;
 
         if (Object.keys(updateData).length > 0) {
           await db.prisma.product.update({
@@ -172,6 +187,10 @@ export async function importStore(
           weightGrams: p.weightGrams,
           imageUrl: getProductImage(p) || null,
           description: p.description ?? null,
+          manageStock: p.manageStock ?? null,
+          stockQuantity: p.stockQuantity ?? null,
+          stockStatus: p.stockStatus ?? null,
+          dropiProductId: resolvedDropiId,
         },
       });
       products++;

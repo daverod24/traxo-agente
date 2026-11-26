@@ -3,7 +3,12 @@ import { findCity, normalizePhone, normalizeStreet } from "@traxo/geo-co";
 import { normalizePhoneVE } from "@traxo/market-ve";
 import { header, hmac, safeEqual } from "./hmac.ts";
 import { classifyOrderAnomaly } from "./order-hygiene.ts";
-import type { CommerceAdapter, FulfillmentInput, ProductWebhookEvent } from "./types.ts";
+import type {
+  CommerceAdapter,
+  FulfillmentInput,
+  ProductWebhookEvent,
+  StockUpdateInput,
+} from "./types.ts";
 
 export type RawWooProduct = {
   id: number;
@@ -16,6 +21,9 @@ export type RawWooProduct = {
   description?: string;
   sku?: string;
   type?: string;
+  manage_stock?: boolean;
+  stock_quantity?: number | null;
+  stock_status?: string;
   variations?: number[];
   meta_data?: Array<{ id?: number; key: string; value: unknown }>;
 };
@@ -92,6 +100,19 @@ export function normalizeProductFromWoo(
     }
   }
 
+  const stockStatus =
+    p.stock_status === "instock" ||
+    p.stock_status === "outofstock" ||
+    p.stock_status === "onbackorder"
+      ? p.stock_status
+      : undefined;
+  const stockQuantity =
+    p.stock_quantity === null
+      ? null
+      : p.stock_quantity !== undefined && Number.isFinite(Number(p.stock_quantity))
+        ? Math.trunc(Number(p.stock_quantity))
+        : undefined;
+
   return {
     id: `prod_${p.id}`,
     externalId: String(p.id),
@@ -102,6 +123,10 @@ export function normalizeProductFromWoo(
     imageUrl: p.images?.[0]?.src,
     description: (p.short_description || p.description)?.replace(/<[^>]+>/g, " ").trim(),
     sku: p.sku || undefined,
+    manageStock: typeof p.manage_stock === "boolean" ? p.manage_stock : undefined,
+    stockQuantity,
+    stockStatus,
+    dropiProductId: dropiId ?? null,
     variations: variationsList as any,
     metadata: {
       dropiId,
@@ -565,6 +590,36 @@ export class WooCommerce implements CommerceAdapter {
     if (note) {
       await this.addNote(orderId, note);
     }
+  }
+
+  async updateProductStock(productId: string, stock: StockUpdateInput): Promise<void> {
+    const payload: Record<string, unknown> = {};
+    if (stock.manageStock !== undefined) payload.manage_stock = stock.manageStock;
+    if (stock.stockQuantity !== undefined) payload.stock_quantity = stock.stockQuantity;
+    if (stock.stockStatus !== undefined) payload.stock_status = stock.stockStatus;
+    if (Object.keys(payload).length === 0) return;
+
+    await this.call(`/products/${productId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateVariationStock(
+    productId: string,
+    variationId: string,
+    stock: StockUpdateInput,
+  ): Promise<void> {
+    const payload: Record<string, unknown> = {};
+    if (stock.manageStock !== undefined) payload.manage_stock = stock.manageStock;
+    if (stock.stockQuantity !== undefined) payload.stock_quantity = stock.stockQuantity;
+    if (stock.stockStatus !== undefined) payload.stock_status = stock.stockStatus;
+    if (Object.keys(payload).length === 0) return;
+
+    await this.call(`/products/${productId}/variations/${variationId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
   }
 
   verifyWebhook(headers: Record<string, string | undefined>, rawBody: string): boolean {

@@ -47,6 +47,10 @@ model Product {
   keyIngredients    String[]        @default([])
   commonObjections  String[]        @default([])
   packRules         Json?
+  manageStock       Boolean?
+  stockQuantity     Int?
+  stockStatus       String?
+  dropiProductId    String?
 
   store       Store                 @relation(fields: [storeId], references: [id])
   generations MarketingGeneration[]

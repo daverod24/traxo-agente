@@ -26,6 +26,10 @@ CREATE TABLE "Product" (
     "weightGrams" INTEGER NOT NULL DEFAULT 500,
     "imageUrl" TEXT,
     "description" TEXT,
+    "manageStock" BOOLEAN,
+    "stockQuantity" INTEGER,
+    "stockStatus" TEXT,
+    "dropiProductId" TEXT,
 
     CONSTRAINT "Product_pkey" PRIMARY KEY ("id")
 );
