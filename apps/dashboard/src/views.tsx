@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { get, post, useResource } from "./api.ts";
 import { EmptyState, OrderJourney, Pipeline, QuoteBars, Sheet } from "./components.tsx";
-import { cop, copShort, dateEs, phoneEs, plural, timeEs, usd, vesFromUsd } from "./format.ts";
+import { copShort, dateTimeVe, phoneEs, plural, timeEs, usd, vesFromUsd } from "./format.ts";
 import type {
   Account,
   Approval,
@@ -277,7 +277,8 @@ export function getProductImage(p: {
   imageUrl?: string | null;
 }): string | undefined {
   if (p.imageUrl && p.imageUrl.startsWith("http")) return p.imageUrl;
-  if (p.externalId && CANONICAL_PRODUCT_IMAGES[p.externalId]) return CANONICAL_PRODUCT_IMAGES[p.externalId];
+  if (p.externalId && CANONICAL_PRODUCT_IMAGES[p.externalId])
+    return CANONICAL_PRODUCT_IMAGES[p.externalId];
   const t = p.title.toLowerCase();
   if (t.includes("orégano") || t.includes("oregano"))
     return "https://davebeauty.daverod.tech/images/products/aceite-de-oregano-semilla-negra/premium-v1.webp";
@@ -289,12 +290,68 @@ export function getProductImage(p: {
     return "https://cdn.rimanbuild.com/Incellderm/EX/DailyAquaBB/TL_DailyAquaBB_DFLT.png";
   if (t.includes("medicube"))
     return "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/93/17698802731000454694.webp";
-  if (t.includes("reafirmante") || t.includes("lifting") || t.includes("mágico") || t.includes("magic"))
+  if (
+    t.includes("reafirmante") ||
+    t.includes("lifting") ||
+    t.includes("mágico") ||
+    t.includes("magic")
+  )
     return "https://davebeauty.daverod.tech/images/products/aceite-magico-reafirmante/luxury-v1-1200.webp";
   if (t.includes("nicotinamide") || t.includes("resveratrol") || t.includes("nad"))
     return "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/196/17827922041000704956.jpg";
   return undefined;
 }
+
+const orderTotal = (o: OrderRow): number => o.totalExact ?? o.total;
+
+const orderBcvRate = (o: OrderRow): number | undefined => {
+  const n = Number(o.meta?._bcv_rate);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+};
+
+const orderCedula = (o: OrderRow): string =>
+  (
+    o.address.cedula ||
+    (o.meta?._cedula as string | undefined) ||
+    (o.meta?._billing_full_identification as string | undefined) ||
+    ""
+  ).trim();
+
+const orderOriginLabel = (o: OrderRow): string => {
+  const raw = String(o.origin || o.meta?._origin || "").trim();
+  const low = raw.toLowerCase();
+  if (!raw || low === "woocommerce") return "WooCommerce";
+  if (low.includes("storefront") || low.includes("astro")) return "Storefront";
+  return raw;
+};
+
+const orderProductSummary = (o: OrderRow): string => {
+  if (!o.lines?.length) return "Sin productos";
+  const first = o.lines[0]!;
+  const pack = o.meta?._pack_label ? ` (${String(o.meta._pack_label)})` : "";
+  const extra = o.lines.length > 1 ? ` +${o.lines.length - 1}` : "";
+  return `${first.quantity}× ${first.title}${pack}${extra}`;
+};
+
+const orderZoneInfo = (o: OrderRow): string => {
+  const zone = (o.address.zone || (o.meta?._customer_zone as string | undefined) || "").trim();
+  const city = ((o.meta?._dropi_city as string | undefined) || o.address.city || "").trim();
+  const dept = (
+    (o.meta?._dropi_department as string | undefined) ||
+    o.address.department ||
+    ""
+  ).trim();
+  const cityDept = [city, dept].filter(Boolean).join(", ");
+  if (zone && city && zone.toLowerCase() !== city.toLowerCase()) {
+    return `${zone} → ${cityDept}`;
+  }
+  return cityDept || zone || "—";
+};
+
+const whatsappHref = (phone: string): string => {
+  const digits = phone.replace(/\D/g, "");
+  return digits ? `https://wa.me/${digits}` : "#";
+};
 
 export function Inicio({
   ctx,
@@ -313,21 +370,23 @@ export function Inicio({
   const products = useResource<Product[]>("/api/products", ctx.tick).data ?? [];
   const demo = Boolean(state.demo);
 
-  const activeOrders = orders.filter((o) => !["cancelled", "rejected"].includes(o.status));
-  const cancelledOrders = orders.filter((o) => ["cancelled", "rejected"].includes(o.status));
-  const porConfirmarOrders = orders.filter((o) =>
+  const visibleOrders = demo ? orders : orders.filter((o) => !o.isTest);
+  const activeOrders = visibleOrders.filter((o) => !["cancelled", "rejected"].includes(o.status));
+  const cancelledOrders = visibleOrders.filter((o) => ["cancelled", "rejected"].includes(o.status));
+  const porConfirmarOrders = visibleOrders.filter((o) =>
     ["pending", "received", "on_hold", "on-hold"].includes(o.status),
   );
-  const codPendientes = orders.filter(
+  const codPendientes = visibleOrders.filter(
     (o) => o.payment === "cod" && !["delivered", "cancelled", "rejected"].includes(o.status),
   );
 
-  const totalGmv = activeOrders.reduce((s, o) => s + o.total, 0);
-  const porCobrar = codPendientes.reduce((s, o) => s + o.total, 0);
-  const cancelledAmount = cancelledOrders.reduce((s, o) => s + o.total, 0);
+  const totalGmv = activeOrders.reduce((s, o) => s + orderTotal(o), 0);
+  const porCobrar = codPendientes.reduce((s, o) => s + orderTotal(o), 0);
+  const cancelledAmount = cancelledOrders.reduce((s, o) => s + orderTotal(o), 0);
   const enCaminoCount =
-    k.inTransit || orders.filter((o) => ["shipped", "in_transit"].includes(o.status)).length;
-  const entregadosCount = k.delivered || orders.filter((o) => o.status === "delivered").length;
+    k.inTransit || visibleOrders.filter((o) => ["shipped", "in_transit"].includes(o.status)).length;
+  const entregadosCount =
+    k.delivered || visibleOrders.filter((o) => o.status === "delivered").length;
 
   return (
     <div className="stack">
@@ -599,7 +658,7 @@ export function Inicio({
             </button>
           </div>
           <div className="stack" style={{ gap: 8 }}>
-            {orders.slice(0, 6).map((o) => (
+            {visibleOrders.slice(0, 6).map((o) => (
               <div
                 key={o.id}
                 className="row between click"
@@ -612,24 +671,36 @@ export function Inicio({
                   alignItems: "center",
                 }}
               >
-                <div className="row" style={{ gap: 10, alignItems: "center" }}>
+                <div className="row" style={{ gap: 10, alignItems: "center", minWidth: 0 }}>
                   <span className="mono" style={{ fontWeight: 700, fontSize: "0.95rem" }}>
                     {o.number}
                   </span>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{o.address.name}</div>
-                    <div className="caption">{o.address.city}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="row" style={{ gap: 6, alignItems: "center" }}>
+                      <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>{o.address.name}</span>
+                      {o.anomalyReason && !o.isTest && (
+                        <span className="badge tone-attention" title={o.anomalyReason}>
+                          Anomalía
+                        </span>
+                      )}
+                    </div>
+                    <div className="caption" style={{ whiteSpace: "normal" }}>
+                      {dateTimeVe(o.createdAt)} · {orderZoneInfo(o)}
+                    </div>
+                    <div className="caption" style={{ opacity: 0.85 }}>
+                      {orderProductSummary(o)}
+                    </div>
                   </div>
                 </div>
                 <div className="row" style={{ gap: 12, alignItems: "center" }}>
                   <span className="mono num" style={{ fontWeight: 700 }}>
-                    {usd(o.total)}
+                    {usd(orderTotal(o))}
                   </span>
                   <StatusBadge status={o.status} />
                 </div>
               </div>
             ))}
-            {orders.length === 0 && (
+            {visibleOrders.length === 0 && (
               <EmptyState
                 icon="box"
                 title="Sin pedidos todavía"
@@ -675,6 +746,39 @@ export function Actividad({ ctx }: { ctx: Ctx }) {
 }
 
 /* ============================== PEDIDOS ============================== */
+type OrderStatusFilter = "all" | "pending" | "in_transit" | "delivered" | "cancelled";
+
+const STATUS_PILLS: Array<[OrderStatusFilter, string]> = [
+  ["all", "Todos"],
+  ["pending", "Por confirmar"],
+  ["in_transit", "En tránsito"],
+  ["delivered", "Entregados"],
+  ["cancelled", "Cancelados"],
+];
+
+function matchesStatusFilter(o: OrderRow, filter: OrderStatusFilter): boolean {
+  if (filter === "all") return true;
+  const st = o.shipments[0]?.status ?? o.status;
+  if (filter === "pending") {
+    return ["pending", "received", "on_hold", "on-hold", "awaiting_confirmation"].includes(st);
+  }
+  if (filter === "in_transit") {
+    return [
+      "confirmed",
+      "processing",
+      "shipped",
+      "in_transit",
+      "picked_up",
+      "out_for_delivery",
+      "pickup_scheduled",
+      "created",
+    ].includes(st);
+  }
+  if (filter === "delivered") return st === "delivered";
+  if (filter === "cancelled") return ["cancelled", "rejected", "refunded"].includes(st);
+  return true;
+}
+
 export function Pedidos({
   ctx,
   orders,
@@ -686,10 +790,72 @@ export function Pedidos({
   sel?: string;
   setSel: (id?: string) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>("all");
+  const [hideTests, setHideTests] = useState(true);
+  const [markingTests, setMarkingTests] = useState(false);
+
+  const testOrders = orders.filter((o) => Boolean(o.isTest));
+  const testCount = testOrders.length;
+  const q = query.trim().toLowerCase();
+
+  const filteredOrders = orders.filter((o) => {
+    if (hideTests && o.isTest) return false;
+    if (!matchesStatusFilter(o, statusFilter)) return false;
+    if (!q) return true;
+    const haystack = [
+      o.number,
+      o.address.name,
+      o.address.phone,
+      orderCedula(o),
+      o.address.city,
+      o.address.department,
+      orderZoneInfo(o),
+      orderProductSummary(o),
+    ]
+      .join(" ")
+      .toLowerCase();
+    return haystack.includes(q);
+  });
+
+  const markE2eTests = async () => {
+    setMarkingTests(true);
+    try {
+      const r = await post<{ ok: boolean; scanned: number; marked: number }>(
+        "/api/orders/mark-e2e-tests",
+      );
+      ctx.toast(
+        r.marked > 0
+          ? `Se marcaron ${r.marked} pedidos de prueba E2E (sin borrar datos).`
+          : `Escaneados ${r.scanned} pedidos: sin pruebas E2E pendientes de marcar.`,
+      );
+      ctx.refresh();
+    } catch (e) {
+      ctx.toast((e as Error)?.message || "No se pudo escanear pedidos de prueba");
+    } finally {
+      setMarkingTests(false);
+    }
+  };
+
   const order = orders.find((o) => o.id === sel);
   return (
     <div className="stack">
-      <h1>Pedidos</h1>
+      <div className="row between" style={{ alignItems: "center" }}>
+        <div>
+          <h1 style={{ marginBottom: 4 }}>Pedidos</h1>
+          <span className="caption">
+            {filteredOrders.length}{" "}
+            {plural(filteredOrders.length, "pedido mostrado", "pedidos mostrados")}
+            {hideTests && testCount > 0 ? ` · ${testCount} de prueba ocultos` : ""}
+          </span>
+        </div>
+        <div className="row" style={{ gap: 8 }}>
+          <Button sm icon="spark" onClick={markE2eTests} disabled={markingTests}>
+            {markingTests ? "Escaneando…" : "Marcar pruebas E2E"}
+          </Button>
+        </div>
+      </div>
+
       {orders.length === 0 ? (
         <section className="card">
           <EmptyState
@@ -705,77 +871,219 @@ export function Pedidos({
         </section>
       ) : (
         <>
-          <section className="card compact scroll-x only-wide">
-            <table className="table">
-              <caption className="sr-only">Pedidos recientes</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Pedido</th>
-                  <th scope="col">Cliente</th>
-                  <th scope="col">Ciudad</th>
-                  <th scope="col">Pago</th>
-                  <th scope="col" className="right">
-                    Total
-                  </th>
-                  <th scope="col">Guía</th>
-                  <th scope="col">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((o) => {
-                  const s = o.shipments[0];
-                  return (
-                    <tr
-                      key={o.id}
-                      className={`click ${sel === o.id ? "sel" : ""}`}
-                      onClick={() => setSel(o.id)}
-                      onKeyDown={(e) => e.key === "Enter" && setSel(o.id)}
-                      tabIndex={0}
-                    >
-                      <td className="mono">{o.number}</td>
-                      <td>{o.address.name}</td>
-                      <td>{o.address.city}</td>
-                      <td>
-                        <PaymentBadge payment={o.payment} />
-                      </td>
-                      <td className="right nowrap">
-                        <Money value={o.total} />
-                      </td>
-                      <td className="mono">{s ? s.trackingNumber : "—"}</td>
-                      <td>
-                        <StatusBadge status={s?.status ?? o.status} />
-                      </td>
+          <section className="card compact orders-toolbar">
+            <div
+              className="row between"
+              style={{ gap: 12, alignItems: "center", flexWrap: "wrap" }}
+            >
+              <input
+                type="search"
+                className="input"
+                style={{ flex: "1 1 260px" }}
+                placeholder="Buscar por #orden, nombre, teléfono, cédula o zona/ciudad…"
+                aria-label="Buscar pedidos"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              <label className="orders-test-toggle">
+                <input
+                  type="checkbox"
+                  checked={hideTests}
+                  onChange={(e) => setHideTests(e.target.checked)}
+                />
+                <span>
+                  Ocultar pruebas / E2E
+                  {testCount > 0 ? ` (${testCount})` : ""}
+                </span>
+              </label>
+            </div>
+            <div
+              className="row"
+              style={{ gap: 6, flexWrap: "wrap" }}
+              role="group"
+              aria-label="Filtrar por estado"
+            >
+              {STATUS_PILLS.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`pill-filter ${statusFilter === id ? "active" : ""}`}
+                  onClick={() => setStatusFilter(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {filteredOrders.length === 0 ? (
+            <section className="card">
+              <EmptyState
+                icon="search"
+                title="Sin resultados para este filtro"
+                text="Prueba cambiando la búsqueda, el estado o mostrando los pedidos de prueba E2E."
+                action={
+                  hideTests && testCount > 0 ? (
+                    <Button sm onClick={() => setHideTests(false)}>
+                      Mostrar {testCount} pedidos de prueba
+                    </Button>
+                  ) : undefined
+                }
+              />
+            </section>
+          ) : (
+            <>
+              <section className="card compact scroll-x only-wide">
+                <table className="table orders-table">
+                  <caption className="sr-only">Pedidos recientes</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Pedido · Fecha VET</th>
+                      <th scope="col">Cliente · Teléfono</th>
+                      <th scope="col">Producto / Pack</th>
+                      <th scope="col">Origen</th>
+                      <th scope="col">Zona / Ciudad / Estado</th>
+                      <th scope="col">Pago</th>
+                      <th scope="col" className="right">
+                        Total exacto
+                      </th>
+                      <th scope="col">Guía / Carrier</th>
+                      <th scope="col">Estado</th>
                     </tr>
+                  </thead>
+                  <tbody>
+                    {filteredOrders.map((o) => {
+                      const s = o.shipments[0];
+                      const carrierLabel =
+                        s?.carrier ?? (o.meta?._carrier ? String(o.meta._carrier) : undefined);
+                      return (
+                        <tr
+                          key={o.id}
+                          className={`click ${sel === o.id ? "sel" : ""}`}
+                          onClick={() => setSel(o.id)}
+                          onKeyDown={(e) => e.key === "Enter" && setSel(o.id)}
+                          tabIndex={0}
+                        >
+                          <td>
+                            <div className="mono" style={{ fontWeight: 700 }}>
+                              {o.number}
+                            </div>
+                            <div className="caption num" style={{ whiteSpace: "nowrap" }}>
+                              {dateTimeVe(o.createdAt)}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600 }}>{o.address.name}</div>
+                            <div className="row" style={{ gap: 6, alignItems: "center" }}>
+                              <span className="caption mono">{phoneEs(o.address.phone)}</span>
+                              {o.address.phone && (
+                                <a
+                                  href={whatsappHref(o.address.phone)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="wa-link"
+                                  title="Abrir chat en WhatsApp"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  WA
+                                </a>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ maxWidth: 230 }}>
+                            <span style={{ fontSize: "0.86rem" }}>{orderProductSummary(o)}</span>
+                          </td>
+                          <td>
+                            <div className="stack tight" style={{ gap: 4 }}>
+                              <span className="badge tone-neutral">{orderOriginLabel(o)}</span>
+                              {o.isTest && (
+                                <span
+                                  className="badge tone-agent"
+                                  title={o.anomalyReason ?? "Pedido de prueba E2E"}
+                                >
+                                  Prueba E2E
+                                </span>
+                              )}
+                              {!o.isTest && o.anomalyReason && (
+                                <span className="badge tone-attention" title={o.anomalyReason}>
+                                  Alerta anomalía
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ maxWidth: 210 }}>
+                            <span style={{ fontSize: "0.86rem" }}>{orderZoneInfo(o)}</span>
+                          </td>
+                          <td>
+                            <PaymentBadge payment={o.payment} />
+                          </td>
+                          <td className="right nowrap">
+                            <Money value={orderTotal(o)} bcvRate={orderBcvRate(o)} />
+                          </td>
+                          <td>
+                            <div className="mono" style={{ fontSize: "0.84rem" }}>
+                              {s ? s.trackingNumber : "—"}
+                            </div>
+                            {carrierLabel && <div className="caption">{carrierLabel}</div>}
+                          </td>
+                          <td>
+                            <StatusBadge status={s?.status ?? o.status} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </section>
+              <div className="only-narrow">
+                {filteredOrders.map((o) => {
+                  const s = o.shipments[0];
+                  const carrierLabel =
+                    s?.carrier ?? (o.meta?._carrier ? String(o.meta._carrier) : undefined);
+                  return (
+                    <button key={o.id} type="button" className="ocard" onClick={() => setSel(o.id)}>
+                      <span className="l1">
+                        <span>
+                          <span className="mono" style={{ fontWeight: 700 }}>
+                            {o.number}
+                          </span>
+                          <span className="caption" style={{ marginLeft: 8 }}>
+                            {dateTimeVe(o.createdAt)}
+                          </span>
+                        </span>
+                        <StatusBadge status={s?.status ?? o.status} />
+                      </span>
+                      <span>
+                        <span className="name">{o.address.name}</span>
+                        <span className="caption" style={{ display: "block", marginTop: 2 }}>
+                          {phoneEs(o.address.phone)}
+                        </span>
+                        <span className="caption" style={{ display: "block", marginTop: 2 }}>
+                          {orderProductSummary(o)}
+                        </span>
+                        <span className="caption" style={{ display: "block", marginTop: 2 }}>
+                          {orderZoneInfo(o)}
+                          {carrierLabel ? ` · ${carrierLabel}` : ""}
+                          {s?.trackingNumber ? ` (${s.trackingNumber})` : ""}
+                        </span>
+                      </span>
+                      <span className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+                        <span className="badge tone-neutral">{orderOriginLabel(o)}</span>
+                        {o.isTest && <span className="badge tone-agent">Prueba E2E</span>}
+                        {!o.isTest && o.anomalyReason && (
+                          <span className="badge tone-attention">Alerta anomalía</span>
+                        )}
+                      </span>
+                      <span className="l3">
+                        <PaymentBadge payment={o.payment} />
+                        <Money value={orderTotal(o)} bcvRate={orderBcvRate(o)} />
+                      </span>
+                    </button>
                   );
                 })}
-              </tbody>
-            </table>
-          </section>
-          <div className="only-narrow">
-            {orders.map((o) => {
-              const s = o.shipments[0];
-              return (
-                <button key={o.id} type="button" className="ocard" onClick={() => setSel(o.id)}>
-                  <span className="l1">
-                    <span className="mono">{o.number}</span>
-                    <StatusBadge status={s?.status ?? o.status} />
-                  </span>
-                  <span>
-                    <span className="name">{o.address.name}</span>
-                    <br />
-                    <span className="caption">
-                      {o.address.city}
-                      {s ? ` · ${s.carrier}` : ""}
-                    </span>
-                  </span>
-                  <span className="l3">
-                    <PaymentBadge payment={o.payment} />
-                    <Money value={o.total} />
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+              </div>
+            </>
+          )}
         </>
       )}
       {order && <OrderSheet ctx={ctx} order={order} onClose={() => setSel(undefined)} />}
@@ -793,6 +1101,22 @@ export function OrderSheet({
   onClose: () => void;
 }) {
   const s = order.shipments[0];
+  const [togglingTest, setTogglingTest] = useState(false);
+  const cedula = orderCedula(order);
+  const bcvRate = orderBcvRate(order);
+  const coupon = order.meta?._storefront_coupon ? String(order.meta._storefront_coupon) : undefined;
+  const discountUsd = order.meta?._storefront_discount_usd
+    ? Number(order.meta._storefront_discount_usd)
+    : undefined;
+  const customerNote =
+    order.address.notes ||
+    (order.meta?.customer_note ? String(order.meta.customer_note) : undefined);
+  const realZone = order.address.zone || (order.meta?._customer_zone as string | undefined);
+  const dropiCity = (order.meta?._dropi_city as string | undefined) || order.address.city;
+  const dropiDept =
+    (order.meta?._dropi_department as string | undefined) || order.address.department;
+  const shippingAmt = order.shippingChargedExact ?? order.shippingCharged ?? 0;
+
   const act = async (incident: boolean) => {
     if (!s) return;
     const r = await post<{ ok: boolean; message?: string }>("/api/demo/advance", {
@@ -807,36 +1131,149 @@ export function OrderSheet({
         : (r.message ?? "No se pudo"),
     );
   };
+
+  const toggleTestFlag = async () => {
+    setTogglingTest(true);
+    try {
+      const res = await post<{ ok: boolean; isTest: boolean }>(
+        `/api/orders/${encodeURIComponent(order.id)}/test-flag`,
+        { isTest: !order.isTest },
+      );
+      ctx.toast(
+        res.isTest
+          ? `Pedido ${order.number} marcado como prueba E2E`
+          : `Pedido ${order.number} restaurado como pedido real`,
+      );
+      ctx.refresh();
+    } catch (e) {
+      ctx.toast((e as Error)?.message || "No se pudo actualizar el estado de prueba");
+    } finally {
+      setTogglingTest(false);
+    }
+  };
+
+  const copyForDropi = async () => {
+    const linesTxt = order.lines.map((l) => `${l.quantity}x ${l.title}`).join(", ");
+    const text = [
+      `Pedido: ${order.number}`,
+      `Nombre: ${order.address.name}`,
+      cedula ? `Cédula: ${cedula}` : null,
+      `Teléfono: ${order.address.phone}`,
+      `Estado/Ciudad Dropi: ${[dropiCity, dropiDept].filter(Boolean).join(", ")}`,
+      realZone ? `Zona Cliente: ${realZone}` : null,
+      `Dirección: ${order.address.street}`,
+      `Productos: ${linesTxt}`,
+      `Pago: ${order.payment}`,
+      `Total: ${usd(orderTotal(order))}`,
+      customerNote ? `Nota: ${customerNote}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      ctx.toast("Datos formateados para Dropi copiados al portapapeles");
+    } catch {
+      ctx.toast("No se pudo copiar al portapapeles");
+    }
+  };
+
   return (
     <Sheet title={`Pedido ${order.number}`} onClose={onClose}>
+      {(order.isTest || order.anomalyReason) && (
+        <Banner tone={order.isTest ? "agent" : "attention"}>
+          <strong>{order.isTest ? "Pedido de prueba E2E" : "Alerta operativa"}:</strong>{" "}
+          {order.anomalyReason ?? "Marcado como prueba"}
+        </Banner>
+      )}
       <div className="card compact stack tight">
-        <div className="row between">
+        <div className="row between" style={{ alignItems: "center" }}>
           <strong className="break">{order.address.name}</strong>
-          <PaymentBadge payment={order.payment} />
-        </div>
-        <div className="muted break">
-          {order.address.street}, {order.address.city} ({order.address.department})
-        </div>
-        <div className="mono">{phoneEs(order.address.phone)}</div>
-        <div className="caption">
-          {dateEs(order.createdAt)} · {timeEs(order.createdAt)}
-        </div>
-        <hr style={{ border: 0, borderTop: "1px solid var(--line)", width: "100%", margin: 0 }} />
-        {order.lines.map((l) => (
-          <div
-            key={l.title}
-            className="row between"
-            style={{ flexWrap: "nowrap", alignItems: "flex-start" }}
-          >
-            <span className="break">
-              {l.quantity} x {l.title}
-            </span>
-            <span className="num nowrap">{cop(l.unitPrice * l.quantity)}</span>
+          <div className="row" style={{ gap: 6 }}>
+            <span className="badge tone-neutral">{orderOriginLabel(order)}</span>
+            <PaymentBadge payment={order.payment} />
           </div>
-        ))}
+        </div>
+        <div className="caption">
+          {dateTimeVe(order.createdAt)}
+          {order.rawStatus ? ` · Woo: ${order.rawStatus}` : ""}
+        </div>
+        {cedula && (
+          <div className="caption">
+            Cédula: <strong className="mono">{cedula}</strong>
+          </div>
+        )}
+        <div className="muted break">
+          {order.address.street}, {order.address.city}
+          {order.address.department ? ` (${order.address.department})` : ""}
+        </div>
+        {Boolean(realZone || order.meta?._zone_remapped) && (
+          <div className="caption">
+            Zona real: <strong>{realZone || "—"}</strong> · Dropi:{" "}
+            <strong>{[dropiCity, dropiDept].filter(Boolean).join(", ")}</strong>
+          </div>
+        )}
+        <div className="row" style={{ gap: 10, alignItems: "center" }}>
+          <span className="mono">{phoneEs(order.address.phone)}</span>
+          {order.address.phone && (
+            <a
+              href={whatsappHref(order.address.phone)}
+              target="_blank"
+              rel="noreferrer"
+              className="wa-link"
+            >
+              Abrir WhatsApp
+            </a>
+          )}
+        </div>
+        {order.email && <div className="caption">{order.email}</div>}
+        {coupon && (
+          <div className="caption">
+            Cupón aplicado: <strong className="mono">{coupon}</strong>
+            {discountUsd ? ` (−${usd(discountUsd)})` : ""}
+          </div>
+        )}
+        {customerNote && (
+          <div className="caption" style={{ fontStyle: "italic" }}>
+            Nota del cliente: «{customerNote}»
+          </div>
+        )}
+        <hr style={{ border: 0, borderTop: "1px solid var(--line)", width: "100%", margin: 0 }} />
+        {order.lines.map((l, idx) => {
+          const lineAmt = l.lineTotal ?? (l.unitPriceExact ?? l.unitPrice) * l.quantity;
+          return (
+            <div
+              key={`${l.title}-${idx}`}
+              className="row between"
+              style={{ flexWrap: "nowrap", alignItems: "flex-start" }}
+            >
+              <span className="break">
+                {l.quantity} x {l.title}
+              </span>
+              <span className="num nowrap">{usd(lineAmt)}</span>
+            </div>
+          );
+        })}
+        {shippingAmt > 0 && (
+          <div className="row between">
+            <span className="caption">Envío</span>
+            <span className="num caption">{usd(shippingAmt)}</span>
+          </div>
+        )}
         <div className="row between">
           <span className="label">{order.payment === "cod" ? "Recaudo" : "Total"}</span>
-          <Money value={order.total} />
+          <Money value={orderTotal(order)} bcvRate={bcvRate} />
+        </div>
+        <div className="row" style={{ gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+          <Button sm icon="copy" onClick={copyForDropi}>
+            Copiar datos Dropi
+          </Button>
+          <Button sm onClick={toggleTestFlag} disabled={togglingTest}>
+            {togglingTest
+              ? "Actualizando…"
+              : order.isTest
+                ? "Desmarcar como prueba"
+                : "Marcar como prueba E2E"}
+          </Button>
         </div>
       </div>
 

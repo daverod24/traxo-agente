@@ -238,19 +238,38 @@ export async function fixAddress(
   const row = await rt.db.prisma.order.findUnique({ where: { id: a.orderId } });
   if (!row) return { ok: false, message: "No encuentro el pedido." };
   const order = orderFromRow(row);
-  const city = findCity(input.city ?? order.address.city);
-  if (!city)
-    return {
-      ok: false,
-      message: `No reconozco el municipio "${input.city ?? order.address.city}". Escríbelo como aparece en el DANE.`,
+  const isVE = order.address.country === "VE";
+  let address: typeof order.address;
+  if (isVE) {
+    const nextCity = (input.city ?? order.address.city).trim();
+    const nextStreet = input.street.trim();
+    if (nextCity.length < 2) {
+      return { ok: false, message: "Indica la ciudad de destino en Venezuela." };
+    }
+    if (nextStreet.length < 8) {
+      return { ok: false, message: "La dirección debe tener al menos 8 caracteres." };
+    }
+    address = {
+      ...order.address,
+      street: nextStreet,
+      city: nextCity,
+      dane: undefined,
     };
-  const address = {
-    ...order.address,
-    street: normalizeStreet(input.street),
-    city: city.name,
-    dane: city.dane,
-    department: city.department,
-  };
+  } else {
+    const city = findCity(input.city ?? order.address.city);
+    if (!city)
+      return {
+        ok: false,
+        message: `No reconozco el municipio "${input.city ?? order.address.city}". Escríbelo como aparece en el DANE.`,
+      };
+    address = {
+      ...order.address,
+      street: normalizeStreet(input.street),
+      city: city.name,
+      dane: city.dane,
+      department: city.department,
+    };
+  }
   await rt.db.prisma.order.update({ where: { id: order.id }, data: { address } });
   await rt.db.prisma.approval.update({
     where: { id },

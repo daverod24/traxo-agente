@@ -276,4 +276,85 @@ describe("L2-A2: WooCommerce Adapter & VE Support", () => {
     );
     expect(orderEvent).toBeUndefined();
   });
+
+  it("hace fallback a billing, preserva decimales exactos, meta_data, fecha UTC/local, pagos VE y dirección VE sin normalizeStreet", () => {
+    const rawOrder = {
+      id: 3055,
+      number: "3055",
+      status: "processing",
+      currency: "USD",
+      date_created_gmt: "2026-11-25 23:45:00",
+      total: "42.99",
+      shipping_total: "3.50",
+      payment_method: "pago_movil",
+      customer_note: "Llamar antes de subir",
+      billing: {
+        first_name: "Sofía",
+        last_name: "Rivas",
+        address_1: "Avenida Principal de Las Mercedes, Edificio Orinoco",
+        address_2: "Piso 3 Apto 3B",
+        city: "Baruta",
+        state: "VE-N",
+        country: "VE",
+        phone: "04241112233",
+        email: "sofia.rivas@gmail.com",
+      },
+      shipping: {
+        first_name: "",
+        address_1: "",
+        city: "",
+      },
+      meta_data: [
+        { key: "_origin", value: "storefront" },
+        { key: "_cedula", value: "V-19888777" },
+        { key: "_bcv_rate", value: "910.25" },
+        { key: "_pack_label", value: "Dúo" },
+        { key: "_pack_qty", value: "2" },
+        { key: "_storefront_coupon", value: "DAVE10" },
+        { key: "_storefront_discount_usd", value: "4.50" },
+        { key: "_customer_zone", value: "Las Mercedes" },
+        { key: "_dropi_city", value: "Baruta" },
+        { key: "_dropi_department", value: "Miranda" },
+        { key: "_zone_remapped", value: "true" },
+        { key: "_carrier", value: "Flash Courier" },
+      ],
+      line_items: [
+        {
+          product_id: 45,
+          name: "Medicube Zero Pore Pad 2.0",
+          quantity: 1,
+          price: "39.49",
+          total: "39.49",
+        },
+      ],
+    };
+
+    const order = orderFromWoo(rawOrder as any, "store_main");
+    expect(order).toBeDefined();
+    if (!order) return;
+
+    expect(order.address.name).toBe("Sofía Rivas");
+    expect(order.address.phone).toBe("+584241112233");
+    // No aplica normalizeStreet colombiano ("Avenida" no se vuelve "Av")
+    expect(order.address.street).toBe(
+      "Avenida Principal de Las Mercedes, Edificio Orinoco, Piso 3 Apto 3B",
+    );
+    expect(order.address.city).toBe("Baruta");
+    expect(order.address.zone).toBe("Las Mercedes");
+    expect(order.address.cedula).toBe("V-19888777");
+    expect(order.address.notes).toBe("Llamar antes de subir");
+    expect(order.payment).toBe("pago_movil");
+    expect(order.rawStatus).toBe("processing");
+    expect(order.status).toBe("confirmed");
+    expect(order.origin).toBe("storefront");
+    expect(order.bcvRate).toBe(910.25);
+    expect(order.totalExact).toBe(42.99);
+    expect(order.subtotalExact).toBe(39.49);
+    expect(order.shippingChargedExact).toBe(3.5);
+    expect(order.lines[0]?.unitPriceExact).toBe(39.49);
+    expect(order.lines[0]?.lineTotal).toBe(39.49);
+    expect(order.createdAt).toBe("2026-11-25T23:45:00.000Z");
+    expect(order.meta?._storefront_coupon).toBe("DAVE10");
+    expect(order.isTest).toBe(false);
+  });
 });

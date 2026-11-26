@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { cop, timeEs, vesFromUsd } from "./format.ts";
+import { timeEs, usd, vesFromUsd } from "./format.ts";
 
 /* ---------- Iconos: trazo 1,75, 24×24, puntas redondeadas, currentColor. `spark` es solo del agente. ---------- */
 const PATHS: Record<string, ReactNode> = {
@@ -206,9 +206,11 @@ export const PaymentBadge = ({ payment }: { payment: string }) => {
 export function Money({
   value,
   kind = "recaudo",
+  bcvRate,
 }: {
   value: number;
   kind?: "recaudo" | "flete" | "costo";
+  bcvRate?: number;
 }) {
   if (kind === "flete")
     return (
@@ -217,22 +219,23 @@ export function Money({
         style={{ fontWeight: 500, display: "inline-flex", gap: 4, alignItems: "center" }}
       >
         <Icon name="truck" size={14} />
-        Flete {cop(value)}
+        Flete {usd(value)}
       </span>
     );
   if (kind === "costo")
     return (
       <span className="num" style={{ color: "var(--critical)", fontWeight: 600 }}>
-        Costo {cop(-Math.abs(value))}
+        Costo {usd(-Math.abs(value))}
       </span>
     );
+  const rate = bcvRate && Number.isFinite(bcvRate) && bcvRate > 0 ? bcvRate : undefined;
   return (
     <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end" }}>
       <span className="num" style={{ fontWeight: 700 }}>
-        {cop(value)}
+        {usd(value)}
       </span>
       <small style={{ color: "var(--muted)", fontSize: "0.75rem", fontWeight: 500 }}>
-        {vesFromUsd(value)}
+        {vesFromUsd(value, rate)}
       </small>
     </span>
   );

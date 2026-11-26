@@ -5,6 +5,7 @@ import {
   AdPlatform as AdPlatformSchema,
   COPY_LIMITS,
   formatCOP,
+  isReachablePhone,
   newId,
   StoreSettingsSchema,
   suggestCampaign,
@@ -762,7 +763,7 @@ export function registerGrowthApi(app: Hono, rt: Runtime): void {
     const all = (await loadCustomers(rt, sid(c))).filter((x) =>
       x.segments.includes(b.segment as string),
     );
-    const ok = all.filter((x) => x.consent && x.phone.startsWith("+57"));
+    const ok = all.filter((x) => x.consent && isReachablePhone(x.phone));
     const excluded = all.length - ok.length;
     if (!b.confirm)
       return c.json({
@@ -1000,16 +1001,31 @@ export function registerGrowthApi(app: Hono, rt: Runtime): void {
   });
 
   // ---------------- Reportes ----------------
+  const dayKeyForMarket = (date: Date): string => {
+    if ((process.env.MARKET ?? "").toUpperCase() === "VE") {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Caracas",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(date);
+    }
+    return date.toISOString().slice(0, 10);
+  };
+
   app.get("/api/reports/overview", async (c) => {
+    const storeId = sid(c);
+    const isLiveStore = !storeId.startsWith("store_demo") && !isDemo();
     const days = Math.min(120, Math.max(7, Number(c.req.query("days") ?? 90)));
     const since = new Date(Date.now() - days * DAY);
-    const orders = await db.prisma.order.findMany({
-      where: { storeId: sid(c), createdAt: { gte: since } },
+    const allOrders = await db.prisma.order.findMany({
+      where: { storeId, createdAt: { gte: since } },
       include: { shipments: { select: { status: true } } },
     });
+    const orders = isLiveStore ? allOrders.filter((o) => !o.isTest) : allOrders;
     const byDay = new Map<string, { orders: number; revenue: number }>();
     for (let i = days - 1; i >= 0; i--)
-      byDay.set(new Date(Date.now() - i * DAY).toISOString().slice(0, 10), {
+      byDay.set(dayKeyForMarket(new Date(Date.now() - i * DAY)), {
         orders: 0,
         revenue: 0,
       });
@@ -1020,16 +1036,17 @@ export function registerGrowthApi(app: Hono, rt: Runtime): void {
     let returned = 0;
     let cancelled = 0;
     for (const o of orders) {
-      const d = byDay.get(o.createdAt.toISOString().slice(0, 10));
+      const d = byDay.get(dayKeyForMarket(o.createdAt));
       if (o.status === "cancelled") {
         cancelled++;
         continue;
       }
+      const orderAmt = o.totalExact ?? o.total;
       if (d) {
         d.orders++;
-        d.revenue += o.total;
+        d.revenue += orderAmt;
       }
-      revenue += o.total;
+      revenue += orderAmt;
       if (o.payment === "cod") cod++;
       if (o.shipments.length) {
         shipped++;
@@ -1044,8 +1061,8 @@ export function registerGrowthApi(app: Hono, rt: Runtime): void {
       series: [...byDay.entries()].map(([date, v]) => ({ date, ...v })),
       totals: {
         orders: live,
-        revenue,
-        avgTicket: live ? Math.round(revenue / live) : null,
+        revenue: Math.round(revenue * 100) / 100,
+        avgTicket: live ? Math.round((revenue / live) * 100) / 100 : null,
         codShare: live ? Math.round((cod / live) * 100) : null,
         deliveredPct: shipped ? Math.round((delivered / shipped) * 100) : null,
         returnedPct: shipped ? Math.round((returned / shipped) * 100) : null,

@@ -1,5 +1,12 @@
 import { zoneFor } from "@traxo/carriers";
-import { formatCOP, type Order, type RiskResult, riskScore, type StoreSettings } from "@traxo/core";
+import {
+  formatCOP,
+  isReachablePhone,
+  type Order,
+  type RiskResult,
+  riskScore,
+  type StoreSettings,
+} from "@traxo/core";
 import { createApproval, orderFromRow, storeNameOf } from "@traxo/db";
 import { addressLooksComplete, findCity, normalizeStreet } from "@traxo/geo-co";
 import { render } from "@traxo/messaging";
@@ -55,11 +62,18 @@ export function needsConfirmation(
   return settings.confirmCod === "risky" && risk.score >= settings.riskThreshold;
 }
 
-/** Monto si el cliente cambia a pagar ahora (sin la comisión de recaudo), redondeado a $ 100. */
+/** Monto si el cliente cambia a pagar ahora (sin la comisión de recaudo); COP a múltiplos de 100, USD/VES a centavos. */
 export const prepaidAmount = (
-  order: Pick<Order, "total">,
+  order: Pick<Order, "total" | "totalExact"> & { currency?: string },
   settings: Pick<StoreSettings, "prepaidDiscountPct">,
-): number => Math.round((order.total * (1 - settings.prepaidDiscountPct / 100)) / 100) * 100;
+): number => {
+  const base = order.totalExact ?? order.total;
+  const discounted = base * (1 - settings.prepaidDiscountPct / 100);
+  if (!order.currency || order.currency === "COP") {
+    return Math.round(discounted / 100) * 100;
+  }
+  return Math.round(discounted * 100) / 100;
+};
 
 const say = async (
   deps: AgentDeps,
@@ -86,7 +100,7 @@ export async function requestConfirmation(
     where: { id: order.id },
     data: { status: "awaiting_confirmation", confirmAt: new Date() },
   });
-  if (!order.address.phone.startsWith("+57")) {
+  if (!isReachablePhone(order.address.phone, order.address.country)) {
     await createApproval(db, {
       storeId: order.storeId,
       orderId: order.id,
@@ -151,7 +165,7 @@ export async function cancelOrder(deps: AgentDeps, order: Order, why: string): P
     `Cancelé ${order.number}: ${why}. No generé ninguna guía, así que no gasté en envío.`,
     { orderId: order.id },
   );
-  if (order.address.phone.startsWith("+57"))
+  if (isReachablePhone(order.address.phone, order.address.country))
     await say(
       deps,
       order,
@@ -212,6 +226,23 @@ export async function handleConfirmationReply(
     return "address_ask";
   }
   if (/\d/.test(t) && t.length > 8 && !CONFIRM.test(t)) {
+    const isVE = order.address.country === "VE";
+    if (isVE) {
+      const street = t.trim();
+      const address = { ...order.address, street };
+      await db.prisma.order.update({ where: { id: order.id }, data: { address } });
+      await say(
+        deps,
+        { ...order, address },
+        `Anoté tu dirección: ${street}, ${order.address.city}. ¿Confirmas el pedido? Responde «Confirmo».`,
+      );
+      bus.emit(
+        "address.normalized",
+        `${order.address.name} cambió la dirección de ${order.number}: ${street}, ${order.address.city}.`,
+        { orderId: order.id },
+      );
+      return "address_update";
+    }
     const city = findCity(t) ?? findCity(order.address.city);
     const street = normalizeStreet(t);
     if (!city || !addressLooksComplete(street)) {
@@ -280,7 +311,12 @@ export async function markPaid(
   const amount = prepaidAmount(order, s);
   await deps.db.prisma.order.update({
     where: { id: order.id },
-    data: { payment: "prepaid", total: amount, status: "confirmed" },
+    data: {
+      payment: "prepaid",
+      total: order.currency === "COP" || !order.currency ? amount : Math.round(amount),
+      totalExact: amount,
+      status: "confirmed",
+    },
   });
   deps.bus.emit(
     "payment.received",
@@ -288,7 +324,7 @@ export async function markPaid(
     { orderId: order.id },
   );
   const store = await storeNameOf(deps.db, order.storeId, deps.storeName);
-  if (order.address.phone.startsWith("+57"))
+  if (isReachablePhone(order.address.phone, order.address.country))
     await say(
       deps,
       order,

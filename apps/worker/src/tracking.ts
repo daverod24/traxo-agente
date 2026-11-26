@@ -1,5 +1,11 @@
 import type { MockCarrierProvider } from "@traxo/carriers";
-import { formatCOP, type Order, type TrackingEvent, type TrackingStatus } from "@traxo/core";
+import {
+  formatCOP,
+  isReachablePhone,
+  type Order,
+  type TrackingEvent,
+  type TrackingStatus,
+} from "@traxo/core";
 import { addTrackingEvents, orderFromRow, storeNameOf } from "@traxo/db";
 import { render } from "@traxo/messaging";
 import { type AgentDeps, recordMessage } from "./agent.ts";
@@ -55,7 +61,7 @@ async function onStatus(
   ev("tracking.updated", `Guía ${guide} (${carrier}): ${e.description}.`, { status: e.status });
 
   const send = async (name: "llega_hoy" | "novedad_entrega", text: string) => {
-    if (!order.address.phone.startsWith("+57")) return;
+    if (!isReachablePhone(order.address.phone, order.address.country)) return;
     const sent = await deps.messaging.send({
       to: order.address.phone,
       text,

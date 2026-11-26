@@ -178,19 +178,40 @@ export async function carrierReliability(db: Db): Promise<Record<string, number>
 export type OrderRow = NonNullable<Awaited<ReturnType<Db["prisma"]["order"]["findUnique"]>>>;
 
 export function orderFromRow(r: OrderRow): import("@traxo/core").Order {
+  const meta = (r.meta as Record<string, unknown> | null) ?? undefined;
+  const address = r.address as import("@traxo/core").Order["address"];
+  const totalExact = r.totalExact ?? r.total;
+  const subtotalExact = r.subtotalExact ?? r.subtotal;
+  const shippingChargedExact = r.shippingChargedExact ?? r.shippingCharged;
+  const rawBcv = meta?._bcv_rate != null ? Number(meta._bcv_rate) : undefined;
   return {
     id: r.id,
     externalId: r.externalId,
     number: r.number,
     storeId: r.storeId,
-    currency: ((r as any).currency as any) ?? "USD",
+    currency: (r.currency as import("@traxo/core").Currency) ?? "USD",
     customerId: r.customerId ?? undefined,
-    address: r.address as import("@traxo/core").Order["address"],
+    email: r.email ?? undefined,
+    address,
     lines: r.lines as import("@traxo/core").Order["lines"],
     subtotal: r.subtotal,
+    subtotalExact,
     shippingCharged: r.shippingCharged,
+    shippingChargedExact,
     total: r.total,
-    payment: r.payment as "cod" | "prepaid",
+    totalExact,
+    totalDecimal: totalExact.toFixed(2),
+    payment: r.payment as import("@traxo/core").Order["payment"],
+    status: r.status,
+    rawStatus: r.rawStatus ?? undefined,
+    origin: r.origin ?? undefined,
+    isTest: r.isTest,
+    anomalyReason: r.anomalyReason ?? undefined,
+    meta,
+    bcvRate: rawBcv && Number.isFinite(rawBcv) && rawBcv > 0 ? rawBcv : undefined,
+    zone:
+      address?.zone ?? (typeof meta?._customer_zone === "string" ? meta._customer_zone : undefined),
+    cedula: address?.cedula ?? (typeof meta?._cedula === "string" ? meta._cedula : undefined),
     utm: (r.utm as Record<string, string> | null) ?? undefined,
     createdAt: r.createdAt.toISOString(),
   };

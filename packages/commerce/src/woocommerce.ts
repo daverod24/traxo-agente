@@ -2,6 +2,7 @@ import { type Customer, newId, type Order, type Product } from "@traxo/core";
 import { findCity, normalizePhone, normalizeStreet } from "@traxo/geo-co";
 import { normalizePhoneVE } from "@traxo/market-ve";
 import { header, hmac, safeEqual } from "./hmac.ts";
+import { classifyOrderAnomaly } from "./order-hygiene.ts";
 import type { CommerceAdapter, FulfillmentInput, ProductWebhookEvent } from "./types.ts";
 
 export type RawWooProduct = {
@@ -121,37 +122,137 @@ export type WooConfig = {
   fetch?: typeof fetch;
 };
 
+type WooAddress = {
+  first_name?: string;
+  last_name?: string;
+  address_1?: string;
+  address_2?: string;
+  city?: string;
+  state?: string;
+  postcode?: string;
+  country?: string;
+  phone?: string;
+  email?: string;
+};
+
 type WooOrder = {
   id: number;
   number?: string;
   status?: string;
   currency?: string;
   date_created_gmt?: string;
+  date_created?: string;
   total?: string;
   shipping_total?: string;
   payment_method?: string;
+  payment_method_title?: string;
+  customer_note?: string;
+  coupon_lines?: Array<{ code?: string; discount?: string }>;
   meta_data?: Array<{ key: string; value: unknown }>;
-  billing?: { email?: string; phone?: string };
-  shipping?: {
-    first_name?: string;
-    last_name?: string;
-    address_1?: string;
-    address_2?: string;
-    city?: string;
-    state?: string;
-    country?: string;
-    phone?: string;
-  };
+  billing?: WooAddress;
+  shipping?: WooAddress;
   line_items?: Array<{
     product_id: number;
     name: string;
     quantity: number;
     price: number | string;
+    total?: number | string;
+    subtotal?: number | string;
   }>;
 };
 
 const toInt = (s: string | number | undefined): number =>
   Math.round(Number.parseFloat(String(s ?? "0")) || 0);
+
+const parseFloatSafe = (s: string | number | undefined): number => {
+  const n = Number.parseFloat(String(s ?? "0"));
+  return Number.isFinite(n) ? n : 0;
+};
+
+const round2 = (n: number): number => Math.round(n * 100) / 100;
+
+const strMeta = (v: unknown): string | undefined => {
+  if (v == null) return undefined;
+  const s = String(v).trim();
+  return s === "" ? undefined : s;
+};
+
+const numMeta = (v: unknown): number | undefined => {
+  if (v == null || v === "") return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+};
+
+export function parseWooDate(gmt?: string, local?: string): string {
+  const tryParse = (raw: string | undefined, assumeUtc: boolean): string | undefined => {
+    if (!raw || !raw.trim()) return undefined;
+    let s = raw.trim().replace(" ", "T");
+    if (assumeUtc && !/[zZ]$/.test(s) && !/[+-]\d{2}:?\d{2}$/.test(s)) {
+      s = `${s}Z`;
+    }
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+  };
+  return tryParse(gmt, true) ?? tryParse(local, false) ?? new Date().toISOString();
+}
+
+export function mapWooPayment(
+  method?: string,
+  title?: string,
+  metaMap?: Map<string, unknown>,
+): Order["payment"] {
+  const raw = [method, title, metaMap?.get("_payment_method")]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  if (
+    method?.toLowerCase() === "cod" ||
+    raw.includes("cash_on_delivery") ||
+    raw.includes("contraentrega") ||
+    raw.includes("contra entrega") ||
+    raw.includes("cobro en destino")
+  ) {
+    return "cod";
+  }
+  if (
+    raw.includes("pago_movil") ||
+    raw.includes("pagomovil") ||
+    raw.includes("pago móvil") ||
+    raw.includes("pago movil") ||
+    raw.includes("pago-movil")
+  ) {
+    return "pago_movil";
+  }
+  if (raw.includes("zelle")) {
+    return "zelle";
+  }
+  if (raw.includes("usdt") || raw.includes("binance") || raw.includes("trc20")) {
+    return "usdt";
+  }
+  if (raw.includes("transferencia") || method?.toLowerCase() === "bacs") {
+    return "transferencia_bs";
+  }
+  return "prepaid";
+}
+
+const EXTRACTED_META_KEYS = [
+  "_origin",
+  "_cedula",
+  "_billing_full_identification",
+  "_bcv_rate",
+  "_pack_label",
+  "_pack_qty",
+  "_storefront_coupon",
+  "_storefront_discount_usd",
+  "_dropi_department",
+  "_dropi_city",
+  "_customer_zone",
+  "_zone_remapped",
+  "_carrier",
+  "_carrier_id",
+  "_client_ref",
+  "_is_test",
+] as const;
 
 export function mapWooStatus(s?: string): string {
   switch (s) {
@@ -174,41 +275,87 @@ export function mapWooStatus(s?: string): string {
 }
 
 export function orderFromWoo(o: WooOrder, storeId: string): Order | undefined {
-  const a = o.shipping;
-  if (!a?.city || !a.address_1 || !o.line_items?.length) return undefined;
+  const s = o.shipping;
+  const b = o.billing;
+  const firstName = s?.first_name?.trim() || b?.first_name?.trim() || "";
+  const lastName = s?.last_name?.trim() || b?.last_name?.trim() || "";
+  const address1 = s?.address_1?.trim() || b?.address_1?.trim() || "";
+  const address2 = s?.address_2?.trim() || b?.address_2?.trim() || "";
+  const cityRaw = s?.city?.trim() || b?.city?.trim() || "";
+  const stateRaw = s?.state?.trim() || b?.state?.trim() || "";
+  const countryRaw = (s?.country?.trim() || b?.country?.trim() || "CO").toUpperCase();
+  const rawPhone = s?.phone?.trim() || b?.phone?.trim() || "";
+  const email = b?.email?.trim() || s?.email?.trim() || undefined;
 
-  const country = (a.country ?? "CO").toUpperCase();
-  const rawPhone = a.phone ?? o.billing?.phone ?? "";
-  const isVE = country === "VE" || rawPhone.startsWith("+58") || rawPhone.startsWith("04");
+  if (!cityRaw || !address1 || !o.line_items?.length) return undefined;
+
+  const isVE = countryRaw === "VE" || rawPhone.startsWith("+58") || rawPhone.startsWith("04");
+
+  const metaMap = new Map((o.meta_data || []).map((m) => [m.key, m.value]));
+  const meta: Record<string, unknown> = {};
+  for (const key of EXTRACTED_META_KEYS) {
+    if (metaMap.has(key)) {
+      meta[key] = metaMap.get(key);
+    }
+  }
+  if (o.customer_note?.trim()) {
+    meta.customer_note = o.customer_note.trim();
+  }
+  if (o.coupon_lines?.length) {
+    meta.coupon_lines = o.coupon_lines;
+    if (!meta._storefront_coupon && o.coupon_lines[0]?.code) {
+      meta._storefront_coupon = o.coupon_lines[0].code;
+    }
+  }
 
   let phone: string;
   let cityStr: string;
   let departmentStr: string;
-  let daneCode: string | undefined = undefined;
+  let daneCode: string | undefined;
+  let streetStr: string;
 
   if (isVE) {
     phone = normalizePhoneVE(rawPhone) ?? rawPhone;
-    cityStr = a.city;
-    departmentStr = a.state ?? "";
+    cityStr = cityRaw || strMeta(metaMap.get("_dropi_city")) || "";
+    departmentStr = stateRaw || strMeta(metaMap.get("_dropi_department")) || "";
+    streetStr = [address1, address2].filter(Boolean).join(", ").trim();
   } else {
-    const city = findCity(a.city);
+    const city = findCity(cityRaw);
     phone = normalizePhone(rawPhone) ?? rawPhone;
-    cityStr = city?.name ?? a.city;
+    cityStr = city?.name ?? cityRaw;
     daneCode = city?.dane ?? "00000";
-    departmentStr = city?.department ?? a.state ?? "";
+    departmentStr = city?.department ?? stateRaw;
+    streetStr = normalizeStreet([address1, address2].filter(Boolean).join(" "));
   }
 
-  const lines = o.line_items.map((l) => ({
-    productId: String(l.product_id),
-    title: l.name,
-    quantity: l.quantity,
-    unitPrice: toInt(l.price),
-    unitPriceDecimal: String(l.price),
-    weightGrams: 500,
-  }));
-  const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+  const lines = o.line_items.map((l) => {
+    const unitPriceExact = round2(parseFloatSafe(l.price));
+    const lineTotal =
+      l.total != null && l.total !== ""
+        ? round2(parseFloatSafe(l.total))
+        : round2(unitPriceExact * l.quantity);
+    return {
+      productId: String(l.product_id),
+      title: l.name,
+      quantity: l.quantity,
+      unitPrice: toInt(l.price),
+      unitPriceExact,
+      lineTotal,
+      unitPriceDecimal: String(l.price),
+      weightGrams: 500,
+    };
+  });
 
-  const metaMap = new Map((o.meta_data || []).map((m) => [m.key, m.value]));
+  const subtotalExact = round2(
+    lines.reduce((sum, l) => sum + (l.lineTotal ?? l.unitPriceExact * l.quantity), 0),
+  );
+  const subtotal = Math.round(subtotalExact);
+  const shippingChargedExact = round2(parseFloatSafe(o.shipping_total));
+  const shippingCharged = toInt(o.shipping_total);
+  const hasExplicitTotal = o.total != null && String(o.total).trim() !== "";
+  const totalExact = hasExplicitTotal ? round2(parseFloatSafe(o.total)) : subtotalExact;
+  const total = hasExplicitTotal ? toInt(o.total) : subtotal;
+
   const trackingNumber = (metaMap.get("_traxo_tracking_number") ||
     metaMap.get("_tracking_number") ||
     metaMap.get("_shipping_tracking_number") ||
@@ -221,33 +368,59 @@ export function orderFromWoo(o: WooOrder, storeId: string): Order | undefined {
     metaMap.get("carrier") ||
     undefined) as string | undefined;
 
-  return {
+  const origin = strMeta(metaMap.get("_origin")) ?? "woocommerce";
+  const cedula =
+    strMeta(metaMap.get("_cedula")) ?? strMeta(metaMap.get("_billing_full_identification"));
+  const bcvRate = numMeta(metaMap.get("_bcv_rate"));
+  const zone = strMeta(metaMap.get("_customer_zone"));
+  const rawStatus = o.status?.trim() || undefined;
+
+  const baseOrder: Order = {
     id: newId("ord"),
     externalId: String(o.id),
     number: `#${o.number ?? o.id}`,
     storeId,
     currency: (o.currency as any) ?? (isVE ? "USD" : "COP"),
-    email: o.billing?.email,
+    email,
     address: {
       country: isVE ? "VE" : "CO",
-      name: [a.first_name, a.last_name].filter(Boolean).join(" "),
+      name: [firstName, lastName].filter(Boolean).join(" "),
       phone,
-      street: normalizeStreet([a.address_1, a.address_2].filter(Boolean).join(" ")),
+      street: streetStr,
       city: cityStr,
       dane: daneCode,
       department: departmentStr,
-      stateCode: isVE ? a.state : undefined,
+      stateCode: isVE ? stateRaw || undefined : undefined,
+      zone,
+      cedula,
+      notes: o.customer_note?.trim() || undefined,
     },
     lines,
     subtotal,
-    shippingCharged: toInt(o.shipping_total),
-    total: toInt(o.total) || subtotal,
-    totalDecimal: o.total ? String(o.total) : undefined,
-    payment: o.payment_method === "cod" ? "cod" : "prepaid",
+    subtotalExact,
+    shippingCharged,
+    shippingChargedExact,
+    total,
+    totalExact,
+    totalDecimal: hasExplicitTotal ? String(o.total) : undefined,
+    payment: mapWooPayment(o.payment_method, o.payment_method_title, metaMap),
     status: mapWooStatus(o.status),
+    rawStatus,
+    origin,
+    meta: Object.keys(meta).length > 0 ? meta : undefined,
+    bcvRate,
+    zone,
+    cedula,
     trackingNumber: trackingNumber ? String(trackingNumber).trim() : undefined,
     carrier: carrier ? String(carrier).trim() : undefined,
-    createdAt: o.date_created_gmt ? `${o.date_created_gmt}Z` : new Date().toISOString(),
+    createdAt: parseWooDate(o.date_created_gmt, o.date_created),
+  };
+
+  const hygiene = classifyOrderAnomaly(baseOrder, { market: isVE ? "VE" : undefined });
+  return {
+    ...baseOrder,
+    isTest: hygiene.isTest,
+    anomalyReason: hygiene.anomalyReason,
   };
 }
 
@@ -406,7 +579,7 @@ export class WooCommerce implements CommerceAdapter {
     payload: unknown,
   ): Order | undefined {
     const topic = header(headers, "x-wc-webhook-topic");
-    if (topic && topic !== "order.created") return undefined;
+    if (topic && topic !== "order.created" && topic !== "order.updated") return undefined;
     return orderFromWoo(payload as WooOrder, this.storeId);
   }
 

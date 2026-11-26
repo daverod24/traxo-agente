@@ -36,16 +36,44 @@ export const bimoneda = (usd: number, rate: number = DEFAULT_BCV_RATE): string =
   return `${money(usd, "USD")} (${money(usd * rate, "VES")})`;
 };
 
-const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-export const dateEs = (iso: string | Date): string => {
-  const d = new Date(iso);
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+const VE_TZ = "America/Caracas";
+
+function parseDateSafe(iso: string | Date | null | undefined): Date | null {
+  if (!iso) return null;
+  const d = iso instanceof Date ? iso : new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+const veDateFmt = new Intl.DateTimeFormat("es-VE", {
+  timeZone: VE_TZ,
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+const veTimeFmt = new Intl.DateTimeFormat("es-VE", {
+  timeZone: VE_TZ,
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
+
+export const dateEs = (iso: string | Date | null | undefined): string => {
+  const d = parseDateSafe(iso);
+  if (!d) return "—";
+  return veDateFmt.format(d).replace(/\./g, "").trim();
 };
-export const timeEs = (iso: string | Date): string => {
-  const d = new Date(iso);
-  const h = d.getHours();
-  const m = String(d.getMinutes()).padStart(2, "0");
-  return `${((h + 11) % 12) + 1}:${m} ${h < 12 ? "a. m." : "p. m."}`;
+
+export const timeEs = (iso: string | Date | null | undefined): string => {
+  const d = parseDateSafe(iso);
+  if (!d) return "—";
+  return veTimeFmt.format(d).trim();
+};
+
+export const dateTimeVe = (iso: string | Date | null | undefined): string => {
+  const d = parseDateSafe(iso);
+  if (!d) return "—";
+  return `${dateEs(d)} · ${timeEs(d)} VET`;
 };
 
 /** Formato telefónico E.164: +58 Venezuela (predeterminado) o +57 Colombia */

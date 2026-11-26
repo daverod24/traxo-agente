@@ -52,17 +52,17 @@ export function createApp(deps: AppDeps): Hono {
       return c.json({ error: "Cuerpo no es JSON" }, 400);
     }
 
-    const eventId =
+    const topic = headers["x-wc-webhook-topic"] ?? headers["x-shopify-topic"] ?? "";
+    const rawEventId =
       headers["x-shopify-webhook-id"] ??
       headers["x-wc-webhook-delivery-id"] ??
-      String((payload as { id?: string | number }).id ?? "") ??
-      "";
+      String((payload as { id?: string | number }).id ?? "");
+    const eventId = rawEventId ? (topic ? `${topic}:${rawEventId}` : rawEventId) : "";
     if (eventId && !(await claimWebhookEvent(deps.db, platform, eventId))) {
       return c.json({ ok: true, duplicate: true });
     }
 
     // Detección y procesamiento de webhooks de catálogo de producto en tiempo real
-    const topic = headers["x-wc-webhook-topic"] ?? "";
     if (
       topic.startsWith("product.") ||
       (payload as { resource?: string }).resource === "product" ||

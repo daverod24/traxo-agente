@@ -321,8 +321,8 @@ export function Ajustes({ ctx }: { ctx: Ctx }) {
       );
       ctx.toast(res.message);
       ctx.refresh();
-    } catch {
-      ctx.toast("Error al limpiar pedidos de prueba");
+    } catch (e) {
+      ctx.toast((e as Error)?.message || "Error al limpiar pedidos de prueba");
     } finally {
       setCleaningOrders(false);
     }
@@ -420,7 +420,8 @@ export function Ajustes({ ctx }: { ctx: Ctx }) {
               disabled={f.autonomy === 0}
             />
             <span className="caption">
-              Hoy: ${(f.maxAutoShipmentCost > 500 ? 60 : f.maxAutoShipmentCost).toFixed(2)} USD. Sobre ese valor te pido aprobación.
+              Hoy: ${(f.maxAutoShipmentCost > 500 ? 60 : f.maxAutoShipmentCost).toFixed(2)} USD.
+              Sobre ese valor te pido aprobación.
             </span>
           </label>
         </section>
@@ -626,14 +627,18 @@ export function Ajustes({ ctx }: { ctx: Ctx }) {
 
       {/* Proveedores de Inteligencia Artificial & LLM */}
       <section className="card stack" aria-labelledby="ai-h">
-        <div className="row between" style={{ alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+        <div
+          className="row between"
+          style={{ alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}
+        >
           <div>
             <div className="row" style={{ gap: 8, alignItems: "center" }}>
               <Icon name="spark" size={18} />
               <h2 id="ai-h">Proveedores de Inteligencia Artificial & LLM</h2>
             </div>
             <p className="muted" style={{ margin: "4px 0 0" }}>
-              Cascada de inferencia nativa para generación de copys, briefs ejecutivos y diagnósticos sin SDKs pesados.
+              Cascada de inferencia nativa para generación de copys, briefs ejecutivos y
+              diagnósticos sin SDKs pesados.
             </p>
           </div>
           <ToneBadge tone="agent">Gemini 2.5 + Groq + NVIDIA NIM + xAI</ToneBadge>
@@ -809,7 +814,8 @@ TRAXO_BCV_RATE=880.0`;
           </Button>
         </div>
         <p className="muted" style={{ margin: "4px 0 0" }}>
-          Pega estas variables en la pestaña <strong>Environment</strong> de tu aplicación en Dokploy para activar todos los servicios en vivo:
+          Pega estas variables en la pestaña <strong>Environment</strong> de tu aplicación en
+          Dokploy para activar todos los servicios en vivo:
         </p>
         <pre
           className="mono"
@@ -824,7 +830,7 @@ TRAXO_BCV_RATE=880.0`;
             lineHeight: 1.6,
           }}
         >
-{`# Inferencia IA en Cascada (Recomendado)
+          {`# Inferencia IA en Cascada (Recomendado)
 GEMINI_API_KEY=AIzaSy...
 GEMINI_MODEL=gemini-2.5-flash
 GROQ_API_KEY=gsk_...
@@ -897,19 +903,18 @@ TRAXO_BCV_RATE=880.0`}
               )}
             </div>
           )}
-          <div className="stack tight" style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--line)" }}>
+          <div
+            className="stack tight"
+            style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--line)" }}
+          >
             <div className="row" style={{ alignItems: "center", gap: 10 }}>
-              <Button
-                variant="agent"
-                icon="trash"
-                onClick={cleanOrders}
-                disabled={cleaningOrders}
-              >
+              <Button variant="agent" icon="trash" onClick={cleanOrders} disabled={cleaningOrders}>
                 {cleaningOrders ? "Limpiando pedidos…" : "Limpiar Pedidos de Prueba (Restaurar 5)"}
               </Button>
             </div>
             <span className="caption">
-              Elimina pedidos ficticios y restablece estrictamente los 5 pedidos realistas (#82, #81, #80, #79, #74).
+              Elimina pedidos ficticios y restablece estrictamente los 5 pedidos realistas (#82,
+              #81, #80, #79, #74).
             </span>
           </div>
         </section>

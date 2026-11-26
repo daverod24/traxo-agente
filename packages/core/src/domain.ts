@@ -19,11 +19,30 @@ export const AddressSchema = z.object({
   department: z.string().optional(),
   stateCode: z.string().optional(),
   country: z.string().default("CO"),
+  zone: z.string().optional(),
+  cedula: z.string().optional(),
   notes: z.string().optional(),
 });
 export type Address = z.infer<typeof AddressSchema>;
 
-export const PaymentMethod = z.enum(["cod", "prepaid"]);
+/** Verifica si un número telefónico es alcanzable por WhatsApp según país (+58 Venezuela o +57 Colombia). */
+export function isReachablePhone(phone?: string | null, country?: string): boolean {
+  if (!phone) return false;
+  const clean = phone.trim().replace(/[^\d+]/g, "");
+  if (country?.toUpperCase() === "VE") {
+    return /^\+58\d{10}$/.test(clean) || /^\+57\d{10}$/.test(clean);
+  }
+  return /^\+(58|57)\d{10}$/.test(clean);
+}
+
+export const PaymentMethod = z.enum([
+  "cod",
+  "prepaid",
+  "pago_movil",
+  "zelle",
+  "usdt",
+  "transferencia_bs",
+]);
 export type PaymentMethod = z.infer<typeof PaymentMethod>;
 
 export const OrderLineSchema = z.object({
@@ -31,6 +50,8 @@ export const OrderLineSchema = z.object({
   title: z.string(),
   quantity: z.number().int().positive(),
   unitPrice: z.number().int().nonnegative(),
+  unitPriceExact: z.number().nonnegative().optional(),
+  lineTotal: z.number().nonnegative().optional(),
   unitPriceDecimal: z.string().optional(),
   weightGrams: z.number().int().positive().default(500),
 });
@@ -48,11 +69,22 @@ export const OrderSchema = z.object({
   address: AddressSchema,
   lines: z.array(OrderLineSchema).min(1),
   subtotal: z.number().nonnegative(),
+  subtotalExact: z.number().nonnegative().optional(),
   shippingCharged: z.number().nonnegative().default(0),
+  shippingChargedExact: z.number().nonnegative().optional(),
   total: z.number().nonnegative(),
+  totalExact: z.number().nonnegative().optional(),
   totalDecimal: z.string().optional(),
   payment: PaymentMethod,
   status: z.string().optional(),
+  rawStatus: z.string().optional(),
+  origin: z.string().optional(),
+  isTest: z.boolean().optional(),
+  anomalyReason: z.string().optional(),
+  meta: z.record(z.string(), z.unknown()).optional(),
+  bcvRate: z.number().positive().optional(),
+  zone: z.string().optional(),
+  cedula: z.string().optional(),
   trackingNumber: z.string().optional(),
   carrier: z.string().optional(),
   utm: z.record(z.string(), z.string()).optional(),

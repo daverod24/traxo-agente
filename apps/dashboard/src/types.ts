@@ -3,10 +3,23 @@ export type Address = {
   phone: string;
   street: string;
   city: string;
-  dane: string;
+  dane?: string;
   department: string;
+  stateCode?: string;
+  country?: string;
+  zone?: string;
+  cedula?: string;
+  notes?: string;
 };
-export type Line = { title: string; quantity: number; unitPrice: number };
+export type Line = {
+  productId?: string;
+  title: string;
+  quantity: number;
+  unitPrice: number;
+  unitPriceExact?: number;
+  lineTotal?: number;
+  unitPriceDecimal?: string;
+};
 export type Quote = {
   id: string;
   provider: string;
@@ -32,12 +45,25 @@ export type Shipment = {
 };
 export type OrderRow = {
   id: string;
+  externalId?: string;
   number: string;
+  currency?: string;
+  email?: string | null;
   address: Address;
   lines: Line[];
+  subtotal?: number;
+  subtotalExact?: number | null;
+  shippingCharged?: number;
+  shippingChargedExact?: number | null;
   total: number;
-  payment: "cod" | "prepaid";
+  totalExact?: number | null;
+  payment: string;
   status: string;
+  rawStatus?: string | null;
+  origin?: string | null;
+  isTest?: boolean;
+  anomalyReason?: string | null;
+  meta?: Record<string, unknown> | null;
   createdAt: string;
   shipments: Shipment[];
   quotes: Quote[];

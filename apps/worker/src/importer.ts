@@ -36,7 +36,8 @@ export function getProductImage(p: {
   imageUrl?: string | null;
 }): string | undefined {
   if (p.imageUrl && p.imageUrl.startsWith("http")) return p.imageUrl;
-  if (p.externalId && CANONICAL_PRODUCT_IMAGES[p.externalId]) return CANONICAL_PRODUCT_IMAGES[p.externalId];
+  if (p.externalId && CANONICAL_PRODUCT_IMAGES[p.externalId])
+    return CANONICAL_PRODUCT_IMAGES[p.externalId];
   const t = p.title.toLowerCase();
   if (t.includes("orégano") || t.includes("oregano"))
     return "https://davebeauty.daverod.tech/images/products/aceite-de-oregano-semilla-negra/premium-v1.webp";
@@ -48,7 +49,12 @@ export function getProductImage(p: {
     return "https://cdn.rimanbuild.com/Incellderm/EX/DailyAquaBB/TL_DailyAquaBB_DFLT.png";
   if (t.includes("medicube"))
     return "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/93/17698802731000454694.webp";
-  if (t.includes("reafirmante") || t.includes("lifting") || t.includes("mágico") || t.includes("magic"))
+  if (
+    t.includes("reafirmante") ||
+    t.includes("lifting") ||
+    t.includes("mágico") ||
+    t.includes("magic")
+  )
     return "https://davebeauty.daverod.tech/images/products/aceite-magico-reafirmante/luxury-v1-1200.webp";
   if (t.includes("nicotinamide") || t.includes("resveratrol") || t.includes("nad"))
     return "https://d39ru7awumhhs2.cloudfront.net/venezuela/products/196/17827922041000704956.jpg";
@@ -197,7 +203,7 @@ export async function importStore(
     }
   }
   let orders = 0;
-  for (const o of await adapter.listOrders({ limit: opts.orders ?? 50 })) {
+  for (const o of await adapter.listOrders({ limit: opts.orders ?? 100 })) {
     try {
       const { created, order } = await saveOrder(db, { ...o, id: newId("ord"), storeId });
       if (created) {

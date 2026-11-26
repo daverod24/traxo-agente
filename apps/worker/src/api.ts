@@ -1,7 +1,8 @@
-import { buildDemoOrder, DEMO_PRODUCTS } from "@traxo/commerce";
+import { buildDemoOrder, classifyOrderAnomaly, DEMO_PRODUCTS } from "@traxo/commerce";
 import {
   type AgentEvent,
   CampaignDraftInputSchema,
+  isReachablePhone,
   newId,
   renderCampaignMarkdown,
   StoreSettingsSchema,
@@ -14,12 +15,12 @@ import { findOrder, handleNewOrder, quoteOrder, recordMessage, shipOrder } from 
 import { approve, fixAddress, reject } from "./approvals.ts";
 import { storeOf } from "./auth.ts";
 import { checkConfirmationTimeouts, markPaid } from "./confirmation.ts";
+import { env } from "./env.ts";
 import { handleInbound } from "./inbound.ts";
 import { isDemo } from "./mode.ts";
+import { cleanDummyOrders } from "./orders-cleanup.ts";
 import { isMockCommerce, type Runtime } from "./runtime.ts";
 import { advanceDemoShipment, pollTracking, reportIncident } from "./tracking.ts";
-import { cleanDummyOrders } from "./orders-cleanup.ts";
-import { env } from "./env.ts";
 
 /**
  * Si TRAXO_API_TOKEN está definido, /api/* exige `Authorization: Bearer <token>` o `?token=<token>` (el feed SSE no puede mandar headers).
@@ -76,33 +77,58 @@ export function registerApi(app: Hono, rt: Runtime): void {
   });
 
   app.get("/api/state", async (c) => {
+    const storeId = sid(c);
+    const isLiveStore = !storeId.startsWith("store_demo") && !isDemo();
     const [settings, orderRows, shipments, pending, incidents] = await Promise.all([
-      getSettings(db, sid(c)),
+      getSettings(db, storeId),
       db.prisma.order.findMany({
-        where: { storeId: sid(c) },
-        select: { status: true, total: true, payment: true },
+        where: { storeId },
+        select: {
+          id: true,
+          status: true,
+          total: true,
+          totalExact: true,
+          payment: true,
+          isTest: true,
+        },
       }),
       db.prisma.shipment.findMany({
-        where: { order: { storeId: sid(c) } },
-        select: { status: true, total: true, simulated: true },
+        where: { order: { storeId } },
+        select: { orderId: true, status: true, total: true, simulated: true },
       }),
-      db.prisma.approval.count({ where: { storeId: sid(c), status: "pending" } }),
-      db.prisma.shipment.count({ where: { status: "incident", order: { storeId: sid(c) } } }),
+      db.prisma.approval.count({ where: { storeId, status: "pending" } }),
+      db.prisma.shipment.count({
+        where: {
+          status: "incident",
+          order: isLiveStore ? { storeId, isTest: false } : { storeId },
+        },
+      }),
     ]);
 
-    const totalOrders = orderRows.length;
-    const cancelledOrders = orderRows.filter((o) => o.status === "cancelled");
-    const activeOrders = orderRows.filter((o) => o.status !== "cancelled");
-    const pendingCodOrders = orderRows.filter(
+    const testOrderIds = new Set(orderRows.filter((o) => o.isTest).map((o) => o.id));
+    const productiveOrders = isLiveStore ? orderRows.filter((o) => !o.isTest) : orderRows;
+    const productiveShipments = isLiveStore
+      ? shipments.filter((s) => !testOrderIds.has(s.orderId))
+      : shipments;
+
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    const totalOrders = productiveOrders.length;
+    const cancelledOrders = productiveOrders.filter((o) => o.status === "cancelled");
+    const activeOrders = productiveOrders.filter((o) => o.status !== "cancelled");
+    const pendingCodOrders = productiveOrders.filter(
       (o) =>
         ["pending", "received", "on_hold", "on-hold"].includes(o.status) && o.payment === "cod",
     );
-    const gmvTotal = activeOrders.reduce((s, o) => s + o.total, 0);
-    const codPorCobrar = pendingCodOrders.reduce((s, o) => s + o.total, 0);
-    const cancelledAmount = cancelledOrders.reduce((s, o) => s + o.total, 0);
+    const gmvTotal = round2(activeOrders.reduce((s, o) => s + (o.totalExact ?? o.total), 0));
+    const codPorCobrar = round2(
+      pendingCodOrders.reduce((s, o) => s + (o.totalExact ?? o.total), 0),
+    );
+    const cancelledAmount = round2(
+      cancelledOrders.reduce((s, o) => s + (o.totalExact ?? o.total), 0),
+    );
 
     return c.json({
-      store: { id: sid(c), name: await storeNameOf(db, sid(c), rt.storeName) },
+      store: { id: storeId, name: await storeNameOf(db, storeId, rt.storeName) },
       settings,
       db: db.mode,
       demo: isDemo(),
@@ -115,15 +141,16 @@ export function registerApi(app: Hono, rt: Runtime): void {
         gmvTotal,
         codPorCobrar,
         pendingReview: pendingCodOrders.length,
-        shipments: shipments.length,
-        delivered: shipments.filter((s) => s.status === "delivered").length,
-        inTransit: shipments.filter((s) =>
+        testOrders: testOrderIds.size,
+        shipments: productiveShipments.length,
+        delivered: productiveShipments.filter((s) => s.status === "delivered").length,
+        inTransit: productiveShipments.filter((s) =>
           ["created", "picked_up", "in_transit", "out_for_delivery"].includes(s.status),
         ).length,
         incidents,
         pendingApprovals: pending,
-        shippingSpend: shipments.reduce((s, x) => s + x.total, 0),
-        simulatedShipments: shipments.filter((s) => s.simulated).length,
+        shippingSpend: productiveShipments.reduce((s, x) => s + x.total, 0),
+        simulatedShipments: productiveShipments.filter((s) => s.simulated).length,
       },
     });
   });
@@ -132,16 +159,128 @@ export function registerApi(app: Hono, rt: Runtime): void {
     const rows = await db.prisma.order.findMany({
       where: { storeId: sid(c) },
       orderBy: { createdAt: "desc" },
-      take: 50,
+      take: 100,
       include: { shipments: { include: { events: { orderBy: { at: "asc" } } } }, quotes: true },
     });
-    return c.json(rows);
+    return c.json(
+      rows.map((r) => ({
+        ...r,
+        total: r.totalExact ?? r.total,
+        totalExact: r.totalExact ?? r.total,
+        subtotal: r.subtotalExact ?? r.subtotal,
+        subtotalExact: r.subtotalExact ?? r.subtotal,
+        shippingCharged: r.shippingChargedExact ?? r.shippingCharged,
+        shippingChargedExact: r.shippingChargedExact ?? r.shippingCharged,
+      })),
+    );
   });
 
   app.post("/api/orders/clean-dummy", async (c) => {
     const storeId = sid(c);
+    if (!isDemo() || !storeId.startsWith("store_demo")) {
+      return c.json(
+        {
+          ok: false,
+          error:
+            "Operación bloqueada: no se borran pedidos reales en tiendas activas. Usa el marcado no destructivo de pruebas.",
+        },
+        403,
+      );
+    }
     const result = await cleanDummyOrders(db, storeId);
     return c.json(result);
+  });
+
+  app.post("/api/orders/mark-e2e-tests", async (c) => {
+    const storeId = sid(c);
+    const rows = await db.prisma.order.findMany({ where: { storeId } });
+    const markedIds: string[] = [];
+    for (const r of rows) {
+      const existingMeta = (r.meta as Record<string, unknown> | null) ?? {};
+      if (existingMeta._manual_test_flag === true && !r.isTest) continue;
+      const addr = (r.address as Record<string, unknown> | null) ?? {};
+      const hygiene = classifyOrderAnomaly(
+        {
+          number: r.number,
+          email: r.email,
+          origin: r.origin,
+          currency: r.currency,
+          total: r.total,
+          totalExact: r.totalExact,
+          meta: existingMeta,
+          address: {
+            name: addr.name as string | undefined,
+            phone: addr.phone as string | undefined,
+            street: addr.street as string | undefined,
+            city: addr.city as string | undefined,
+            dane: addr.dane as string | undefined,
+            country: addr.country as string | undefined,
+            cedula: addr.cedula as string | undefined,
+            zone: addr.zone as string | undefined,
+          },
+        },
+        {
+          market:
+            process.env.MARKET ??
+            (addr.country === "VE" || r.currency === "USD" ? "VE" : undefined),
+        },
+      );
+      if (hygiene.isTest) {
+        if (!r.isTest || r.anomalyReason !== hygiene.anomalyReason) {
+          await db.prisma.order.update({
+            where: { id: r.id },
+            data: {
+              isTest: true,
+              anomalyReason: hygiene.anomalyReason ?? "Pedido de prueba E2E detectado",
+            },
+          });
+        }
+        markedIds.push(r.id);
+      }
+    }
+    return c.json({
+      ok: true,
+      scanned: rows.length,
+      marked: markedIds.length,
+      orderIds: markedIds,
+    });
+  });
+
+  app.post("/api/orders/:key/test-flag", async (c) => {
+    const storeId = sid(c);
+    const k = c.req.param("key").trim();
+    const row =
+      (await db.prisma.order.findFirst({ where: { id: k, storeId } })) ??
+      (await db.prisma.order.findFirst({
+        where: {
+          storeId,
+          OR: [{ externalId: k }, { number: k.startsWith("#") ? k : `#${k}` }],
+        },
+      }));
+    if (!row) return c.json({ ok: false, error: "No encuentro ese pedido." }, 404);
+    const body = (await c.req.json().catch(() => ({}))) as {
+      isTest?: boolean;
+      reason?: string;
+    };
+    const nextIsTest = typeof body.isTest === "boolean" ? body.isTest : !row.isTest;
+    const existingMeta = (row.meta as Record<string, unknown> | null) ?? {};
+    const nextReason = nextIsTest
+      ? body.reason?.trim() || row.anomalyReason || "Marcado manualmente como pedido de prueba"
+      : body.reason?.trim() || null;
+    const updated = await db.prisma.order.update({
+      where: { id: row.id },
+      data: {
+        isTest: nextIsTest,
+        anomalyReason: nextReason,
+        meta: { ...existingMeta, _manual_test_flag: true },
+      },
+    });
+    return c.json({
+      ok: true,
+      orderId: updated.id,
+      isTest: updated.isTest,
+      anomalyReason: updated.anomalyReason,
+    });
   });
 
   app.post("/api/ai/test-connection", async (c) => {
@@ -212,7 +351,9 @@ export function registerApi(app: Hono, rt: Runtime): void {
         });
 
         if (checkRes.ok) {
-          const data = (await checkRes.json().catch(() => ({}))) as { data?: Array<{ id: string }> };
+          const data = (await checkRes.json().catch(() => ({}))) as {
+            data?: Array<{ id: string }>;
+          };
           const modelsList = Array.isArray(data?.data) ? data.data.map((m) => m.id) : [];
           const preferredModel =
             (env as any).GROQ_MODEL || process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
@@ -1106,7 +1247,7 @@ export function registerApi(app: Hono, rt: Runtime): void {
       return c.json({ ok: false, message: "Faltan el pedido y el texto." }, 400);
     const order = await findOrder(db, body.orderKey, sid(c));
     if (!order) return c.json({ ok: false, message: "No encuentro ese pedido." }, 404);
-    if (!order.address.phone.startsWith("+57"))
+    if (!isReachablePhone(order.address.phone, order.address.country))
       return c.json({ ok: false, message: "El pedido no tiene un celular válido." }, 400);
     const sent = await rt.messaging.send({
       to: order.address.phone,

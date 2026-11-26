@@ -4,6 +4,7 @@ import {
   canAutoCreateShipment,
   type EventBus,
   formatCOP,
+  isReachablePhone,
   newId,
   type Order,
   type Quote,
@@ -79,9 +80,16 @@ export async function handleNewOrder(
   ) => bus.emit(kind, summary, { orderId: order.id, data });
 
   // 1) Dirección
-  if (order.address.dane === "00000" || !addressLooksComplete(order.address.street)) {
-    const why =
-      order.address.dane === "00000"
+  const isVE = order.address.country === "VE";
+  const addressInvalid = isVE
+    ? order.address.street.trim().length < 8 || order.address.city.trim().length < 2
+    : order.address.dane === "00000" || !addressLooksComplete(order.address.street);
+  if (addressInvalid) {
+    const why = isVE
+      ? order.address.city.trim().length < 2
+        ? "Falta la ciudad de destino en el pedido"
+        : `La dirección "${order.address.street}" parece incompleta`
+      : order.address.dane === "00000"
         ? `No reconozco el municipio "${order.address.city}"`
         : `La dirección "${order.address.street}" parece incompleta`;
     const id = await createApproval(db, {
@@ -236,7 +244,7 @@ export async function createAndNotify(
   }
 
   const phone = order.address.phone;
-  if (phone.startsWith("+57")) {
+  if (isReachablePhone(phone, order.address.country)) {
     const text = render("pedido_en_camino", {
       nombre: order.address.name,
       tienda: await storeNameOf(deps.db, order.storeId, deps.storeName),

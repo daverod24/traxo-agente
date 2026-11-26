@@ -76,22 +76,32 @@ model Customer {
 }
 
 model Order {
-  id              String   @id
-  storeId         String
-  customerId      String?
-  externalId      String
-  number          String
-  address         Json
-  lines           Json
-  subtotal        Int
-  shippingCharged Int      @default(0)
-  total           Int
-  payment         String
-  utm             Json?
-  status          String   @default("received")
-  confirmAt       DateTime?
-  paymentLinkId   String?
-  createdAt       DateTime @default(now())
+  id                   String   @id
+  storeId              String
+  customerId           String?
+  externalId           String
+  number               String
+  currency             String   @default("USD")
+  email                String?
+  address              Json
+  lines                Json
+  subtotal             Int
+  subtotalExact        Float?
+  shippingCharged      Int      @default(0)
+  shippingChargedExact Float?
+  total                Int
+  totalExact           Float?
+  payment              String
+  utm                  Json?
+  status               String   @default("received")
+  rawStatus            String?
+  origin               String?
+  isTest               Boolean  @default(false)
+  anomalyReason        String?
+  meta                 Json?
+  confirmAt            DateTime?
+  paymentLinkId        String?
+  createdAt            DateTime @default(now())
 
   store     Store      @relation(fields: [storeId], references: [id])
   customer  Customer?  @relation(fields: [customerId], references: [id])

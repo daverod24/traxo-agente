@@ -4,6 +4,7 @@ export * from "./factory.ts";
 export * from "./fixtures.ts";
 export * from "./hmac.ts";
 export * from "./mock.ts";
+export * from "./order-hygiene.ts";
 export * from "./reconciliation.ts";
 export * from "./shopify.ts";
 export * from "./tiendanube.ts";

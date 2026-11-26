@@ -153,3 +153,15 @@ CREATE TABLE IF NOT EXISTS "AnalyticsCache" (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS "AnalyticsCache_storeId_metricType_key" ON "AnalyticsCache"("storeId", "metricType");
 CREATE INDEX IF NOT EXISTS "AnalyticsCache_expiresAt_idx" ON "AnalyticsCache"("expiresAt");
+
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'USD';
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "email" TEXT;
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "subtotalExact" DOUBLE PRECISION;
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "shippingChargedExact" DOUBLE PRECISION;
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "totalExact" DOUBLE PRECISION;
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "rawStatus" TEXT;
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "origin" TEXT;
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "isTest" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "anomalyReason" TEXT;
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "meta" JSONB;
+UPDATE "Order" SET "subtotalExact" = "subtotal", "totalExact" = "total", "shippingChargedExact" = "shippingCharged" WHERE "totalExact" IS NULL;

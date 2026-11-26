@@ -703,6 +703,50 @@ p {
   height: 40px;
   border-bottom: 1px solid var(--line);
 }
+.orders-table td {
+  padding: 10px 12px;
+  height: auto;
+  vertical-align: middle;
+}
+.orders-toolbar {
+  display: grid;
+  gap: 10px;
+}
+.orders-test-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pill-filter {
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--r-pill);
+  padding: 5px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pill-filter.active {
+  background: var(--ink);
+  color: var(--surface);
+  border-color: var(--ink);
+}
+.wa-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-decoration: none;
+  color: var(--success);
+  background: var(--success-soft);
+}
 .table tr.click {
   cursor: pointer;
 }
@@ -749,7 +793,9 @@ p {
   border-radius: var(--r-md, 10px);
   display: flex;
   flex-direction: column;
-  transition: transform 180ms ease, border-color 180ms ease;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease;
 }
 .pipe-step-card:hover {
   transform: translateY(-1px);

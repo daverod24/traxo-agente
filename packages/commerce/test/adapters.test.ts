@@ -197,8 +197,10 @@ describe("WooCommerce", () => {
       true,
     );
     expect(
-      woo.normalizeOrderWebhook({ "x-wc-webhook-topic": "order.updated" }, order),
+      woo.normalizeOrderWebhook({ "x-wc-webhook-topic": "order.deleted" }, order),
     ).toBeUndefined();
+    const updated = woo.normalizeOrderWebhook({ "x-wc-webhook-topic": "order.updated" }, order);
+    expect(updated?.externalId).toBe("77");
     const o = woo.normalizeOrderWebhook({ "x-wc-webhook-topic": "order.created" }, order);
     expect(o?.address.dane).toBe("05001");
     expect(o?.payment).toBe("cod");
