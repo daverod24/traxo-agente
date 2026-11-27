@@ -471,7 +471,20 @@ export class WooCommerce implements CommerceAdapter {
       throw new Error(
         `WooCommerce respondió ${res.status} en ${path}. Revisa las claves y que la tienda use HTTPS.`,
       );
-    return (await res.json()) as T;
+    const rawText = await res.text();
+    try {
+      return JSON.parse(rawText) as T;
+    } catch {
+      const objIdx = rawText.indexOf("{");
+      const arrIdx = rawText.indexOf("[");
+      const candidates = [objIdx, arrIdx].filter((i) => i >= 0);
+      if (candidates.length > 0) {
+        const startIdx = Math.min(...candidates);
+        console.warn(`[woocommerce] Respuesta con prefijo no-JSON en ${path}; limpiando ${startIdx} bytes.`);
+        return JSON.parse(rawText.slice(startIdx)) as T;
+      }
+      throw new Error(`WooCommerce devolvió respuesta no-JSON en ${path}: ${rawText.slice(0, 120)}`);
+    }
   }
 
   async listProducts(opts: { page?: number; limit?: number } = {}): Promise<Product[]> {
