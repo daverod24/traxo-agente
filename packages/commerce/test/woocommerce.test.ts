@@ -426,4 +426,58 @@ describe("L2-A2: WooCommerce Adapter & VE Support", () => {
       stock_status: "instock",
     });
   });
+
+  it("limpia prefijos HTML de WordPress (<div class=\"notice...>) incluso con { o [ dentro del aviso", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const mockFetch = vi.fn(async () => {
+      const htmlPrefix =
+        '<div class="notice notice-warning"><p>Warning: [obsolete] {debug:1}</p></div>\n';
+      const body = `${htmlPrefix}${JSON.stringify([{ id: 77, name: "Serum Test", price: "19.99" }])}`;
+      return {
+        ok: true,
+        text: async () => body,
+      } as Response;
+    });
+
+    const woo = new WooCommerce({
+      storeId: "store_davebeauty_01",
+      url: "https://staging-davebeauty.local",
+      consumerKey: "ck_test",
+      consumerSecret: "cs_test",
+      webhookSecret: "whsec_test",
+      fetch: mockFetch as any,
+    });
+
+    const products = await woo.listProducts();
+    expect(products).toHaveLength(1);
+    expect(products[0]?.externalId).toBe("77");
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("orderFromWoo no descarta silenciosamente pedidos con dirección o ciudad incompleta", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const order = orderFromWoo(
+      {
+        id: 9901,
+        number: "9901",
+        status: "processing",
+        currency: "USD",
+        total: "25.00",
+        billing: {
+          first_name: "Ana",
+          last_name: "Gómez",
+          phone: "04141112233",
+        },
+        line_items: [{ product_id: 17, name: "Aceite de Orégano", quantity: 1, price: "25.00" }],
+      } as any,
+      "store_davebeauty_01",
+    );
+
+    expect(order).toBeDefined();
+    expect(order?.externalId).toBe("9901");
+    expect(order?.address.name).toBe("Ana Gómez");
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
 });

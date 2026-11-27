@@ -231,7 +231,9 @@ export async function importStore(
       if (o.trackingNumber) {
         const carrier = o.carrier || "Dropi";
         const existingShipment = await db.prisma.shipment.findFirst({
-          where: { orderId: order.id },
+          where: {
+            OR: [{ orderId: order.id }, { carrier, trackingNumber: o.trackingNumber }],
+          },
         });
         if (!existingShipment) {
           await db.prisma.shipment.create({

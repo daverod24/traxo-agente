@@ -44,7 +44,8 @@ export type OrderOutcome =
   | { status: "needs_approval"; approvalId: string }
   | { status: "needs_address" }
   | { status: "awaiting_confirmation"; risk: number }
-  | { status: "no_coverage" };
+  | { status: "no_coverage" }
+  | { status: "already_handled" };
 
 export function draftFor(order: Order, originDane: string): ShipmentDraft {
   const cod = order.payment === "cod" ? order.total : 0;
@@ -72,6 +73,17 @@ export async function handleNewOrder(
   opts: { skipConfirmation?: boolean } = {},
 ): Promise<OrderOutcome> {
   const { db, bus } = deps;
+  const existingShipment = await db.prisma.shipment.findFirst({
+    where: { orderId: order.id },
+    select: { id: true, trackingNumber: true, carrier: true },
+  });
+  if (
+    existingShipment ||
+    order.trackingNumber ||
+    ["delivered", "cancelled", "refunded", "shipped"].includes(order.status ?? "")
+  ) {
+    return { status: "already_handled" };
+  }
   const settings = await getSettings(db, order.storeId);
   const ev = (
     kind: Parameters<EventBus["emit"]>[0],

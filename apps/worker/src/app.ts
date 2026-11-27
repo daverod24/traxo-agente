@@ -1,6 +1,6 @@
 import { mapEnviaStatus, verifyEnviaWebhook } from "@traxo/carriers";
-import { type CommerceAdapter } from "@traxo/commerce";
-import { EventBus, type Order, type TrackingEvent } from "@traxo/core";
+import { type CommerceAdapter, parseJsonWithHtmlPrefix } from "@traxo/commerce";
+import { EventBus, newId, type Order, type TrackingEvent } from "@traxo/core";
 import { claimWebhookEvent, type Db, saveOrder } from "@traxo/db";
 import type { InboundMessage, MessagingProvider } from "@traxo/messaging";
 import { Hono } from "hono";
@@ -47,8 +47,9 @@ export function createApp(deps: AppDeps): Hono {
 
     let payload: unknown;
     try {
-      payload = JSON.parse(raw);
-    } catch {
+      payload = parseJsonWithHtmlPrefix(raw, `webhook:${platform}`);
+    } catch (e) {
+      console.warn(`[webhook:${platform}] Cuerpo no es JSON válido:`, (e as Error).message);
       return c.json({ error: "Cuerpo no es JSON" }, 400);
     }
 
@@ -135,9 +136,48 @@ export function createApp(deps: AppDeps): Hono {
     }
 
     const order = adapter.normalizeOrderWebhook(headers, payload);
-    if (!order) return c.json({ ok: true, ignored: true });
+    if (!order) {
+      console.warn(
+        `[webhook:${platform}] Evento ignorado (topic=${topic || "none"}, id=${rawEventId || "none"}).`,
+      );
+      return c.json({ ok: true, ignored: true });
+    }
 
     const { order: saved, created } = await saveOrder(deps.db, order);
+    const existingShipment = await deps.db.prisma.shipment.findFirst({
+      where: { orderId: saved.id },
+      select: { id: true, trackingNumber: true },
+    });
+
+    if (saved.trackingNumber && !existingShipment) {
+      const carrier = saved.carrier || "Dropi";
+      const dupTracking = await deps.db.prisma.shipment.findFirst({
+        where: { carrier, trackingNumber: saved.trackingNumber },
+        select: { id: true },
+      });
+      if (!dupTracking) {
+        await deps.db.prisma.shipment.create({
+          data: {
+            id: newId("shp"),
+            orderId: saved.id,
+            provider: "dropi",
+            carrier,
+            service: "standard",
+            trackingNumber: saved.trackingNumber,
+            labelUrl: "",
+            trackUrl: `https://dropi.co/tracking/${saved.trackingNumber}`,
+            total: 0,
+            status: saved.status === "delivered" ? "delivered" : "in_transit",
+          },
+        });
+      }
+    }
+
+    const isHistoricalOrDispatched =
+      Boolean(saved.trackingNumber) ||
+      Boolean(existingShipment) ||
+      ["delivered", "cancelled", "refunded", "shipped"].includes(saved.status ?? "");
+
     if (created) {
       deps.bus.emit(
         "order.received",
@@ -146,14 +186,20 @@ export function createApp(deps: AppDeps): Hono {
           orderId: saved.id,
         },
       );
-      // No bloquea la respuesta: la tienda espera 200 en pocos segundos.
-      void Promise.resolve(deps.onOrder?.(saved)).catch((e) =>
-        deps.bus.emit(
-          "error",
-          `No pude procesar el pedido ${saved.number}: ${(e as Error).message}`,
-          { orderId: saved.id },
-        ),
-      );
+      if (isHistoricalOrDispatched) {
+        console.warn(
+          `[webhook:${platform}] Pedido ${saved.number} ya despachado/histórico (status=${saved.status}, tracking=${saved.trackingNumber ?? existingShipment?.trackingNumber ?? "none"}); omitiendo auto-despacho a Dropi.`,
+        );
+      } else {
+        // No bloquea la respuesta: la tienda espera 200 en pocos segundos.
+        void Promise.resolve(deps.onOrder?.(saved)).catch((e) =>
+          deps.bus.emit(
+            "error",
+            `No pude procesar el pedido ${saved.number}: ${(e as Error).message}`,
+            { orderId: saved.id },
+          ),
+        );
+      }
     }
     return c.json({ ok: true, orderId: saved.id, created });
   });

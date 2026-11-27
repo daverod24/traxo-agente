@@ -12,7 +12,7 @@ import { createRuntime } from "./runtime.ts";
 const url = process.env.TRAXO_URL;
 let client: ReturnType<typeof httpClient>;
 if (url) {
-  client = httpClient(url, process.env.TRAXO_MCP_TOKEN);
+  client = httpClient(url, process.env.TRAXO_API_TOKEN || process.env.TRAXO_MCP_TOKEN);
 } else {
   const rt = await createRuntime();
   const app = createApp({ db: rt.db, bus: rt.bus, commerce: rt.commerceMap });

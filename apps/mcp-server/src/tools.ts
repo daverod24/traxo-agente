@@ -617,4 +617,64 @@ export function registerTools(
       return `Pedido ${r.number} simulado → ${JSON.stringify(r.outcome)}`;
     }),
   );
+
+  server.registerTool(
+    "traxo_sync_status",
+    {
+      title: "Estado de sincronización WooCommerce",
+      description:
+        "Consulta salud, conteos (productos, órdenes, clientes), alcance de WooCommerce y advertencias de sincronización.",
+      inputSchema: {},
+    },
+    wrap(async () => {
+      const r = await api.get<Json>("/api/sync/status");
+      return JSON.stringify(r, null, 2);
+    }),
+  );
+
+  server.registerTool(
+    "traxo_sync_woocommerce",
+    {
+      title: "Sincronizar catálogo y órdenes desde WooCommerce",
+      description:
+        "Ejecuta importación idempotente desde WooCommerce hacia Traxo (no duplica órdenes ni reenvía pedidos a Dropi).",
+      inputSchema: {},
+    },
+    wrap(async () => {
+      const r = await api.post<Json>("/api/products/sync", {});
+      return JSON.stringify(r, null, 2);
+    }),
+  );
+
+  server.registerTool(
+    "traxo_sync_stock",
+    {
+      title: "Sincronizar stock físico Dropi -> WooCommerce",
+      description:
+        "Sincroniza el stock físico (desde Dropi si DROPI_API_KEY está configurado, o vía physicalStock explícito) hacia Traxo y WooCommerce HPOS (1x/2x/3x).",
+      inputSchema: {
+        productId: z.string().optional(),
+        dropiId: z.string().optional(),
+        physicalStock: z.number().int().min(0).optional(),
+      },
+    },
+    wrap(
+      async ({
+        productId,
+        dropiId,
+        physicalStock,
+      }: {
+        productId?: string;
+        dropiId?: string;
+        physicalStock?: number;
+      }) => {
+        const r = await api.post<Json>("/api/products/stock-sync", {
+          ...(productId ? { productId } : {}),
+          ...(dropiId ? { dropiId } : {}),
+          ...(physicalStock !== undefined ? { physicalStock } : {}),
+        });
+        return JSON.stringify(r, null, 2);
+      },
+    ),
+  );
 }

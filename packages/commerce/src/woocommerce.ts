@@ -299,24 +299,64 @@ export function mapWooStatus(s?: string): string {
   }
 }
 
+export function parseJsonWithHtmlPrefix<T = unknown>(rawText: string, source: string): T {
+  const trimmed = rawText.trim();
+  if (!trimmed) {
+    throw new Error(`WooCommerce devolvió una respuesta vacía en ${source}.`);
+  }
+  try {
+    return JSON.parse(trimmed) as T;
+  } catch {
+    let pos = 0;
+    let attempts = 0;
+    while (pos < trimmed.length && attempts < 40) {
+      const objIdx = trimmed.indexOf("{", pos);
+      const arrIdx = trimmed.indexOf("[", pos);
+      const candidates = [objIdx, arrIdx].filter((i) => i >= 0);
+      if (candidates.length === 0) break;
+      const startIdx = Math.min(...candidates);
+      attempts++;
+      try {
+        const parsed = JSON.parse(trimmed.slice(startIdx)) as T;
+        const prefixPreview = trimmed.slice(0, Math.min(startIdx, 120)).replace(/\s+/g, " ").trim();
+        console.warn(
+          `[woocommerce] Respuesta con prefijo no-JSON en ${source}; limpiando ${startIdx} bytes (${prefixPreview}).`,
+        );
+        return parsed;
+      } catch {
+        pos = startIdx + 1;
+      }
+    }
+    const snippet = trimmed.slice(0, 160).replace(/\s+/g, " ");
+    console.error(`[woocommerce] Respuesta no-JSON irrecuperable en ${source}: ${snippet}`);
+    throw new Error(`WooCommerce devolvió respuesta no-JSON en ${source}: ${snippet}`);
+  }
+}
+
 export function orderFromWoo(o: WooOrder, storeId: string): Order | undefined {
+  if (!o || o.id == null) return undefined;
+
   const s = o.shipping;
   const b = o.billing;
   const firstName = s?.first_name?.trim() || b?.first_name?.trim() || "";
   const lastName = s?.last_name?.trim() || b?.last_name?.trim() || "";
   const address1 = s?.address_1?.trim() || b?.address_1?.trim() || "";
   const address2 = s?.address_2?.trim() || b?.address_2?.trim() || "";
-  const cityRaw = s?.city?.trim() || b?.city?.trim() || "";
+  const metaMap = new Map((o.meta_data || []).map((m) => [m.key, m.value]));
+  const cityRaw = s?.city?.trim() || b?.city?.trim() || strMeta(metaMap.get("_dropi_city")) || "";
   const stateRaw = s?.state?.trim() || b?.state?.trim() || "";
   const countryRaw = (s?.country?.trim() || b?.country?.trim() || "CO").toUpperCase();
   const rawPhone = s?.phone?.trim() || b?.phone?.trim() || "";
   const email = b?.email?.trim() || s?.email?.trim() || undefined;
 
-  if (!cityRaw || !address1 || !o.line_items?.length) return undefined;
+  if (!cityRaw || !address1 || !o.line_items?.length) {
+    console.warn(
+      `[woocommerce] Pedido #${o.number ?? o.id} con datos incompletos (city=${Boolean(cityRaw)}, address=${Boolean(address1)}, items=${o.line_items?.length ?? 0}); se importa igual para no perder el registro.`,
+    );
+  }
 
   const isVE = countryRaw === "VE" || rawPhone.startsWith("+58") || rawPhone.startsWith("04");
 
-  const metaMap = new Map((o.meta_data || []).map((m) => [m.key, m.value]));
   const meta: Record<string, unknown> = {};
   for (const key of EXTRACTED_META_KEYS) {
     if (metaMap.has(key)) {
@@ -353,7 +393,7 @@ export function orderFromWoo(o: WooOrder, storeId: string): Order | undefined {
     streetStr = normalizeStreet([address1, address2].filter(Boolean).join(" "));
   }
 
-  const lines = o.line_items.map((l) => {
+  const lines = (o.line_items ?? []).map((l) => {
     const unitPriceExact = round2(parseFloatSafe(l.price));
     const lineTotal =
       l.total != null && l.total !== ""
@@ -471,20 +511,11 @@ export class WooCommerce implements CommerceAdapter {
       throw new Error(
         `WooCommerce respondió ${res.status} en ${path}. Revisa las claves y que la tienda use HTTPS.`,
       );
-    const rawText = await res.text();
-    try {
-      return JSON.parse(rawText) as T;
-    } catch {
-      const objIdx = rawText.indexOf("{");
-      const arrIdx = rawText.indexOf("[");
-      const candidates = [objIdx, arrIdx].filter((i) => i >= 0);
-      if (candidates.length > 0) {
-        const startIdx = Math.min(...candidates);
-        console.warn(`[woocommerce] Respuesta con prefijo no-JSON en ${path}; limpiando ${startIdx} bytes.`);
-        return JSON.parse(rawText.slice(startIdx)) as T;
-      }
-      throw new Error(`WooCommerce devolvió respuesta no-JSON en ${path}: ${rawText.slice(0, 120)}`);
+    if (typeof res.text !== "function") {
+      return (await res.json()) as T;
     }
+    const rawText = await res.text();
+    return parseJsonWithHtmlPrefix<T>(rawText, path);
   }
 
   async listProducts(opts: { page?: number; limit?: number } = {}): Promise<Product[]> {

@@ -49,12 +49,18 @@ export async function saveOrder(db: Db, order: Order): Promise<{ order: Order; c
       ? (existing.anomalyReason ?? null)
       : (order.anomalyReason ?? null);
     const parsedCreatedAt = validDateOrUndefined(order.createdAt);
+    const preserveLocalFulfillment =
+      (existing.status === "shipped" || existing.status === "delivered") &&
+      (order.status === "pending" || order.status === "confirmed");
+    const nextStatus = preserveLocalFulfillment
+      ? existing.status
+      : (order.status ?? existing.status);
 
     await prisma.order.update({
       where: { id: existing.id },
       data: {
         customerId: nextCustomerId,
-        status: order.status ?? existing.status,
+        status: nextStatus,
         rawStatus: order.rawStatus ?? existing.rawStatus,
         total: order.total,
         totalExact: order.totalExact ?? order.total,
@@ -79,7 +85,7 @@ export async function saveOrder(db: Db, order: Order): Promise<{ order: Order; c
         ...order,
         id: existing.id,
         customerId: nextCustomerId ?? undefined,
-        status: order.status ?? existing.status,
+        status: nextStatus,
         isTest: nextIsTest,
         anomalyReason: nextAnomalyReason ?? undefined,
       },

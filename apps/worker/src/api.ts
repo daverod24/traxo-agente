@@ -809,6 +809,92 @@ export function registerApi(app: Hono, rt: Runtime): void {
     );
   });
 
+  app.get("/api/sync/status", async (c) => {
+    const storeId = sid(c);
+    const adapter = rt.commerceMap?.[storeId] ?? rt.commerce;
+    const [store, productCount, orderCount, customerCount, recentSyncEvents] = await Promise.all([
+      db.prisma.store.findUnique({ where: { id: storeId } }),
+      db.prisma.product.count({ where: { storeId } }),
+      db.prisma.order.count({ where: { storeId } }),
+      db.prisma.customer.count({ where: { storeId } }),
+      db.prisma.agentRun.findMany({
+        where: {
+          storeId,
+          kind: { in: ["error", "store.imported", "product.synced"] },
+        },
+        orderBy: { at: "desc" },
+        take: 15,
+      }),
+    ]);
+
+    const profile = (store?.profile as Record<string, unknown> | null) ?? {};
+    const lastImportedAt = typeof profile.importedAt === "string" ? profile.importedAt : null;
+
+    const isWoo = adapter?.platform === "woocommerce";
+    let wooReachable = false;
+    let wooLatencyMs: number | null = null;
+    let wooError: string | null = null;
+
+    if (isWoo) {
+      const started = Date.now();
+      try {
+        await Promise.race([
+          (
+            adapter as {
+              listProducts: (opts?: { page?: number; limit?: number }) => Promise<unknown[]>;
+            }
+          ).listProducts({ page: 1, limit: 1 }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Timeout al consultar WooCommerce (5s)")), 5000),
+          ),
+        ]);
+        wooReachable = true;
+        wooLatencyMs = Date.now() - started;
+      } catch (e) {
+        wooReachable = false;
+        wooLatencyMs = Date.now() - started;
+        wooError = (e as Error).message;
+      }
+    }
+
+    const warnings = recentSyncEvents
+      .filter((e) => e.kind === "error")
+      .map((e) => ({
+        at: e.at.toISOString(),
+        kind: e.kind,
+        summary: e.summary,
+      }));
+    if (isWoo && !wooReachable && wooError) {
+      warnings.unshift({
+        at: new Date().toISOString(),
+        kind: "woocommerce.unreachable",
+        summary: wooError,
+      });
+    }
+
+    const healthy = isWoo ? wooReachable && warnings.length === 0 : true;
+
+    return c.json({
+      ok: true,
+      storeId,
+      platform: store?.platform ?? adapter?.platform ?? "unknown",
+      healthy,
+      lastImportedAt,
+      counts: {
+        products: productCount,
+        orders: orderCount,
+        customers: customerCount,
+      },
+      woocommerce: {
+        configured: isWoo,
+        reachable: wooReachable,
+        latencyMs: wooLatencyMs,
+        error: wooError,
+      },
+      warnings,
+    });
+  });
+
   app.post("/api/products/sync", async (c) => {
     const storeId = sid(c);
     const adapter = rt.commerceMap[storeId] ?? rt.commerce;
