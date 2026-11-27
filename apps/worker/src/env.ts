@@ -37,6 +37,10 @@ export const ServerEnvSchema = z.object({
   WOOCOMMERCE_KEY: optionalString,
   WOOCOMMERCE_SECRET: optionalString,
 
+  // Dropi API
+  DROPI_API_URL: optionalUrl,
+  DROPI_API_KEY: optionalString,
+
   // Proveedores LLM (Inferencia Multi-Provider en Cascada)
   GEMINI_API_KEY: optionalString,
   GEMINI_MODEL: z.string().default("gemini-2.5-flash"),

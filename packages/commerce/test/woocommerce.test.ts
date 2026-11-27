@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { orderFromWoo, WooCommerce } from "../src/woocommerce.ts";
+import { normalizeProductFromWoo, orderFromWoo, WooCommerce } from "../src/woocommerce.ts";
 
 describe("L2-A2: WooCommerce Adapter & VE Support", () => {
   it("parsea pedidos venezolanos con país VE, teléfono +58 y precios decimales sin DANE", () => {
@@ -356,5 +356,74 @@ describe("L2-A2: WooCommerce Adapter & VE Support", () => {
     expect(order.createdAt).toBe("2026-11-25T23:45:00.000Z");
     expect(order.meta?._storefront_coupon).toBe("DAVE10");
     expect(order.isTest).toBe(false);
+  });
+
+  it("normaliza manage_stock, stock_quantity, stock_status y dropiProductId en normalizeProductFromWoo", () => {
+    const product = normalizeProductFromWoo({
+      id: 55,
+      name: "Crema Reafirmante Lifting",
+      price: "22.99",
+      sku: "DB-SKIN-NECK-LIFT",
+      manage_stock: true,
+      stock_quantity: 12,
+      stock_status: "instock",
+      meta_data: [{ key: "_dropi_product_id", value: "196" }],
+    });
+
+    expect(product.manageStock).toBe(true);
+    expect(product.stockQuantity).toBe(12);
+    expect(product.stockStatus).toBe("instock");
+    expect(product.dropiProductId).toBe("196");
+  });
+
+  it("updateProductStock y updateVariationStock envían PUT a los endpoints de WooCommerce v3", async () => {
+    const calls: Array<{ url: string; method?: string; body?: any }> = [];
+    const mockFetch = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({
+        url: String(url),
+        method: init?.method,
+        body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      });
+      return { ok: true, json: async () => ({}) } as Response;
+    });
+
+    const woo = new WooCommerce({
+      storeId: "store_davebeauty_01",
+      url: "https://staging-davebeauty.local",
+      consumerKey: "ck_test",
+      consumerSecret: "cs_test",
+      webhookSecret: "whsec_test",
+      fetch: mockFetch as any,
+    });
+
+    await woo.updateProductStock("55", {
+      manageStock: true,
+      stockQuantity: 10,
+      stockStatus: "instock",
+    });
+    await woo.updateVariationStock("55", "5502", {
+      manageStock: true,
+      stockQuantity: 5,
+      stockStatus: "instock",
+    });
+
+    expect(calls).toHaveLength(2);
+    expect(calls[0].url).toBe("https://staging-davebeauty.local/wp-json/wc/v3/products/55");
+    expect(calls[0].method).toBe("PUT");
+    expect(calls[0].body).toEqual({
+      manage_stock: true,
+      stock_quantity: 10,
+      stock_status: "instock",
+    });
+
+    expect(calls[1].url).toBe(
+      "https://staging-davebeauty.local/wp-json/wc/v3/products/55/variations/5502",
+    );
+    expect(calls[1].method).toBe("PUT");
+    expect(calls[1].body).toEqual({
+      manage_stock: true,
+      stock_quantity: 5,
+      stock_status: "instock",
+    });
   });
 });

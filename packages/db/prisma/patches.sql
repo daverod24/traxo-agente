@@ -100,6 +100,10 @@ ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "referenceImageUrl" TEXT;
 ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "keyIngredients" TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "commonObjections" TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "packRules" JSONB;
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "manageStock" BOOLEAN;
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "stockQuantity" INTEGER;
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "stockStatus" TEXT;
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "dropiProductId" TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS "Product_storeId_externalId_key" ON "Product"("storeId", "externalId");
 
 CREATE TABLE IF NOT EXISTS "MarketingGeneration" (

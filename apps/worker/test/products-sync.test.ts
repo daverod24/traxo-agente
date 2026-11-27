@@ -187,4 +187,122 @@ describe("Catálogo Headless: Sincronización WooCommerce HPOS y Traxo Agente", 
       "Crema Reafirmante Lifting para Cuello y Escote - Edición Especial",
     );
   });
+
+  it("POST /api/products/stock-sync actualiza DB + WooCommerce (producto y variaciones) y falla limpio sin DROPI_API_KEY", async () => {
+    const wooCalls: Array<{ url: string; method?: string; body?: any }> = [];
+    const mockFetch = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      wooCalls.push({
+        url: String(url),
+        method: init?.method,
+        body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      });
+      return { ok: true, json: async () => ({}) } as Response;
+    });
+
+    const woo = new WooCommerce({
+      storeId: "store_demo_beauty",
+      url: "https://apiv2backecom.daverod.tech",
+      consumerKey: "ck_test",
+      consumerSecret: "cs_test",
+      webhookSecret: "whsec_test",
+      fetch: mockFetch as any,
+    });
+
+    const store = await db.prisma.store.findUnique({ where: { id: "store_demo_beauty" } });
+    const prevProfile = (store?.profile as Record<string, unknown> | null) ?? {};
+    await db.prisma.store.update({
+      where: { id: "store_demo_beauty" },
+      data: {
+        profile: {
+          ...prevProfile,
+          catalogMeta: {
+            "55": {
+              dropiId: "196",
+              variations: [
+                { id: 5501, sku: "DB-SKIN-NECK-LIFT-1", name: "Individual (1x)" },
+                { id: 5502, sku: "DB-SKIN-NECK-LIFT-2", name: "Dúo (2x)" },
+                { id: 5503, sku: "DB-SKIN-NECK-LIFT-3", name: "Trío (3x)" },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    const rt: any = {
+      db,
+      bus: new EventBus(),
+      commerce: woo,
+      commerceMap: { store_demo_beauty: woo },
+      storeId: "store_demo_beauty",
+      storeName: "Davebeauty Demo",
+      carriers: [],
+      mocks: [],
+      messaging: undefined,
+      connections: [],
+    };
+
+    const app = new Hono();
+    registerApi(app, rt);
+
+    // 1. Con physicalStock explícito
+    const res = await app.request("/api/products/stock-sync", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-traxo-store-id": "store_demo_beauty",
+      },
+      body: JSON.stringify({
+        productId: "55",
+        dropiId: "196",
+        physicalStock: 7,
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body.physicalStock).toBe(7);
+    expect(body.stockStatus).toBe("instock");
+    expect(body.packs["1"].stockQuantity).toBe(7);
+    expect(body.packs["2"].stockQuantity).toBe(3);
+    expect(body.packs["3"].stockQuantity).toBe(2);
+    expect(body.wooSynced).toBe(true);
+    expect(body.variationsSynced).toBe(3);
+
+    expect(wooCalls).toHaveLength(4);
+    expect(wooCalls[0].url).toContain("/wp-json/wc/v3/products/55");
+    expect(wooCalls[0].body).toEqual({
+      manage_stock: true,
+      stock_quantity: 7,
+      stock_status: "instock",
+    });
+    expect(wooCalls[2].url).toContain("/wp-json/wc/v3/products/55/variations/5502");
+    expect(wooCalls[2].body.stock_quantity).toBe(3);
+
+    const dbProd = await db.prisma.product.findFirst({
+      where: { storeId: "store_demo_beauty", externalId: "55" },
+    });
+    expect(dbProd?.manageStock).toBe(true);
+    expect(dbProd?.stockQuantity).toBe(7);
+    expect(dbProd?.stockStatus).toBe("instock");
+    expect(dbProd?.dropiProductId).toBe("196");
+
+    // 2. Sin physicalStock y sin DROPI_API_KEY
+    const resNoKey = await app.request("/api/products/stock-sync", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-traxo-store-id": "store_demo_beauty",
+      },
+      body: JSON.stringify({ productId: "55" }),
+    });
+    expect(resNoKey.status).toBe(400);
+    const noKeyBody = await resNoKey.json();
+    expect(noKeyBody).toEqual({
+      ok: false,
+      configured: false,
+      reason: "DROPI_API_KEY not configured",
+    });
+  });
 });

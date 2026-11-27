@@ -1,5 +1,6 @@
 export * from "./demo-data.ts";
 export * from "./dropi-reader.ts";
+export * from "./dropi-stock.ts";
 export * from "./factory.ts";
 export * from "./fixtures.ts";
 export * from "./hmac.ts";
