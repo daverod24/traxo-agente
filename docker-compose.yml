@@ -33,6 +33,8 @@ services:
       TRAXO_SECONDARY_CURRENCY: "VES"
       TRAXO_BCV_RATE: "${TRAXO_BCV_RATE:-880.00}"
       DROPI_MCP_URL: "${DROPI_MCP_URL:-https://mcp.dropi.co/mcp}"
+      DROPI_API_URL: "${DROPI_API_URL:-https://api.dropi.com.ve/api}"
+      DROPI_API_KEY: "${DROPI_API_KEY:-}"
       # Pasarelas & Pagos Venezuela
       MISPIDI_ENV: "${MISPIDI_ENV:-production}"
       MISPIDI_API_KEY: "${MISPIDI_API_KEY:-}"
